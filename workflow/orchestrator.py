@@ -4,6 +4,7 @@ from shared.contracts import (
     CustomerRequirement,
     ProductCandidate,
     SizingRequest,
+    SizingResult,
     WorkflowContext,
     WorkflowState,
 )
@@ -94,7 +95,7 @@ class DeterministicWorkflow:
         return context
 
     @staticmethod
-    def _product_search_request(sizing, budget_vnd):
+    def _product_search_request(sizing: SizingResult, budget_vnd: int):
         from shared.contracts import ProductFilter, ProductSearchRequest
 
         return ProductSearchRequest(
