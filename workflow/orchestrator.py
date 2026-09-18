@@ -12,7 +12,47 @@ from shared.interfaces import ProductRepository, ProposalService, SizingService,
 from services.requirement import RequirementAnalyzer
 
 
+class WorkflowTransitionError(ValueError):
+    """Raised when a workflow attempts a transition outside its state machine."""
+
+
 class DeterministicWorkflow:
+    _ALLOWED_TRANSITIONS: dict[WorkflowState, frozenset[WorkflowState]] = {
+        WorkflowState.RECEIVED: frozenset({WorkflowState.ANALYZING_REQUIREMENT}),
+        WorkflowState.ANALYZING_REQUIREMENT: frozenset(
+            {WorkflowState.MISSING_INFORMATION, WorkflowState.READY_FOR_SIZING}
+        ),
+        WorkflowState.MISSING_INFORMATION: frozenset(),
+        WorkflowState.READY_FOR_SIZING: frozenset({WorkflowState.SIZING}),
+        WorkflowState.SIZING: frozenset(
+            {WorkflowState.SIZING_FAILED, WorkflowState.SEARCHING_PRODUCTS}
+        ),
+        WorkflowState.SEARCHING_PRODUCTS: frozenset(
+            {WorkflowState.NO_SUITABLE_PRODUCT, WorkflowState.VALIDATING_PRODUCTS}
+        ),
+        WorkflowState.VALIDATING_PRODUCTS: frozenset(
+            {
+                WorkflowState.INSUFFICIENT_PRODUCT_DATA,
+                WorkflowState.VALIDATION_FAILED,
+                WorkflowState.COMPARING_OPTIONS,
+            }
+        ),
+        WorkflowState.READING_DOCUMENTS: frozenset({WorkflowState.COMPARING_OPTIONS}),
+        WorkflowState.COMPARING_OPTIONS: frozenset({WorkflowState.GENERATING_PROPOSAL}),
+        WorkflowState.GENERATING_PROPOSAL: frozenset(
+            {WorkflowState.PROPOSAL_FAILED, WorkflowState.VERIFYING_PROPOSAL}
+        ),
+        WorkflowState.VERIFYING_PROPOSAL: frozenset(
+            {WorkflowState.PROPOSAL_FAILED, WorkflowState.COMPLETED}
+        ),
+        WorkflowState.COMPLETED: frozenset(),
+        WorkflowState.NO_SUITABLE_PRODUCT: frozenset(),
+        WorkflowState.INSUFFICIENT_PRODUCT_DATA: frozenset(),
+        WorkflowState.SIZING_FAILED: frozenset(),
+        WorkflowState.VALIDATION_FAILED: frozenset(),
+        WorkflowState.PROPOSAL_FAILED: frozenset(),
+    }
+
     def __init__(
         self,
         repository: ProductRepository,
@@ -108,5 +148,10 @@ class DeterministicWorkflow:
 
     @staticmethod
     def _transition(context: WorkflowContext, state: WorkflowState) -> None:
+        allowed = DeterministicWorkflow._ALLOWED_TRANSITIONS[context.state]
+        if state not in allowed:
+            raise WorkflowTransitionError(
+                f"Illegal workflow transition: {context.state.value} -> {state.value}"
+            )
         context.state = state
         context.history.append(state)
