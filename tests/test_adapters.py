@@ -1,4 +1,10 @@
+from adapters.catalog import InMemoryProductRepository
+from adapters.documents import FakeDocumentSearch
+from adapters.embeddings import FakeEmbeddingProvider
+from adapters.model import FakeModelClient
+from adapters.reranking import FakeReranker
 from shared.contracts import (
+    ChatMessage,
     DocumentChunk,
     DocumentSearchRequest,
     Product,
@@ -6,11 +12,6 @@ from shared.contracts import (
     ProductSearchRequest,
     ProductType,
 )
-from adapters.catalog import InMemoryProductRepository
-from adapters.documents import FakeDocumentSearch
-from adapters.embeddings import FakeEmbeddingProvider
-from adapters.model import FakeModelClient
-from adapters.reranking import FakeReranker
 
 
 def make_product(product_id: str, price: int, ram: int, gpu_count: int) -> Product:
@@ -20,11 +21,9 @@ def make_product(product_id: str, price: int, ram: int, gpu_count: int) -> Produ
         name=f"Product {product_id}",
         manufacturer="Demo",
         product_type=ProductType.AI_SERVER,
-        max_gpu_count=gpu_count,
-        vram_gb=48,
-        default_ram_gb=ram,
-        max_ram_gb=1024,
-        price_vnd=price,
+        max_gpu_slots=gpu_count,
+        max_ram_gb=ram,
+        base_price_vnd=price,
     )
 
 
@@ -49,16 +48,16 @@ def test_fake_document_search_and_reranker_are_deterministic() -> None:
     ]
     search = FakeDocumentSearch(chunks)
     found = search.search(DocumentSearchRequest(query="GPU", product_id="p-1"))
-    ranked = FakeReranker().rank("GPU", found.chunks)
+    ranked = FakeReranker().rank("GPU", found.hits)
 
-    assert [chunk.id for chunk in ranked] == ["1"]
+    assert [hit.chunk.id for hit in ranked] == ["1"]
 
 
 def test_fake_embeddings_return_repeatable_vectors() -> None:
     provider = FakeEmbeddingProvider(dimensions=4)
 
     assert provider.embed(["hello"]) == provider.embed(["hello"])
-    assert len(provider.embed(["hello"])[0]) == 4
+    assert len(provider.embed(["hello"])[0].dense) == 4
 
 
 def test_fake_embeddings_support_dimensions_beyond_single_digest() -> None:
@@ -68,12 +67,14 @@ def test_fake_embeddings_support_dimensions_beyond_single_digest() -> None:
     second = provider.embed(["hello", "world"])
 
     assert first == second
-    assert [len(vector) for vector in first] == [64, 64]
+    assert [len(vector.dense) for vector in first] == [64, 64]
     assert first[0] != first[1]
 
 
 def test_fake_model_client_returns_configured_deterministic_response() -> None:
     client = FakeModelClient(response="stable response")
 
-    assert client.generate("first prompt") == "stable response"
-    assert client.generate("second prompt") == "stable response"
+    first = client.complete([ChatMessage(role="user", content="first prompt")])
+    second = client.complete([ChatMessage(role="user", content="second prompt")])
+    assert first.message.content == "stable response"
+    assert second.message.content == "stable response"

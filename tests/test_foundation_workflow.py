@@ -1,0 +1,230 @@
+from adapters.catalog import InMemoryProductRepository
+from adapters.documents import FakeDocumentSearch
+from services.comparison.service import RuleBasedComparisonService
+from services.configuration.service import ProductConfigurationBuilder
+from services.proposal.service import RuleBasedProposalService, RuleBasedProposalVerifier
+from services.sizing.service import DeterministicSizingService, estimate_ai_requirements
+from services.validation.service import RuleBasedConfigurationValidator
+from shared.contracts import (
+    CustomerRequirement,
+    DocumentChunk,
+    GPUOption,
+    Product,
+    ProductConfiguration,
+    ProductType,
+    SizingRequest,
+    UsageType,
+    ValidationStatus,
+    WorkflowState,
+)
+from workflow.orchestrator import DeterministicWorkflow
+
+
+def make_product(product_id: str, *, ram: int | None = 1024) -> Product:
+    return Product(
+        id=product_id,
+        sku=product_id.upper(),
+        name=f"Server {product_id}",
+        manufacturer="Demo",
+        product_type=ProductType.AI_SERVER,
+        max_ram_gb=ram,
+        max_gpu_slots=4,
+        max_storage_gb=8000,
+        base_price_vnd=100_000_000,
+        source_urls=[f"https://example.invalid/{product_id}"],
+    )
+
+
+def make_gpu(product_ids: list[str], memory_gb: int = 96) -> GPUOption:
+    return GPUOption(
+        gpu_id=f"gpu-{memory_gb}",
+        name=f"GPU {memory_gb}",
+        memory_gb=memory_gb,
+        supported_product_ids=product_ids,
+        price_vnd=50_000_000,
+        source_urls=[f"https://example.invalid/gpu-{memory_gb}"],
+    )
+
+
+def requirement() -> CustomerRequirement:
+    return CustomerRequirement(
+        model_size_b=20,
+        usage=UsageType.INFERENCE,
+        budget_vnd=500_000_000,
+    )
+
+
+def test_96gb_gpu_can_satisfy_vram_without_a_48gb_assumption() -> None:
+    sizing = estimate_ai_requirements(
+        SizingRequest(model_parameters_b=20, usage=UsageType.INFERENCE)
+    )
+    product = make_product("p-1")
+    configurations = ProductConfigurationBuilder([make_gpu([product.id])]).build(
+        [product], sizing, requirement()
+    )
+
+    assert configurations[0].gpu_count == 1
+    assert configurations[0].total_vram_gb == 96
+
+
+def test_validation_distinguishes_pass_fail_and_unknown() -> None:
+    sizing = estimate_ai_requirements(
+        SizingRequest(model_parameters_b=20, usage=UsageType.INFERENCE)
+    )
+    validator = RuleBasedConfigurationValidator()
+    passing = ProductConfigurationBuilder([make_gpu(["pass"])]).build(
+        [make_product("pass")], sizing, requirement()
+    )[0]
+    failing = passing.model_copy(
+        update={"configured_ram_gb": 2048, "configuration_id": "fail"}
+    )
+    unknown = ProductConfiguration(
+        configuration_id="unknown",
+        product=make_product("unknown", ram=None),
+        configured_storage_gb=1000,
+    )
+
+    assert validator.validate(requirement(), sizing, passing).status == ValidationStatus.PASS
+    assert validator.validate(requirement(), sizing, failing).status == ValidationStatus.FAIL
+    unknown_result = validator.validate(requirement(), sizing, unknown)
+    assert unknown_result.status == ValidationStatus.UNKNOWN
+    assert "selected_gpu" in unknown_result.unknown_fields
+
+
+def build_workflow(
+    products: list[Product],
+    gpu_options: list[GPUOption],
+    chunks: list[DocumentChunk],
+):
+    return DeterministicWorkflow(
+        repository=InMemoryProductRepository(products),
+        sizing_service=DeterministicSizingService(),
+        configuration_builder=ProductConfigurationBuilder(gpu_options),
+        validator=RuleBasedConfigurationValidator(),
+        document_search=FakeDocumentSearch(chunks),
+        comparison_service=RuleBasedComparisonService(),
+        proposal_service=RuleBasedProposalService(),
+        proposal_verifier=RuleBasedProposalVerifier(),
+    )
+
+
+def test_workflow_calls_document_search_and_builds_option_a_and_b() -> None:
+    products = [make_product("p-1"), make_product("p-2")]
+    gpu = make_gpu([product.id for product in products])
+    workflow = build_workflow(
+        products,
+        [gpu],
+        [
+            DocumentChunk(
+                id=f"doc-{product.id}",
+                text="verified GPU RAM storage source",
+                product_id=product.id,
+                source_url=f"https://example.invalid/{product.id}/doc",
+            )
+            for product in products
+        ],
+    )
+
+    context = workflow.run(requirement())
+
+    assert context.state == WorkflowState.COMPLETE
+    assert WorkflowState.READ_DOCUMENTS in context.history
+    assert context.document_hits
+    assert [option.name for option in context.proposal.options] == ["Option A", "Option B"]
+    assert context.comparison is not None
+
+
+def test_unknown_only_candidates_stop_as_insufficient_product_data() -> None:
+    workflow = build_workflow([make_product("unknown", ram=None)], [], [])
+
+    context = workflow.run(requirement())
+
+    assert context.state == WorkflowState.INSUFFICIENT_PRODUCT_DATA
+
+
+def test_missing_information_is_stateless_and_never_searches_catalog() -> None:
+    class CountingRepository(InMemoryProductRepository):
+        searches = 0
+
+        def search(self, request):
+            self.searches += 1
+            return super().search(request)
+
+    repository = CountingRepository([make_product("p-1")])
+    workflow = DeterministicWorkflow(
+        repository=repository,
+        sizing_service=DeterministicSizingService(),
+        configuration_builder=ProductConfigurationBuilder([]),
+        validator=RuleBasedConfigurationValidator(),
+        document_search=FakeDocumentSearch([]),
+        comparison_service=RuleBasedComparisonService(),
+        proposal_service=RuleBasedProposalService(),
+        proposal_verifier=RuleBasedProposalVerifier(),
+    )
+
+    context = workflow.run(CustomerRequirement(model_size_b=20, usage=UsageType.INFERENCE))
+
+    assert context.state == WorkflowState.MISSING_INFORMATION
+    assert context.missing_information is not None
+    assert context.missing_information.question
+    assert repository.searches == 0
+
+
+def test_proposal_verifier_rejects_unsupported_claims() -> None:
+    sizing = estimate_ai_requirements(
+        SizingRequest(model_parameters_b=20, usage=UsageType.INFERENCE)
+    )
+    configuration = ProductConfigurationBuilder([make_gpu(["p-1"])]).build(
+        [make_product("p-1")], sizing, requirement()
+    )[0]
+    comparison = RuleBasedComparisonService().compare([configuration])
+    proposal = RuleBasedProposalService().create(
+        requirement(), sizing, [configuration], comparison, []
+    )
+    proposal.technical_claims["unsupported_claim"] = "not in evidence"
+
+    result = RuleBasedProposalVerifier().verify(proposal)
+
+    assert result.valid is False
+    assert any("unsupported_claim" in error for error in result.errors)
+
+
+def test_proposal_evidence_uses_field_specific_sources() -> None:
+    sizing = estimate_ai_requirements(
+        SizingRequest(model_parameters_b=20, usage=UsageType.INFERENCE)
+    )
+    configuration = ProductConfigurationBuilder([make_gpu(["p-1"])]).build(
+        [make_product("p-1")], sizing, requirement()
+    )[0]
+    comparison = RuleBasedComparisonService().compare([configuration])
+
+    proposal = RuleBasedProposalService().create(
+        requirement(), sizing, [configuration], comparison, []
+    )
+
+    evidence = {item.claim.rsplit(".", 1)[-1]: item for item in proposal.evidence}
+    assert evidence["total_vram_gb"].source_url.endswith("gpu-96")
+    assert evidence["configured_ram_gb"].source_url.endswith("p-1")
+
+
+def test_proposal_verifier_rejects_undersized_ram_and_storage() -> None:
+    sizing = estimate_ai_requirements(
+        SizingRequest(model_parameters_b=20, usage=UsageType.INFERENCE)
+    )
+    configuration = ProductConfigurationBuilder([make_gpu(["p-1"])]).build(
+        [make_product("p-1")], sizing, requirement()
+    )[0]
+    configuration.configured_ram_gb = sizing.recommended_system_ram_gb - 1
+    if sizing.recommended_storage_gb is not None:
+        configuration.configured_storage_gb = sizing.recommended_storage_gb - 1
+    comparison = RuleBasedComparisonService().compare([configuration])
+    proposal = RuleBasedProposalService().create(
+        requirement(), sizing, [configuration], comparison, []
+    )
+
+    result = RuleBasedProposalVerifier().verify(proposal)
+
+    assert result.valid is False
+    assert any("RAM sizing" in error for error in result.errors)
+    if sizing.recommended_storage_gb is not None:
+        assert any("storage sizing" in error for error in result.errors)

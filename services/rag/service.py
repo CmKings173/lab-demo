@@ -11,5 +11,6 @@ class RAGService:
 
     def search_documents(self, request: DocumentSearchRequest) -> DocumentSearchResult:
         result = self.search_backend.search(request)
-        ranked = self.reranker.rank(request.query, result.chunks)
-        return DocumentSearchResult(chunks=ranked[: request.top_k], total=len(ranked[: request.top_k]))
+        ranked = self.reranker.rank(request.query, result.hits)
+        selected = ranked[: request.top_k]
+        return DocumentSearchResult(hits=selected, total=len(selected))

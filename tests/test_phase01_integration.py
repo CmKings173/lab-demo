@@ -23,5 +23,5 @@ def test_rag_service_composes_fake_search_and_reranker_offline() -> None:
         DocumentSearchRequest(query="GPU RAM", product_id="p-1", top_k=2)
     )
 
-    assert [chunk.id for chunk in result.chunks] == ["high", "low"]
+    assert [hit.chunk.id for hit in result.hits] == ["high", "low"]
     assert result.total == 2

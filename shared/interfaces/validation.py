@@ -2,7 +2,7 @@ from typing import Protocol
 
 from shared.contracts import (
     CustomerRequirement,
-    Product,
+    ProductConfiguration,
     SizingResult,
     ValidationResult,
 )
@@ -13,5 +13,5 @@ class ValidationService(Protocol):
         self,
         requirement: CustomerRequirement,
         sizing: SizingResult,
-        product: Product,
+        configuration: ProductConfiguration,
     ) -> ValidationResult: ...

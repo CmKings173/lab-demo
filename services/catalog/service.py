@@ -10,8 +10,7 @@ class CatalogService:
         return self.repository.search(
             ProductSearchRequest(
                 filters=ProductFilter(
-                    min_ram_gb=sizing.recommended_ram_gb,
-                    min_gpu_count=sizing.minimum_gpu_count,
+                    min_ram_gb=sizing.recommended_system_ram_gb,
                     max_price_vnd=budget_vnd,
                 )
             )

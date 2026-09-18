@@ -24,13 +24,21 @@ class InMemoryProductRepository:
         if filters.product_type:
             products = [p for p in products if p.product_type == filters.product_type]
         if filters.min_ram_gb is not None:
-            products = [p for p in products if (p.max_ram_gb or 0) >= filters.min_ram_gb]
+            products = [
+                p for p in products if p.max_ram_gb is None or p.max_ram_gb >= filters.min_ram_gb
+            ]
         if filters.min_gpu_count is not None:
-            products = [p for p in products if (p.max_gpu_count or 0) >= filters.min_gpu_count]
-        if filters.min_vram_gb is not None:
-            products = [p for p in products if (p.vram_gb or 0) >= filters.min_vram_gb]
+            products = [
+                p
+                for p in products
+                if p.max_gpu_slots is None or p.max_gpu_slots >= filters.min_gpu_count
+            ]
         if filters.max_price_vnd is not None:
-            products = [p for p in products if p.price_vnd is not None and p.price_vnd <= filters.max_price_vnd]
+            products = [
+                p
+                for p in products
+                if p.base_price_vnd is None or p.base_price_vnd <= filters.max_price_vnd
+            ]
         products = products[: request.limit]
         return ProductSearchResult(products=products, total=len(products))
 

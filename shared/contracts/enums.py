@@ -11,19 +11,26 @@ class ProductType(StrEnum):
     AI_WORKSTATION = "ai_workstation"
 
 
+class ValidationStatus(StrEnum):
+    PASS = "pass"
+    FAIL = "fail"
+    UNKNOWN = "unknown"
+
+
 class WorkflowState(StrEnum):
     RECEIVED = "received"
-    ANALYZING_REQUIREMENT = "analyzing_requirement"
+    ANALYZE = "analyze"
+    CHECK_MISSING_INFORMATION = "check_missing_information"
     MISSING_INFORMATION = "missing_information"
-    READY_FOR_SIZING = "ready_for_sizing"
-    SIZING = "sizing"
-    SEARCHING_PRODUCTS = "searching_products"
-    VALIDATING_PRODUCTS = "validating_products"
-    READING_DOCUMENTS = "reading_documents"
-    COMPARING_OPTIONS = "comparing_options"
-    GENERATING_PROPOSAL = "generating_proposal"
-    VERIFYING_PROPOSAL = "verifying_proposal"
-    COMPLETED = "completed"
+    SIZE = "size"
+    SEARCH_PRODUCTS = "search_products"
+    BUILD_CONFIGURATIONS = "build_configurations"
+    VALIDATE = "validate"
+    READ_DOCUMENTS = "read_documents"
+    COMPARE = "compare"
+    GENERATE_PROPOSAL = "generate_proposal"
+    VERIFY = "verify"
+    COMPLETE = "complete"
     NO_SUITABLE_PRODUCT = "no_suitable_product"
     INSUFFICIENT_PRODUCT_DATA = "insufficient_product_data"
     SIZING_FAILED = "sizing_failed"

@@ -1,17 +1,21 @@
 import pytest
 
+from adapters.catalog import InMemoryProductRepository
+from adapters.documents import FakeDocumentSearch
+from services.comparison.service import RuleBasedComparisonService
+from services.configuration.service import ProductConfigurationBuilder
+from services.proposal.service import RuleBasedProposalService, RuleBasedProposalVerifier
+from services.sizing.service import DeterministicSizingService
+from services.validation.service import RuleBasedConfigurationValidator
 from shared.contracts import (
     CustomerRequirement,
+    GPUOption,
     Product,
     ProductType,
     UsageType,
     WorkflowContext,
     WorkflowState,
 )
-from adapters.catalog import InMemoryProductRepository
-from services.proposal.service import RuleBasedProposalService
-from services.sizing.service import DeterministicSizingService
-from services.validation.service import RuleBasedConfigurationValidator
 from workflow.orchestrator import DeterministicWorkflow, WorkflowTransitionError
 
 
@@ -22,44 +26,51 @@ def make_compatible_product() -> Product:
         name="Demo 4U AI Server",
         manufacturer="Demo",
         product_type=ProductType.AI_SERVER,
-        supported_gpu=["RTX PRO 5000"],
-        max_gpu_count=4,
-        vram_gb=48,
-        default_ram_gb=512,
+        max_gpu_slots=4,
         max_ram_gb=1024,
-        storage_gb=8000,
+        max_storage_gb=8000,
         storage_slots=8,
-        price_vnd=250_000_000,
-        product_url="https://example.invalid/server-1",
-        datasheet_url="https://example.invalid/server-1.pdf",
+        base_price_vnd=100_000_000,
+        source_urls=["https://example.invalid/server-1"],
     )
 
 
 def build_workflow(repository: InMemoryProductRepository) -> DeterministicWorkflow:
+    gpu = GPUOption(
+        gpu_id="gpu-96",
+        name="GPU 96",
+        memory_gb=96,
+        supported_product_ids=["server-1"],
+        price_vnd=50_000_000,
+        source_urls=["https://example.invalid/gpu-96"],
+    )
     return DeterministicWorkflow(
         repository=repository,
         sizing_service=DeterministicSizingService(),
+        configuration_builder=ProductConfigurationBuilder([gpu]),
         validator=RuleBasedConfigurationValidator(),
+        document_search=FakeDocumentSearch([]),
+        comparison_service=RuleBasedComparisonService(),
         proposal_service=RuleBasedProposalService(),
+        proposal_verifier=RuleBasedProposalVerifier(),
     )
 
 
-def test_minimum_gpu_free_workflow_reaches_completed_with_sources() -> None:
+def test_workflow_reaches_complete_with_evidence() -> None:
     workflow = build_workflow(InMemoryProductRepository([make_compatible_product()]))
     context = workflow.run(
         CustomerRequirement(
-            model_size_b=32,
+            model_size_b=20,
             usage=UsageType.INFERENCE,
-            concurrent_users=5,
+            concurrent_users=2,
             budget_vnd=300_000_000,
         )
     )
 
-    assert context.state == WorkflowState.COMPLETED
+    assert context.state == WorkflowState.COMPLETE
     assert context.candidates
     assert context.proposal is not None
-    assert context.proposal.sources
-    assert not context.proposal.unknown_information
+    assert context.proposal.evidence
 
 
 def test_missing_budget_stops_before_product_search() -> None:
@@ -91,7 +102,7 @@ def test_workflow_rejects_illegal_transition() -> None:
     )
 
     with pytest.raises(WorkflowTransitionError):
-        DeterministicWorkflow._transition(context, WorkflowState.SIZING)
+        DeterministicWorkflow._transition(context, WorkflowState.SIZE)
 
 
 def test_workflow_terminal_failure_cannot_return_to_active_state() -> None:
@@ -106,4 +117,4 @@ def test_workflow_terminal_failure_cannot_return_to_active_state() -> None:
     )
 
     with pytest.raises(WorkflowTransitionError):
-        DeterministicWorkflow._transition(context, WorkflowState.SEARCHING_PRODUCTS)
+        DeterministicWorkflow._transition(context, WorkflowState.SEARCH_PRODUCTS)

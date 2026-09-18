@@ -1,6 +1,13 @@
 from typing import Protocol
 
-from shared.contracts import Proposal, SizingResult, CustomerRequirement, ProductCandidate
+from shared.contracts import (
+    ComparisonResult,
+    CustomerRequirement,
+    DocumentHit,
+    ProductConfiguration,
+    Proposal,
+    SizingResult,
+)
 
 
 class ProposalService(Protocol):
@@ -8,5 +15,7 @@ class ProposalService(Protocol):
         self,
         requirement: CustomerRequirement,
         sizing: SizingResult,
-        candidates: list[ProductCandidate],
+        configurations: list[ProductConfiguration],
+        comparison: ComparisonResult,
+        document_hits: list[DocumentHit],
     ) -> Proposal: ...

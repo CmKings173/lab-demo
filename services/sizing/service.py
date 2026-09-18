@@ -29,24 +29,30 @@ class DeterministicSizingService:
         recommended_ram = math.ceil(
             max(64.0, request.model_parameters_b * 8 + (request.concurrent_users or 1) * 16)
         )
-        minimum_gpu_count = max(1, math.ceil(recommended / 48))
-
         assumptions = [
-            "RTX PRO 5000 target capacity is treated as 48 GB VRAM per GPU.",
             "The result is a deterministic Phase 1 rule, not a benchmark-backed sizing promise.",
-            f"Model memory uses {memory_bytes_per_parameter:g} bytes per parameter before overhead.",
+            (
+                f"Model memory uses {memory_bytes_per_parameter:g} bytes per parameter "
+                "before overhead."
+            ),
+            "GPU count is selected later from the memory capacity of an actual GPU option.",
         ]
         warnings = [
-            "Validate with an actual model, context, batch and concurrency benchmark before purchase.",
+            (
+                "Validate with an actual model, context, batch and concurrency benchmark "
+                "before purchase."
+            ),
         ]
         if request.usage == UsageType.FINE_TUNE:
-            warnings.append("Fine-tuning memory depends strongly on batch size, optimizer and sequence length.")
+            warnings.append(
+                "Fine-tuning memory depends strongly on batch size, optimizer and sequence length."
+            )
 
         return SizingResult(
-            estimated_vram_gb=round(estimated, 2),
-            recommended_vram_gb=float(recommended),
-            recommended_ram_gb=recommended_ram,
-            minimum_gpu_count=minimum_gpu_count,
+            estimated_model_memory_gb=round(estimated, 2),
+            recommended_total_vram_gb=float(recommended),
+            recommended_system_ram_gb=recommended_ram,
+            recommended_storage_gb=None,
             assumptions=assumptions,
             warnings=warnings,
             confidence=0.40,

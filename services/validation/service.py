@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from shared.contracts import (
     CustomerRequirement,
-    Product,
+    ProductConfiguration,
     SizingResult,
     ValidationFailure,
     ValidationResult,
+    ValidationStatus,
 )
 
 
@@ -14,63 +15,95 @@ class RuleBasedConfigurationValidator:
         self,
         requirement: CustomerRequirement,
         sizing: SizingResult,
-        product: Product,
+        configuration: ProductConfiguration,
     ) -> ValidationResult:
         failures: list[ValidationFailure] = []
-        warnings: list[str] = []
         unknown: list[str] = []
+        product = configuration.product
 
-        for field in ("max_gpu_count", "vram_gb", "max_ram_gb", "price_vnd"):
-            if getattr(product, field) is None:
-                unknown.append(field)
-
-        if product.max_gpu_count is not None and product.vram_gb is not None:
-            available_vram = product.max_gpu_count * product.vram_gb
-            if available_vram < sizing.recommended_vram_gb:
-                failures.append(
-                    ValidationFailure(
-                        field="vram_gb",
-                        message="Product does not provide the recommended total VRAM.",
-                        actual=available_vram,
-                        required=sizing.recommended_vram_gb,
-                    )
-                )
-        if product.max_ram_gb is not None and product.max_ram_gb < sizing.recommended_ram_gb:
+        if configuration.selected_gpu is None:
+            unknown.append("selected_gpu")
+        if configuration.gpu_count is None:
+            unknown.append("gpu_count")
+        if product.max_gpu_slots is None:
+            unknown.append("max_gpu_slots")
+        elif (
+            configuration.gpu_count is not None
+            and configuration.gpu_count > product.max_gpu_slots
+        ):
             failures.append(
                 ValidationFailure(
-                    field="max_ram_gb",
-                    message="Product maximum RAM is below the recommendation.",
-                    actual=product.max_ram_gb,
-                    required=sizing.recommended_ram_gb,
+                    field="gpu_count",
+                    message="Configured GPU count exceeds available platform slots.",
+                    actual=configuration.gpu_count,
+                    required=product.max_gpu_slots,
                 )
             )
-        if requirement.budget_vnd is not None and product.price_vnd is not None:
-            if product.price_vnd > requirement.budget_vnd:
+
+        total_vram = configuration.total_vram_gb
+        if total_vram is None:
+            unknown.append("total_vram_gb")
+        elif total_vram < sizing.recommended_total_vram_gb:
+            failures.append(
+                ValidationFailure(
+                    field="total_vram_gb",
+                    message="Configuration does not provide the recommended total VRAM.",
+                    actual=total_vram,
+                    required=sizing.recommended_total_vram_gb,
+                )
+            )
+
+        if product.max_ram_gb is None:
+            unknown.append("max_ram_gb")
+        elif configuration.configured_ram_gb is None:
+            unknown.append("configured_ram_gb")
+        elif configuration.configured_ram_gb > product.max_ram_gb:
+            failures.append(
+                ValidationFailure(
+                    field="configured_ram_gb",
+                    message="Configured RAM exceeds the platform maximum.",
+                    actual=configuration.configured_ram_gb,
+                    required=product.max_ram_gb,
+                )
+            )
+
+        if product.max_storage_gb is None:
+            unknown.append("max_storage_gb")
+        elif configuration.configured_storage_gb is None:
+            unknown.append("configured_storage_gb")
+        elif configuration.configured_storage_gb > product.max_storage_gb:
+            failures.append(
+                ValidationFailure(
+                    field="configured_storage_gb",
+                    message="Configured storage exceeds the platform capability.",
+                    actual=configuration.configured_storage_gb,
+                    required=product.max_storage_gb,
+                )
+            )
+
+        if requirement.budget_vnd is not None:
+            if configuration.estimated_price_vnd is None:
+                unknown.append("estimated_price_vnd")
+            elif configuration.estimated_price_vnd > requirement.budget_vnd:
                 failures.append(
                     ValidationFailure(
-                        field="price_vnd",
-                        message="Product price exceeds the customer budget.",
-                        actual=product.price_vnd,
+                        field="estimated_price_vnd",
+                        message="Configuration price exceeds the customer budget.",
+                        actual=configuration.estimated_price_vnd,
                         required=requirement.budget_vnd,
                     )
                 )
-        if requirement.storage_requirement_gb is not None:
-            if product.storage_gb is None:
-                unknown.append("storage_gb")
-            elif product.storage_gb < requirement.storage_requirement_gb:
-                failures.append(
-                    ValidationFailure(
-                        field="storage_gb",
-                        message="Product storage is below the requirement.",
-                        actual=product.storage_gb,
-                        required=requirement.storage_requirement_gb,
-                    )
-                )
-        if unknown:
-            warnings.append("Final validity cannot be confirmed for unknown product fields.")
 
+        status = ValidationStatus.PASS
+        if failures:
+            status = ValidationStatus.FAIL
+        elif unknown:
+            status = ValidationStatus.UNKNOWN
+        warnings = []
+        if unknown:
+            warnings.append("Final validity cannot be confirmed for unknown configuration fields.")
         return ValidationResult(
-            valid=not failures and not unknown,
+            status=status,
             failures=failures,
             warnings=warnings,
             unknown_fields=sorted(set(unknown)),
@@ -80,6 +113,6 @@ class RuleBasedConfigurationValidator:
 def validate_configuration(
     requirement: CustomerRequirement,
     sizing: SizingResult,
-    product: Product,
+    configuration: ProductConfiguration,
 ) -> ValidationResult:
-    return RuleBasedConfigurationValidator().validate(requirement, sizing, product)
+    return RuleBasedConfigurationValidator().validate(requirement, sizing, configuration)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from shared.contracts import DocumentChunk, DocumentSearchRequest, DocumentSearchResult
+from shared.contracts import DocumentChunk, DocumentHit, DocumentSearchRequest, DocumentSearchResult
 
 
 class FakeDocumentSearch:
@@ -17,7 +17,16 @@ class FakeDocumentSearch:
             if (request.product_id is None or chunk.product_id == request.product_id)
             and query_terms.intersection(chunk.text.casefold().split())
         ][: request.top_k]
-        return DocumentSearchResult(chunks=matches, total=len(matches))
+        hits = [
+            DocumentHit(
+                chunk=chunk,
+                retrieval_score=1.0,
+                rank=index,
+                retrieval_method="fake_keyword",
+            )
+            for index, chunk in enumerate(matches, start=1)
+        ]
+        return DocumentSearchResult(hits=hits, total=len(hits))
 
 
 class QdrantDocumentSearch:
