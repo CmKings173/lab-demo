@@ -13,8 +13,14 @@ class FakeEmbeddingProvider:
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
         vectors: list[list[float]] = []
         for text in texts:
-            digest = hashlib.sha256(text.encode("utf-8")).digest()
-            vectors.append([digest[index] / 255 for index in range(self.dimensions)])
+            raw = bytearray(hashlib.sha256(text.encode("utf-8")).digest())
+            block = 1
+            while len(raw) < self.dimensions:
+                raw.extend(
+                    hashlib.sha256(f"{text}\x00{block}".encode("utf-8")).digest()
+                )
+                block += 1
+            vectors.append([value / 255 for value in raw[: self.dimensions]])
         return vectors
 
 

@@ -9,6 +9,7 @@ from shared.contracts import (
 from adapters.catalog import InMemoryProductRepository
 from adapters.documents import FakeDocumentSearch
 from adapters.embeddings import FakeEmbeddingProvider
+from adapters.model import FakeModelClient
 from adapters.reranking import FakeReranker
 
 
@@ -58,3 +59,21 @@ def test_fake_embeddings_return_repeatable_vectors() -> None:
 
     assert provider.embed(["hello"]) == provider.embed(["hello"])
     assert len(provider.embed(["hello"])[0]) == 4
+
+
+def test_fake_embeddings_support_dimensions_beyond_single_digest() -> None:
+    provider = FakeEmbeddingProvider(dimensions=64)
+
+    first = provider.embed(["hello", "world"])
+    second = provider.embed(["hello", "world"])
+
+    assert first == second
+    assert [len(vector) for vector in first] == [64, 64]
+    assert first[0] != first[1]
+
+
+def test_fake_model_client_returns_configured_deterministic_response() -> None:
+    client = FakeModelClient(response="stable response")
+
+    assert client.generate("first prompt") == "stable response"
+    assert client.generate("second prompt") == "stable response"

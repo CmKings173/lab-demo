@@ -1,9 +1,18 @@
-from shared.contracts import CustomerRequirement, Product, ProductType, UsageType, WorkflowState
+import pytest
+
+from shared.contracts import (
+    CustomerRequirement,
+    Product,
+    ProductType,
+    UsageType,
+    WorkflowContext,
+    WorkflowState,
+)
 from adapters.catalog import InMemoryProductRepository
 from services.proposal.service import RuleBasedProposalService
 from services.sizing.service import DeterministicSizingService
 from services.validation.service import RuleBasedConfigurationValidator
-from workflow.orchestrator import DeterministicWorkflow
+from workflow.orchestrator import DeterministicWorkflow, WorkflowTransitionError
 
 
 def make_compatible_product() -> Product:
@@ -69,3 +78,32 @@ def test_missing_budget_stops_before_product_search() -> None:
     assert context.state == WorkflowState.MISSING_INFORMATION
     assert context.missing_fields == ["budget_vnd"]
     assert repository.searches == 0
+
+
+def test_workflow_rejects_illegal_transition() -> None:
+    context = WorkflowContext(
+        requirement=CustomerRequirement(
+            model_size_b=32,
+            usage=UsageType.INFERENCE,
+            budget_vnd=300_000_000,
+        ),
+        history=[WorkflowState.RECEIVED],
+    )
+
+    with pytest.raises(WorkflowTransitionError):
+        DeterministicWorkflow._transition(context, WorkflowState.SIZING)
+
+
+def test_workflow_terminal_failure_cannot_return_to_active_state() -> None:
+    context = WorkflowContext(
+        requirement=CustomerRequirement(
+            model_size_b=32,
+            usage=UsageType.INFERENCE,
+            budget_vnd=300_000_000,
+        ),
+        state=WorkflowState.SIZING_FAILED,
+        history=[WorkflowState.RECEIVED, WorkflowState.SIZING_FAILED],
+    )
+
+    with pytest.raises(WorkflowTransitionError):
+        DeterministicWorkflow._transition(context, WorkflowState.SEARCHING_PRODUCTS)

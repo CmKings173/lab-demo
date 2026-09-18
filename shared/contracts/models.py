@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -59,7 +59,7 @@ class Product(ContractModel):
     availability: str | None = None
     product_url: str | None = None
     datasheet_url: str | None = None
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime | None = None
 
 
 class ProductFilter(ContractModel):
@@ -167,7 +167,7 @@ class Proposal(ContractModel):
     unknown_information: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
     estimated_price_vnd: int | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime | None = None
 
 
 class WorkflowContext(ContractModel):

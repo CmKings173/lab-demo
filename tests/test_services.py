@@ -8,6 +8,7 @@ from shared.contracts import (
 from services.sizing.service import estimate_ai_requirements
 from services.validation.service import validate_configuration
 from services.comparison.service import RuleBasedComparisonService
+from services.proposal.service import RuleBasedProposalService
 from shared.contracts import ProductCandidate
 
 
@@ -70,3 +71,29 @@ def test_comparison_service_returns_explicit_dimensions() -> None:
 
     assert result.product_ids == ["p-1"]
     assert "price_vnd" in result.dimensions
+
+
+def test_proposal_service_is_repeatable_for_identical_inputs() -> None:
+    requirement = CustomerRequirement(
+        model_size_b=32,
+        usage=UsageType.INFERENCE,
+        budget_vnd=300_000_000,
+    )
+    sizing = estimate_ai_requirements(
+        SizingRequest(model_parameters_b=32, usage=UsageType.INFERENCE)
+    )
+    candidate = ProductCandidate(
+        product=Product(
+            id="p-1",
+            sku="P-1",
+            name="Server",
+            manufacturer="Demo",
+            product_type=ProductType.AI_SERVER,
+            product_url="https://example.invalid/p-1",
+        )
+    )
+
+    first = RuleBasedProposalService().create(requirement, sizing, [candidate])
+    second = RuleBasedProposalService().create(requirement, sizing, [candidate])
+
+    assert first == second
