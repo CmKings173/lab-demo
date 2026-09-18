@@ -7,6 +7,8 @@ from shared.contracts import (
 )
 from services.sizing.service import estimate_ai_requirements
 from services.validation.service import validate_configuration
+from services.comparison.service import RuleBasedComparisonService
+from shared.contracts import ProductCandidate
 
 
 def test_sizing_service_is_deterministic_and_explicit_about_assumptions() -> None:
@@ -49,3 +51,22 @@ def test_validation_is_code_driven_and_reports_unknown_product_data() -> None:
     assert not result.valid
     assert "max_gpu_count" in result.unknown_fields
     assert "vram_gb" in result.unknown_fields
+
+
+def test_comparison_service_returns_explicit_dimensions() -> None:
+    products = [
+        ProductCandidate(
+            product=Product(
+                id="p-1",
+                sku="P-1",
+                name="Server",
+                manufacturer="Demo",
+                product_type=ProductType.AI_SERVER,
+            )
+        )
+    ]
+
+    result = RuleBasedComparisonService().compare(products)
+
+    assert result.product_ids == ["p-1"]
+    assert "price_vnd" in result.dimensions
