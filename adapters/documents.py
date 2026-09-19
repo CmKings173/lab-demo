@@ -15,7 +15,10 @@ class FakeDocumentSearch:
             chunk
             for chunk in self._chunks
             if (request.product_id is None or chunk.product_id == request.product_id)
-            and query_terms.intersection(chunk.text.casefold().split())
+            and (
+                query_terms.intersection(chunk.text.casefold().split())
+                or chunk.metadata.get("field_name", "").casefold() in query_terms
+            )
         ][: request.top_k]
         hits = [
             DocumentHit(

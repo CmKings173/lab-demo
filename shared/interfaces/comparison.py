@@ -5,4 +5,6 @@ from shared.contracts import ComparisonResult, ProductConfiguration
 
 
 class ComparisonService(Protocol):
-    def compare(self, configurations: Sequence[ProductConfiguration]) -> ComparisonResult: ...
+    def compare_configurations(
+        self, configurations: Sequence[ProductConfiguration]
+    ) -> ComparisonResult: ...

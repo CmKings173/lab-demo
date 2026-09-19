@@ -5,6 +5,7 @@ from .comparison import ComparisonService
 from .configuration import ConfigurationBuilder
 from .documents import DocumentSearch
 from .embeddings import EmbeddingProvider
+from .evidence import ProductFactResolver
 from .model import ModelClient
 from .proposal import ProposalService
 from .reranker import Reranker
@@ -17,6 +18,7 @@ __all__ = [
     "ComparisonService",
     "ConfigurationBuilder",
     "DocumentSearch",
+    "ProductFactResolver",
     "EmbeddingProvider",
     "ModelClient",
     "ProductRepository",

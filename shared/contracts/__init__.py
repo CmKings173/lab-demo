@@ -1,9 +1,10 @@
 """Typed domain contracts shared by all labs and services."""
 
-from .enums import ProductType, UsageType, ValidationStatus, WorkflowState
+from .enums import PriceStatus, ProductType, UsageType, ValidationStatus, WorkflowState
 from .models import (
     ChatMessage,
     ComparisonResult,
+    ConfigurationComparison,
     CustomerRequirement,
     DocumentChunk,
     DocumentHit,
@@ -23,6 +24,7 @@ from .models import (
     Proposal,
     ProposalOption,
     ProposalVerificationResult,
+    ResolvedProductFact,
     SizingRequest,
     SizingResult,
     ToolCall,
@@ -35,6 +37,7 @@ from .models import (
 
 __all__ = [
     "ComparisonResult",
+    "ConfigurationComparison",
     "ChatMessage",
     "CustomerRequirement",
     "DocumentChunk",
@@ -55,6 +58,8 @@ __all__ = [
     "Proposal",
     "ProposalOption",
     "ProposalVerificationResult",
+    "ResolvedProductFact",
+    "PriceStatus",
     "ProductType",
     "SizingRequest",
     "SizingResult",

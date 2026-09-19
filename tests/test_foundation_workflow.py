@@ -8,6 +8,7 @@ from services.validation.service import RuleBasedConfigurationValidator
 from shared.contracts import (
     CustomerRequirement,
     DocumentChunk,
+    DocumentSearchRequest,
     GPUOption,
     Product,
     ProductConfiguration,
@@ -51,6 +52,7 @@ def requirement() -> CustomerRequirement:
         model_size_b=20,
         usage=UsageType.INFERENCE,
         budget_vnd=500_000_000,
+        storage_requirement_gb=1000,
     )
 
 
@@ -72,7 +74,9 @@ def test_validation_distinguishes_pass_fail_and_unknown() -> None:
         SizingRequest(model_parameters_b=20, usage=UsageType.INFERENCE)
     )
     validator = RuleBasedConfigurationValidator()
-    passing = ProductConfigurationBuilder([make_gpu(["pass"])]).build(
+    passing = ProductConfigurationBuilder(
+        [make_gpu(["pass"])], {"pass": {"ram": 20_000_000, "storage": 10_000_000}}
+    ).build(
         [make_product("pass")], sizing, requirement()
     )[0]
     failing = passing.model_copy(
@@ -99,7 +103,13 @@ def build_workflow(
     return DeterministicWorkflow(
         repository=InMemoryProductRepository(products),
         sizing_service=DeterministicSizingService(),
-        configuration_builder=ProductConfigurationBuilder(gpu_options),
+        configuration_builder=ProductConfigurationBuilder(
+            gpu_options,
+            {
+                product.id: {"ram": 20_000_000, "storage": 10_000_000}
+                for product in products
+            },
+        ),
         validator=RuleBasedConfigurationValidator(),
         document_search=FakeDocumentSearch(chunks),
         comparison_service=RuleBasedComparisonService(),
@@ -116,12 +126,14 @@ def test_workflow_calls_document_search_and_builds_option_a_and_b() -> None:
         [gpu],
         [
             DocumentChunk(
-                id=f"doc-{product.id}",
-                text="verified GPU RAM storage source",
+                id=f"doc-{product.id}-{field}",
+                text=f"verified {field}",
                 product_id=product.id,
-                source_url=f"https://example.invalid/{product.id}/doc",
+                source_url=f"https://example.invalid/{product.id}/{field}",
+                metadata={"field_name": field, "value": str(value), "verified": "true"},
             )
             for product in products
+            for field, value in (("total_vram_gb", 96), ("configured_ram_gb", 176))
         ],
     )
 
@@ -189,7 +201,7 @@ def test_proposal_verifier_rejects_unsupported_claims() -> None:
     assert any("unsupported_claim" in error for error in result.errors)
 
 
-def test_proposal_evidence_uses_field_specific_sources() -> None:
+def test_proposal_evidence_requires_field_specific_document_facts() -> None:
     sizing = estimate_ai_requirements(
         SizingRequest(model_parameters_b=20, usage=UsageType.INFERENCE)
     )
@@ -198,8 +210,30 @@ def test_proposal_evidence_uses_field_specific_sources() -> None:
     )[0]
     comparison = RuleBasedComparisonService().compare([configuration])
 
+    hits = FakeDocumentSearch(
+        [
+            DocumentChunk(
+                id="gpu-evidence",
+                text="VRAM được xác minh",
+                product_id="p-1",
+                source_url="https://example.invalid/gpu-96",
+                metadata={"field_name": "total_vram_gb", "value": "96", "verified": "true"},
+            ),
+            DocumentChunk(
+                id="ram-evidence",
+                text="RAM được xác minh",
+                product_id="p-1",
+                source_url="https://example.invalid/p-1",
+                metadata={
+                    "field_name": "configured_ram_gb",
+                    "value": str(configuration.configured_ram_gb),
+                    "verified": "true",
+                },
+            ),
+        ]
+    ).search(DocumentSearchRequest(query="VRAM RAM", product_id="p-1")).hits
     proposal = RuleBasedProposalService().create(
-        requirement(), sizing, [configuration], comparison, []
+        requirement(), sizing, [configuration], comparison, hits
     )
 
     evidence = {item.claim.rsplit(".", 1)[-1]: item for item in proposal.evidence}

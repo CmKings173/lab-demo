@@ -17,6 +17,12 @@ class ValidationStatus(StrEnum):
     UNKNOWN = "unknown"
 
 
+class PriceStatus(StrEnum):
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    UNKNOWN = "unknown"
+
+
 class WorkflowState(StrEnum):
     RECEIVED = "received"
     ANALYZE = "analyze"
@@ -25,8 +31,11 @@ class WorkflowState(StrEnum):
     SIZE = "size"
     SEARCH_PRODUCTS = "search_products"
     BUILD_CONFIGURATIONS = "build_configurations"
-    VALIDATE = "validate"
+    VALIDATE_INITIAL = "validate_initial"
+    RESOLVE_UNKNOWN_FACTS = "resolve_unknown_facts"
     READ_DOCUMENTS = "read_documents"
+    APPLY_VERIFIED_FACTS = "apply_verified_facts"
+    REVALIDATE = "revalidate"
     COMPARE = "compare"
     GENERATE_PROPOSAL = "generate_proposal"
     VERIFY = "verify"

@@ -5,7 +5,7 @@ from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .enums import ProductType, UsageType, ValidationStatus, WorkflowState
+from .enums import PriceStatus, ProductType, UsageType, ValidationStatus, WorkflowState
 
 
 class ContractModel(BaseModel):
@@ -107,6 +107,9 @@ class ProductConfiguration(ContractModel):
     configured_storage_gb: int | None = Field(default=None, ge=1)
     selected_cpu: str | None = None
     estimated_price_vnd: int | None = Field(default=None, ge=0)
+    price_status: PriceStatus = PriceStatus.UNKNOWN
+    priced_components: list[str] = Field(default_factory=list)
+    missing_price_components: list[str] = Field(default_factory=list)
     source_urls: list[str] = Field(default_factory=list)
 
     @property
@@ -225,11 +228,39 @@ class ValidationResult(ContractModel):
         return self.status == ValidationStatus.PASS
 
 
+class ConfigurationComparison(ContractModel):
+    configuration_id: str
+    product_id: str
+    gpu_model: str | None = None
+    gpu_count: int | None = None
+    total_vram_gb: int | None = None
+    configured_ram_gb: int | None = None
+    configured_storage_gb: int | None = None
+    price_status: PriceStatus
+    estimated_price_vnd: int | None = None
+    known_limitations: list[str] = Field(default_factory=list)
+    unknown_facts: list[str] = Field(default_factory=list)
+
+
 class ComparisonResult(ContractModel):
     product_ids: list[str]
     configuration_ids: list[str] = Field(default_factory=list)
+    configurations: list[ConfigurationComparison] = Field(default_factory=list)
     dimensions: list[str] = Field(default_factory=list)
     summary: str
+
+
+class ResolvedProductFact(ContractModel):
+    product_id: str
+    field_name: str
+    value: Any
+    source_url: str
+    document_id: str
+    page: int | None = Field(default=None, ge=1)
+    chunk_id: str
+    evidence_text: str
+    confidence: float = Field(default=1.0, ge=0, le=1)
+    verified: bool = False
 
 
 class Evidence(ContractModel):
@@ -283,6 +314,7 @@ class WorkflowContext(ContractModel):
     candidates: list[ProductCandidate] = Field(default_factory=list)
     validation_results: dict[str, ValidationResult] = Field(default_factory=dict)
     document_hits: list[DocumentHit] = Field(default_factory=list)
+    resolved_facts: list[ResolvedProductFact] = Field(default_factory=list)
     comparison: ComparisonResult | None = None
     proposal: Proposal | None = None
     errors: list[str] = Field(default_factory=list)

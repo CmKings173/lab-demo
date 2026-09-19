@@ -32,13 +32,24 @@ TOOL_DEFINITIONS = [
     ),
     ToolDefinition(
         name="compare_products",
-        description="Compare product configurations using shared comparison contracts.",
+        description="Compare catalog product platforms.",
         parameters={
             "type": "object",
             "properties": {
                 "product_ids": {"type": "array", "items": {"type": "string"}}
             },
             "required": ["product_ids"],
+        },
+    ),
+    ToolDefinition(
+        name="compare_configurations",
+        description="Compare concrete AI server or workstation configurations.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "configuration_ids": {"type": "array", "items": {"type": "string"}}
+            },
+            "required": ["configuration_ids"],
         },
     ),
     ToolDefinition(

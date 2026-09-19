@@ -40,6 +40,7 @@ def test_shared_tool_names_are_stable() -> None:
         "get_product",
         "search_product_documents",
         "compare_products",
+        "compare_configurations",
         "estimate_ai_requirements",
     }
 

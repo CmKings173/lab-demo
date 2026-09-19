@@ -9,6 +9,7 @@ from services.sizing.service import DeterministicSizingService
 from services.validation.service import RuleBasedConfigurationValidator
 from shared.contracts import (
     CustomerRequirement,
+    DocumentChunk,
     GPUOption,
     Product,
     ProductType,
@@ -47,9 +48,36 @@ def build_workflow(repository: InMemoryProductRepository) -> DeterministicWorkfl
     return DeterministicWorkflow(
         repository=repository,
         sizing_service=DeterministicSizingService(),
-        configuration_builder=ProductConfigurationBuilder([gpu]),
+        configuration_builder=ProductConfigurationBuilder(
+            [gpu], {"server-1": {"ram": 20_000_000, "storage": 10_000_000}}
+        ),
         validator=RuleBasedConfigurationValidator(),
-        document_search=FakeDocumentSearch([]),
+        document_search=FakeDocumentSearch(
+            [
+                DocumentChunk(
+                    id="doc-vram",
+                    text="VRAM được xác minh",
+                    product_id="server-1",
+                    source_url="https://example.invalid/doc-vram",
+                    metadata={
+                        "field_name": "total_vram_gb",
+                        "value": "96",
+                        "verified": "true",
+                    },
+                ),
+                DocumentChunk(
+                    id="doc-ram",
+                    text="RAM được xác minh",
+                    product_id="server-1",
+                    source_url="https://example.invalid/doc-ram",
+                    metadata={
+                        "field_name": "configured_ram_gb",
+                        "value": "192",
+                        "verified": "true",
+                    },
+                ),
+            ]
+        ),
         comparison_service=RuleBasedComparisonService(),
         proposal_service=RuleBasedProposalService(),
         proposal_verifier=RuleBasedProposalVerifier(),
@@ -64,6 +92,7 @@ def test_workflow_reaches_complete_with_evidence() -> None:
             usage=UsageType.INFERENCE,
             concurrent_users=2,
             budget_vnd=300_000_000,
+            storage_requirement_gb=1000,
         )
     )
 

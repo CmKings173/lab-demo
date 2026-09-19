@@ -71,13 +71,30 @@ class CatalogTools:
         ]
         if len(products) != len(product_ids):
             return ToolResult(ok=False, error="unknown_product")
+        return ToolResult(
+            ok=True,
+            data=ComparisonResult(
+                product_ids=product_ids,
+                dimensions=[
+                    "product_type",
+                    "max_ram_gb",
+                    "max_gpu_slots",
+                    "max_storage_gb",
+                    "base_price_vnd",
+                ],
+                summary="So sánh thông tin nền tảng sản phẩm từ catalog.",
+            ),
+        )
+
+    def compare_configurations(
+        self, configurations: list[ProductConfiguration]
+    ) -> ToolResult[ComparisonResult]:
         if self.comparison_service is None:
             return ToolResult(ok=False, error="comparison_not_configured")
-        configurations = [
-            ProductConfiguration(configuration_id=f"{product.id}:unspecified", product=product)
-            for product in products
-        ]
-        return ToolResult(ok=True, data=self.comparison_service.compare(configurations))
+        return ToolResult(
+            ok=True,
+            data=self.comparison_service.compare_configurations(configurations),
+        )
 
     def estimate_ai_requirements(
         self, model_parameters_b: float, usage: UsageType

@@ -5,6 +5,7 @@ from shared.contracts import (
     CustomerRequirement,
     DocumentHit,
     Evidence,
+    PriceStatus,
     ProductConfiguration,
     Proposal,
     ProposalOption,
@@ -79,37 +80,31 @@ class RuleBasedProposalService:
         for configuration in configurations:
             product_id = configuration.product.id
             product_hits = hits_by_product.get(product_id, [])
-            fallback_sources = [
-                hit.chunk.source_url for hit in product_hits if hit.chunk.source_url
-            ]
-            fallback_sources.extend(configuration.source_urls)
-            field_sources = {
-                "total_vram_gb": (
-                    configuration.selected_gpu.source_urls
-                    if configuration.selected_gpu is not None
-                    else []
-                ),
-                "configured_ram_gb": configuration.product.source_urls,
-            }
             for field, value in (
                 ("total_vram_gb", configuration.total_vram_gb),
                 ("configured_ram_gb", configuration.configured_ram_gb),
             ):
-                sources = field_sources[field] or fallback_sources
-                if not sources:
-                    continue
-                source_url = sorted(set(sources))[0]
                 matching_hit = next(
-                    (hit for hit in product_hits if hit.chunk.source_url == source_url), None
+                    (
+                        hit
+                        for hit in product_hits
+                        if hit.chunk.source_url
+                        and hit.chunk.metadata.get("field_name") == field
+                        and hit.chunk.metadata.get("value") == str(value)
+                        and hit.chunk.metadata.get("verified", "").casefold() == "true"
+                    ),
+                    None,
                 )
+                if matching_hit is None:
+                    continue
                 evidence.append(
                     Evidence(
                         claim=f"{configuration.configuration_id}.{field}",
                         value=value,
-                        source_url=source_url,
+                        source_url=matching_hit.chunk.source_url,
                         product_id=product_id,
-                        document_id=(matching_hit.chunk.id if matching_hit else None),
-                        page=(matching_hit.chunk.page if matching_hit else None),
+                        document_id=matching_hit.chunk.id,
+                        page=matching_hit.chunk.page,
                         verified=True,
                     )
                 )
@@ -119,7 +114,7 @@ class RuleBasedProposalService:
 class RuleBasedProposalVerifier:
     def verify(self, proposal: Proposal) -> ProposalVerificationResult:
         errors: list[str] = []
-        evidence_by_claim = {item.claim: item for item in proposal.evidence if item.verified}
+        evidence_by_claim = {item.claim: item for item in proposal.evidence}
         configuration_ids = {
             configuration.configuration_id for configuration in proposal.selected_configurations
         }
@@ -128,8 +123,26 @@ class RuleBasedProposalVerifier:
                 errors.append(f"Unknown configuration: {option.configuration.configuration_id}")
         for claim, value in proposal.technical_claims.items():
             item = evidence_by_claim.get(claim)
-            if item is None or item.value != value:
+            if item is None:
                 errors.append(f"Unsupported claim: {claim}")
+                continue
+            configuration_id = claim.rsplit(".", 1)[0]
+            configuration = next(
+                (
+                    candidate
+                    for candidate in proposal.selected_configurations
+                    if candidate.configuration_id == configuration_id
+                ),
+                None,
+            )
+            if not item.verified:
+                errors.append(f"Unverified evidence: {claim}")
+            if item.value != value:
+                errors.append(f"Evidence value mismatch: {claim}")
+            if configuration is None or item.product_id != configuration.product.id:
+                errors.append(f"Evidence has wrong product: {claim}")
+            if item.document_id is None:
+                errors.append(f"Evidence lacks document linkage: {claim}")
         for configuration in proposal.selected_configurations:
             if configuration.total_vram_gb is None:
                 errors.append(f"Configuration {configuration.configuration_id} has unknown VRAM")
@@ -160,6 +173,7 @@ class RuleBasedProposalVerifier:
             budget = proposal.customer_requirement.budget_vnd
             if (
                 budget is not None
+                and configuration.price_status == PriceStatus.COMPLETE
                 and configuration.estimated_price_vnd is not None
                 and configuration.estimated_price_vnd > budget
             ):

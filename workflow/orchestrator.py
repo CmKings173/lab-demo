@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from services.evidence import DeterministicProductFactResolver
 from services.requirement import RequirementAnalyzer
 from shared.contracts import (
     CustomerRequirement,
@@ -17,6 +18,7 @@ from shared.interfaces import (
     ComparisonService,
     ConfigurationBuilder,
     DocumentSearch,
+    ProductFactResolver,
     ProductRepository,
     ProposalService,
     ProposalVerifier,
@@ -44,16 +46,24 @@ class DeterministicWorkflow:
             {WorkflowState.NO_SUITABLE_PRODUCT, WorkflowState.BUILD_CONFIGURATIONS}
         ),
         WorkflowState.BUILD_CONFIGURATIONS: frozenset(
-            {WorkflowState.NO_SUITABLE_PRODUCT, WorkflowState.VALIDATE}
+            {WorkflowState.NO_SUITABLE_PRODUCT, WorkflowState.VALIDATE_INITIAL}
         ),
-        WorkflowState.VALIDATE: frozenset(
+        WorkflowState.VALIDATE_INITIAL: frozenset(
+            {
+                WorkflowState.VALIDATION_FAILED,
+                WorkflowState.RESOLVE_UNKNOWN_FACTS,
+            }
+        ),
+        WorkflowState.RESOLVE_UNKNOWN_FACTS: frozenset({WorkflowState.READ_DOCUMENTS}),
+        WorkflowState.READ_DOCUMENTS: frozenset({WorkflowState.APPLY_VERIFIED_FACTS}),
+        WorkflowState.APPLY_VERIFIED_FACTS: frozenset({WorkflowState.REVALIDATE}),
+        WorkflowState.REVALIDATE: frozenset(
             {
                 WorkflowState.INSUFFICIENT_PRODUCT_DATA,
                 WorkflowState.VALIDATION_FAILED,
-                WorkflowState.READ_DOCUMENTS,
+                WorkflowState.COMPARE,
             }
         ),
-        WorkflowState.READ_DOCUMENTS: frozenset({WorkflowState.COMPARE}),
         WorkflowState.COMPARE: frozenset({WorkflowState.GENERATE_PROPOSAL}),
         WorkflowState.GENERATE_PROPOSAL: frozenset(
             {WorkflowState.PROPOSAL_FAILED, WorkflowState.VERIFY}
@@ -79,12 +89,14 @@ class DeterministicWorkflow:
         comparison_service: ComparisonService,
         proposal_service: ProposalService,
         proposal_verifier: ProposalVerifier,
+        fact_resolver: ProductFactResolver | None = None,
     ) -> None:
         self.repository = repository
         self.sizing_service = sizing_service
         self.configuration_builder = configuration_builder
         self.validator = validator
         self.document_search = document_search
+        self.fact_resolver = fact_resolver or DeterministicProductFactResolver()
         self.comparison_service = comparison_service
         self.proposal_service = proposal_service
         self.proposal_verifier = proposal_verifier
@@ -134,7 +146,52 @@ class DeterministicWorkflow:
             self._transition(context, WorkflowState.NO_SUITABLE_PRODUCT)
             return context
 
-        self._transition(context, WorkflowState.VALIDATE)
+        self._transition(context, WorkflowState.VALIDATE_INITIAL)
+        for configuration in context.configurations:
+            result = self.validator.validate(requirement, sizing, configuration)
+            context.validation_results[configuration.configuration_id] = result
+        if {
+            result.status for result in context.validation_results.values()
+        } == {ValidationStatus.FAIL}:
+            self._transition(context, WorkflowState.VALIDATION_FAILED)
+            return context
+
+        self._transition(context, WorkflowState.RESOLVE_UNKNOWN_FACTS)
+        self._transition(context, WorkflowState.READ_DOCUMENTS)
+        facts_by_configuration = {}
+        for configuration in context.configurations:
+            validation = context.validation_results[configuration.configuration_id]
+            if validation.status == ValidationStatus.FAIL:
+                continue
+            query_fields = validation.unknown_fields + [
+                "total_vram_gb",
+                "configured_ram_gb",
+            ]
+            result = self.document_search.search(
+                DocumentSearchRequest(
+                    query=" ".join(query_fields),
+                    product_id=configuration.product.id,
+                )
+            )
+            context.document_hits.extend(result.hits)
+            facts = self.fact_resolver.resolve(
+                configuration, validation.unknown_fields, result.hits
+            )
+            facts_by_configuration[configuration.configuration_id] = facts
+            context.resolved_facts.extend(facts)
+
+        self._transition(context, WorkflowState.APPLY_VERIFIED_FACTS)
+        context.configurations = [
+            self.fact_resolver.apply(
+                configuration,
+                facts_by_configuration.get(configuration.configuration_id, []),
+            )
+            for configuration in context.configurations
+        ]
+
+        self._transition(context, WorkflowState.REVALIDATE)
+        context.validation_results = {}
+        context.candidates = []
         for configuration in context.configurations:
             result = self.validator.validate(requirement, sizing, configuration)
             context.validation_results[configuration.configuration_id] = result
@@ -142,7 +199,7 @@ class DeterministicWorkflow:
                 context.candidates.append(
                     ProductCandidate(
                         configuration=configuration,
-                        fit_reasons=["passed deterministic validation"],
+                        fit_reasons=["passed deterministic validation after evidence resolution"],
                     )
                 )
         if not context.candidates:
@@ -155,19 +212,11 @@ class DeterministicWorkflow:
             self._transition(context, terminal)
             return context
 
-        self._transition(context, WorkflowState.READ_DOCUMENTS)
-        passing_configurations = [candidate.configuration for candidate in context.candidates]
-        for configuration in passing_configurations:
-            result = self.document_search.search(
-                DocumentSearchRequest(
-                    query="GPU RAM storage configuration evidence",
-                    product_id=configuration.product.id,
-                )
-            )
-            context.document_hits.extend(result.hits)
-
         self._transition(context, WorkflowState.COMPARE)
-        context.comparison = self.comparison_service.compare(passing_configurations)
+        passing_configurations = [candidate.configuration for candidate in context.candidates]
+        context.comparison = self.comparison_service.compare_configurations(
+            passing_configurations
+        )
 
         self._transition(context, WorkflowState.GENERATE_PROPOSAL)
         try:

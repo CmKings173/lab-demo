@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from shared.contracts import (
     CustomerRequirement,
+    PriceStatus,
     ProductConfiguration,
     SizingResult,
     ValidationFailure,
@@ -82,7 +83,9 @@ class RuleBasedConfigurationValidator:
             )
 
         if requirement.budget_vnd is not None:
-            if configuration.estimated_price_vnd is None:
+            if configuration.price_status != PriceStatus.COMPLETE:
+                unknown.append("price")
+            elif configuration.estimated_price_vnd is None:
                 unknown.append("estimated_price_vnd")
             elif configuration.estimated_price_vnd > requirement.budget_vnd:
                 failures.append(
