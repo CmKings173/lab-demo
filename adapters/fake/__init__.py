@@ -1,0 +1,1 @@
+"""Fake infrastructure adapter boundary."""

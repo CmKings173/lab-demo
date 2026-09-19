@@ -20,16 +20,19 @@ dev = [
 [tool.setuptools.packages.find]
 include = [
   "adapters*",
-  "agent*",
-  "api*",
-  "lab1*",
-  "services*",
+  "lab1_finetune*",
+  "lab2_rag_agent*",
+  "lab3_workflow*",
   "shared*",
-  "workflow*",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = [
+  "shared/tests",
+  "lab1_finetune/tests",
+  "lab2_rag_agent/tests",
+  "lab3_workflow/tests",
+]
 addopts = "-q"
 
 [tool.ruff]
