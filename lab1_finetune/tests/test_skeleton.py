@@ -1,7 +1,8 @@
-from lab1_finetune.configs.training_config import TrainingConfig
 from lab1_finetune.data.seed import build_seed_examples
-from lab1_finetune.src.evaluation import EvaluationCase, EvaluationRunner
-from lab1_finetune.src.pipeline import DatasetPipeline
+from lab1_finetune.data.splitter import DatasetSplitter
+from lab1_finetune.evaluation.evaluator import DeterministicEvaluationSkeleton
+from lab1_finetune.evaluation.schema import EvaluationCase
+from lab1_finetune.training.config import TrainingConfig
 
 
 def test_lab1_defaults_to_safe_lora_foundation_settings() -> None:
@@ -16,17 +17,22 @@ def test_lab1_defaults_to_safe_lora_foundation_settings() -> None:
 def test_dataset_pipeline_splits_examples_deterministically() -> None:
     examples = build_seed_examples()
 
-    first = DatasetPipeline(seed=7).split(examples)
-    second = DatasetPipeline(seed=7).split(examples)
+    first = DatasetSplitter(seed=7).split(examples)
+    second = DatasetSplitter(seed=7).split(examples)
 
     assert first == second
     assert len(first.train) + len(first.validation) + len(first.test) == len(examples)
 
 
-def test_evaluation_runner_has_a_stable_result_contract() -> None:
-    runner = EvaluationRunner()
-    result = runner.run([EvaluationCase(case_id="1", prompt="hello", expected={"x": 1})])
+def test_evaluation_case_uses_messages_tools_and_gold_labels() -> None:
+    example = build_seed_examples()[0]
+    case = EvaluationCase(
+        case_id="1",
+        messages=example.messages,
+        tools=example.tools,
+        gold_labels=example.labels,
+    )
 
-    assert result.total == 1
-    assert result.passed == 0
-    assert result.skipped == 1
+    prepared = DeterministicEvaluationSkeleton().prepare([case])
+
+    assert prepared == [case]

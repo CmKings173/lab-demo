@@ -6,7 +6,23 @@ TOOL_DEFINITIONS = [
         description="Search AI server and workstation platforms.",
         parameters={
             "type": "object",
-            "properties": {"filters": {"type": "object"}, "query": {"type": "string"}},
+            "properties": {
+                "filters": {
+                    "type": "object",
+                    "properties": {
+                        "product_type": {
+                            "type": "string",
+                            "enum": ["ai_server", "ai_workstation"],
+                        },
+                        "min_ram_gb": {"type": "integer", "minimum": 1},
+                        "min_gpu_count": {"type": "integer", "minimum": 1},
+                        "max_price_vnd": {"type": "integer", "minimum": 0},
+                    },
+                    "additionalProperties": False,
+                },
+                "query": {"type": "string"},
+            },
+            "additionalProperties": False,
         },
     ),
     ToolDefinition(

@@ -41,10 +41,6 @@ class RuleBasedComparisonService:
             summary="Compare exact catalog fields; document evidence is added by the RAG service.",
         )
 
-    def compare(self, configurations: Sequence[ProductConfiguration]) -> ComparisonResult:
-        """Compatibility shim; new callers use compare_configurations."""
-        return self.compare_configurations(configurations)
-
     @staticmethod
     def _unknown_facts(configuration: ProductConfiguration) -> list[str]:
         return [

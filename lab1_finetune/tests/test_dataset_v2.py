@@ -1,7 +1,12 @@
-from lab1_finetune.data.schema import DatasetLabels, FineTuneExample
+from lab1_finetune.data.schema import (
+    DatasetLabels,
+    FineTuneExample,
+    Intent,
+    ScenarioType,
+)
 from lab1_finetune.data.seed import build_seed_examples
+from lab1_finetune.data.splitter import DatasetSplitter
 from lab1_finetune.data.validator import DatasetValidator
-from lab1_finetune.src.pipeline import DatasetPipeline
 from shared.contracts import ChatMessage, ToolCall
 from shared.tool_contracts import TOOL_DEFINITIONS
 
@@ -10,13 +15,13 @@ def make_tool_example(example_id: str, family_id: str) -> FineTuneExample:
     return FineTuneExample(
         example_id=example_id,
         scenario_family_id=family_id,
-        scenario_summary="Find products for a complete request",
+        scenario_summary=f"Tìm sản phẩm cho nhóm tình huống {family_id}",
         task_type="solution_request",
         difficulty="medium",
         language="vi",
         source_type="synthetic_reviewed",
         messages=[
-            ChatMessage(role="system", content="Use tools and do not invent catalog facts."),
+            ChatMessage(role="system", content="Dùng công cụ và không bịa dữ liệu catalog."),
             ChatMessage(role="user", content="Tìm máy phù hợp."),
             ChatMessage(
                 role="assistant",
@@ -37,7 +42,8 @@ def make_tool_example(example_id: str, family_id: str) -> FineTuneExample:
         ],
         tools=TOOL_DEFINITIONS,
         labels=DatasetLabels(
-            intent="search_products",
+            intent=Intent.PRODUCT_SEARCH,
+            scenario_type=ScenarioType.SEARCH_SERVER_BY_GPU_SLOTS,
             should_call_tool=True,
             expected_tool="search_products",
             must_not_invent_product_fact=True,
@@ -79,7 +85,7 @@ def test_invalid_role_ordering_and_near_duplicate_families_are_rejected() -> Non
     first = make_tool_example("ex-1", "family-1")
     second = make_tool_example("ex-2", "family-2").model_copy(
         update={
-            "scenario_summary": "Find products for a complete requests",
+            "scenario_summary": "Tìm sản phẩm cho nhóm tình huống family-1.",
             "messages": [
                 ChatMessage(role="user", content="Need a system."),
                 ChatMessage(role="system", content="Too late."),
@@ -101,8 +107,8 @@ def test_split_is_deterministic_by_scenario_family_without_leakage() -> None:
         for variant in range(2)
     ]
 
-    first = DatasetPipeline(seed=7).split(examples)
-    second = DatasetPipeline(seed=7).split(examples)
+    first = DatasetSplitter(seed=7).split(examples)
+    second = DatasetSplitter(seed=7).split(examples)
 
     assert first == second
     train_families = {item.scenario_family_id for item in first.train}
@@ -117,7 +123,7 @@ def test_split_is_deterministic_by_scenario_family_without_leakage() -> None:
 
 def test_validator_detects_split_leakage() -> None:
     example = make_tool_example("ex-1", "family-1")
-    split = DatasetPipeline(seed=7).split([example])
+    split = DatasetSplitter(seed=7).split([example])
     split.train.append(example)
     split.test.append(example.model_copy(update={"example_id": "ex-2"}))
 
@@ -130,13 +136,17 @@ def test_validator_detects_split_leakage() -> None:
 def test_seed_dataset_has_reviewable_families_and_required_coverage() -> None:
     examples = build_seed_examples()
     families = {example.scenario_family_id for example in examples}
-    intents = {example.labels.intent for example in examples}
+    scenarios = {example.labels.scenario_type for example in examples}
     languages = {example.language for example in examples}
 
     assert 20 <= len(families) <= 30
     assert len(examples) >= len(families) * 2
-    assert {"tool_failure", "out_of_scope", "ambiguous_request"} <= intents
-    assert {"vi", "mixed", "en"} <= languages
+    assert {
+        ScenarioType.TOOL_FAILURE,
+        ScenarioType.OUT_SCOPE_LAPTOP,
+        ScenarioType.AMBIGUOUS_SOLUTION,
+    } <= scenarios
+    assert languages == {"vi"}
     report = DatasetValidator().validate(examples)
     assert report.valid is True
     assert report.manifest.family_count == len(families)

@@ -1,0 +1,55 @@
+{
+  "dataset_version": "3.0.0-vi-gold",
+  "created_at": "2026-09-20T09:17:48.965125Z",
+  "example_count": 50,
+  "family_count": 25,
+  "language_counts": {
+    "vi": 50
+  },
+  "intent_counts": {
+    "solution_design": 20,
+    "product_search": 10,
+    "product_comparison": 4,
+    "technical_question": 6,
+    "general_ai_question": 6,
+    "out_of_scope": 4
+  },
+  "scenario_type_counts": {
+    "solution_complete": 2,
+    "missing_budget": 2,
+    "missing_usage": 2,
+    "missing_model_size": 2,
+    "missing_multiple_fields": 2,
+    "ambiguous_solution": 2,
+    "contradictory_requirement": 2,
+    "search_workstation_by_ram": 2,
+    "search_server_by_gpu_slots": 2,
+    "search_product_by_budget": 2,
+    "no_product_found": 2,
+    "compare_products": 2,
+    "compare_configurations": 2,
+    "technical_max_ram": 2,
+    "technical_max_gpu": 2,
+    "unknown_product_spec": 2,
+    "tool_failure": 2,
+    "general_vram": 2,
+    "general_inference": 2,
+    "general_lora": 2,
+    "out_scope_laptop": 2,
+    "out_scope_network_switch": 2,
+    "finetune_32b_solution": 2,
+    "large_model_low_budget": 2,
+    "requirement_changed_mid_conversation": 2
+  },
+  "task_type_counts": {
+    "tool_calling": 28,
+    "conversation": 22
+  },
+  "split_counts": {
+    "train": 40,
+    "validation": 4,
+    "test": 6
+  },
+  "seed": 42,
+  "content_hash": "f8e4750ddd6ada149dd5f30b567400c722be173b3afcd4a5e14fc432909921de"
+}

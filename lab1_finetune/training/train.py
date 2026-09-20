@@ -1,4 +1,4 @@
-from lab1_finetune.configs import TrainingConfig
+from lab1_finetune.training import TrainingConfig
 
 
 def train(config: TrainingConfig) -> None:

@@ -92,7 +92,7 @@ def test_validation_reports_unknown_configuration_data() -> None:
 def test_comparison_service_returns_explicit_dimensions() -> None:
     configuration = make_configuration()
 
-    result = RuleBasedComparisonService().compare([configuration])
+    result = RuleBasedComparisonService().compare_configurations([configuration])
 
     assert result.product_ids == ["p-1"]
     assert result.configuration_ids == [configuration.configuration_id]
@@ -102,7 +102,7 @@ def test_comparison_service_returns_explicit_dimensions() -> None:
 def test_proposal_service_is_repeatable_for_identical_inputs() -> None:
     requirement, sizing = make_requirement_and_sizing()
     configuration = make_configuration()
-    comparison = RuleBasedComparisonService().compare([configuration])
+    comparison = RuleBasedComparisonService().compare_configurations([configuration])
 
     first = RuleBasedProposalService().create(
         requirement, sizing, [configuration], comparison, []

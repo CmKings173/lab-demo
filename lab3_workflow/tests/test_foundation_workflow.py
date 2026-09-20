@@ -189,7 +189,7 @@ def test_proposal_verifier_rejects_unsupported_claims() -> None:
     configuration = ProductConfigurationBuilder([make_gpu(["p-1"])]).build(
         [make_product("p-1")], sizing, requirement()
     )[0]
-    comparison = RuleBasedComparisonService().compare([configuration])
+    comparison = RuleBasedComparisonService().compare_configurations([configuration])
     proposal = RuleBasedProposalService().create(
         requirement(), sizing, [configuration], comparison, []
     )
@@ -208,7 +208,7 @@ def test_proposal_evidence_requires_field_specific_document_facts() -> None:
     configuration = ProductConfigurationBuilder([make_gpu(["p-1"])]).build(
         [make_product("p-1")], sizing, requirement()
     )[0]
-    comparison = RuleBasedComparisonService().compare([configuration])
+    comparison = RuleBasedComparisonService().compare_configurations([configuration])
 
     hits = FakeDocumentSearch(
         [
@@ -251,7 +251,7 @@ def test_proposal_verifier_rejects_undersized_ram_and_storage() -> None:
     configuration.configured_ram_gb = sizing.recommended_system_ram_gb - 1
     if sizing.recommended_storage_gb is not None:
         configuration.configured_storage_gb = sizing.recommended_storage_gb - 1
-    comparison = RuleBasedComparisonService().compare([configuration])
+    comparison = RuleBasedComparisonService().compare_configurations([configuration])
     proposal = RuleBasedProposalService().create(
         requirement(), sizing, [configuration], comparison, []
     )

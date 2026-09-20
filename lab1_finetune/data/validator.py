@@ -8,11 +8,11 @@ from typing import Any
 from pydantic import ValidationError
 
 from lab1_finetune.data.schema import (
-    DatasetManifest,
     DatasetSplit,
     DatasetValidationReport,
     FineTuneExample,
 )
+from lab1_finetune.data.statistics import build_manifest
 from shared.contracts import ToolDefinition
 
 
@@ -72,7 +72,7 @@ class DatasetValidator:
                     )
             summary_families.setdefault(normalized_summary, example.scenario_family_id)
             errors.extend(self._validate_example(example))
-        manifest = DatasetManifest.from_examples(items)
+        manifest = build_manifest(items)
         return DatasetValidationReport(valid=not errors, errors=errors, manifest=manifest)
 
     def validate_split(self, split: DatasetSplit) -> DatasetValidationReport:
@@ -105,6 +105,7 @@ class DatasetValidator:
         errors: list[str] = []
         definitions = {definition.name: definition for definition in example.tools}
         outstanding_calls: set[str] = set()
+        actual_tools: list[str] = []
         if not example.messages:
             return [f"{example.example_id}: empty messages"]
         previous_role: str | None = None
@@ -132,6 +133,7 @@ class DatasetValidator:
 
             if message.role == "assistant":
                 for call in message.tool_calls:
+                    actual_tools.append(call.name)
                     definition = definitions.get(call.name)
                     if definition is None:
                         errors.append(
@@ -157,6 +159,17 @@ class DatasetValidator:
             errors.append(f"{example.example_id}: tool call has no matching tool response")
         if example.labels.should_call_tool and not example.labels.expected_tool:
             errors.append(f"{example.example_id}: expected_tool is required")
+        if not example.labels.should_call_tool and actual_tools:
+            errors.append(f"{example.example_id}: should_call_tool=false but tool was called")
+        if example.labels.should_call_tool and not actual_tools:
+            errors.append(f"{example.example_id}: should_call_tool=true but no tool was called")
+        if (
+            example.labels.expected_tool
+            and example.labels.expected_tool not in actual_tools
+        ):
+            errors.append(
+                f"{example.example_id}: expected_tool does not match actual tool call"
+            )
         return errors
 
     @staticmethod
