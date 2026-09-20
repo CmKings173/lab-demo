@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 
 from lab1_finetune.data.schema import DatasetManifest, DatasetSplit, FineTuneExample
 
+DATASET_RELEASED_AT = datetime(2026, 9, 20, tzinfo=timezone.utc)
+
 
 def build_manifest(
     examples: list[FineTuneExample],
@@ -11,6 +13,7 @@ def build_manifest(
     split: DatasetSplit | None = None,
     seed: int = 42,
     dataset_version: str = "3.0.0-vi-gold",
+    created_at: datetime = DATASET_RELEASED_AT,
 ) -> DatasetManifest:
     canonical = "\n".join(
         item.model_dump_json(exclude_none=False)
@@ -18,7 +21,7 @@ def build_manifest(
     )
     return DatasetManifest(
         dataset_version=dataset_version,
-        created_at=datetime.now(timezone.utc),
+        created_at=created_at,
         example_count=len(examples),
         family_count=len({item.scenario_family_id for item in examples}),
         language_counts=dict(Counter(item.language for item in examples)),

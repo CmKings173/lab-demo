@@ -85,6 +85,8 @@ def test_split_export_and_manifest_are_deterministic(tmp_path) -> None:
     assert len(manifest.content_hash) == 64
     assert len(records) == len(examples)
     assert set(records[0]) == {"messages", "tools"}
+    assert manifest == build_manifest(examples, split=split, seed=42)
+    assert manifest.created_at.isoformat() == "2026-09-20T00:00:00+00:00"
 
 
 def test_validator_rejects_label_and_tool_flow_mismatches() -> None:
