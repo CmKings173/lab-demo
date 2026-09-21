@@ -65,11 +65,25 @@ class WorkflowTopologyNode(ContractModel):
     kind: Literal["state"] = "state"
     terminal: bool
 
+    @field_validator("id", "label")
+    @classmethod
+    def reject_blank_text(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("topology text must not be blank")
+        return value
+
 
 class WorkflowTopologyEdge(ContractModel):
     source: str = Field(min_length=1)
     target: str = Field(min_length=1)
     conditional: bool = False
+
+    @field_validator("source", "target")
+    @classmethod
+    def reject_blank_endpoints(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("topology endpoint must not be blank")
+        return value
 
 
 class WorkflowTopology(ContractModel):
@@ -105,8 +119,23 @@ class WorkflowTopology(ContractModel):
         return cls(nodes=nodes, edges=edges)
 
     @model_validator(mode="after")
-    def reject_duplicate_edges(self) -> WorkflowTopology:
+    def validate_graph_invariants(self) -> WorkflowTopology:
+        node_ids = [node.id for node in self.nodes]
+        if len(node_ids) != len(set(node_ids)):
+            raise ValueError("topology node ids must be unique")
+
         edge_pairs = [(edge.source, edge.target) for edge in self.edges]
         if len(edge_pairs) != len(set(edge_pairs)):
             raise ValueError("topology edges must be unique")
+
+        known_node_ids = set(node_ids)
+        outgoing_sources = {edge.source for edge in self.edges}
+        for edge in self.edges:
+            if edge.source not in known_node_ids or edge.target not in known_node_ids:
+                raise ValueError("topology edges must reference known nodes")
+
+        for node in self.nodes:
+            has_outgoing_edge = node.id in outgoing_sources
+            if node.terminal != (not has_outgoing_edge):
+                raise ValueError("terminal flag must match outgoing edges")
         return self

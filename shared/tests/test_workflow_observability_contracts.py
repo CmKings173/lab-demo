@@ -5,7 +5,14 @@ import pytest
 from pydantic import ValidationError
 
 from lab3_workflow.workflow.orchestrator import DeterministicWorkflow
-from shared.contracts import WorkflowEvent, WorkflowEventType, WorkflowState
+from shared.contracts import (
+    WorkflowEvent,
+    WorkflowEventType,
+    WorkflowState,
+    WorkflowTopology,
+    WorkflowTopologyEdge,
+    WorkflowTopologyNode,
+)
 
 
 def _event_data() -> dict[str, object]:
@@ -105,3 +112,29 @@ def test_workflow_event_rejects_unknown_extra_fields() -> None:
 
     with pytest.raises(ValidationError):
         WorkflowEvent.model_validate(data)
+
+
+def test_workflow_topology_rejects_duplicate_node_ids() -> None:
+    node = WorkflowTopologyNode(id="analyze", label="Analyze", terminal=True)
+
+    with pytest.raises(ValidationError):
+        WorkflowTopology(nodes=[node, node], edges=[])
+
+
+def test_workflow_topology_rejects_dangling_edges() -> None:
+    nodes = [WorkflowTopologyNode(id="analyze", label="Analyze", terminal=True)]
+    edges = [WorkflowTopologyEdge(source="analyze", target="missing")]
+
+    with pytest.raises(ValidationError):
+        WorkflowTopology(nodes=nodes, edges=edges)
+
+
+def test_workflow_topology_rejects_terminal_node_with_outgoing_edge() -> None:
+    nodes = [
+        WorkflowTopologyNode(id="analyze", label="Analyze", terminal=True),
+        WorkflowTopologyNode(id="size", label="Size", terminal=True),
+    ]
+    edges = [WorkflowTopologyEdge(source="analyze", target="size")]
+
+    with pytest.raises(ValidationError):
+        WorkflowTopology(nodes=nodes, edges=edges)
