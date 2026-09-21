@@ -6,6 +6,7 @@ import time
 from fastapi.testclient import TestClient
 
 from lab2_rag_agent.catalog.repository import InMemoryProductRepository
+from lab3_workflow.runtime.http import app as module_app
 from lab3_workflow.runtime.http import create_app
 from lab3_workflow.tests.test_workflow import build_workflow, make_compatible_product
 from shared.contracts import WorkflowState
@@ -85,6 +86,15 @@ def test_unknown_run_uses_structured_not_found_error() -> None:
     }
 
 
+def test_unknown_event_stream_uses_structured_not_found_error() -> None:
+    client = TestClient(create_app(workflow_factory=workflow_factory))
+
+    response = client.get("/runs/missing/events")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "RUN_NOT_FOUND"
+
+
 def test_post_without_workflow_factory_is_unavailable() -> None:
     client = TestClient(create_app())
 
@@ -92,6 +102,28 @@ def test_post_without_workflow_factory_is_unavailable() -> None:
 
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "WORKFLOW_NOT_CONFIGURED"
+
+
+def test_malformed_requirement_uses_structured_validation_error() -> None:
+    client = TestClient(create_app(workflow_factory=workflow_factory))
+
+    response = client.post(
+        "/runs",
+        json={**requirement_payload(), "usage": "unsupported"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_module_level_demo_app_runs_end_to_end() -> None:
+    client = TestClient(module_app)
+
+    response = client.post("/runs", json=requirement_payload())
+
+    assert response.status_code == 202
+    snapshot = wait_for_completion(client, response.json()["run_id"])
+    assert snapshot["status"] == "completed"
 
 
 def test_topology_is_derived_from_canonical_workflow() -> None:

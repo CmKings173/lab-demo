@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from shared.contracts import CustomerRequirement, WorkflowEvent, WorkflowTopology
 
 from ...workflow.orchestrator import DeterministicWorkflow
+from ..demo import create_demo_workflow
 from ..runs.models import RunStatus
 from ..runs.store import InMemoryRunStore
 from .models import APIErrorDetail, APIErrorResponse, CreateRunResponse, RunSnapshot
@@ -161,4 +162,4 @@ def create_app(
     return app
 
 
-app = create_app()
+app = create_app(workflow_factory=create_demo_workflow)
