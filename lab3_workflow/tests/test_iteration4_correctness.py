@@ -96,6 +96,18 @@ def test_builder_selects_smallest_real_ram_and_storage_options() -> None:
     assert configuration.selected_cpu is None
 
 
+def test_base_inclusion_does_not_make_selected_ram_or_storage_free() -> None:
+    product = _product().model_copy(
+        update={"base_price_includes": {"chassis", "cpu", "ram", "storage"}}
+    )
+    configuration = ProductConfigurationBuilder(
+        [_gpu()], [_ram(256)], [_storage(2000)]
+    ).build([product], _sizing(storage=1500), _requirement(storage=1500))[0]
+
+    assert configuration.price_breakdown.ram_vnd == _ram(256).price_vnd
+    assert configuration.price_breakdown.storage_vnd == _storage(2000).price_vnd
+
+
 def test_missing_ram_option_is_unknown_when_platform_can_support_requirement() -> None:
     configuration = ProductConfigurationBuilder([_gpu()]).build(
         [_product()], _sizing(), _requirement()
@@ -249,6 +261,19 @@ def test_verifier_rejects_wrong_product_unverified_fact_and_ram_mismatch() -> No
             ram.value = 128
 
         assert RuleBasedProposalVerifier().verify(proposal).valid is False
+
+
+def test_verifier_rejects_mutated_option_with_same_configuration_id() -> None:
+    proposal = _proposal_fixture()
+    option = proposal.options[0]
+    option.configuration = option.configuration.model_copy(
+        update={"configured_ram_gb": 128}
+    )
+
+    result = RuleBasedProposalVerifier().verify(proposal)
+
+    assert result.valid is False
+    assert any("does not match selected configuration" in error for error in result.errors)
 
 
 def test_sizing_defaults_are_explicit_but_not_claimed_when_supplied() -> None:

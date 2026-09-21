@@ -10,7 +10,7 @@ typed contracts và interfaces.
 Foundation v3 chạy hoàn toàn offline bằng fake adapters. Workflow không biến
 dữ liệu thiếu thành giá trị mặc định: giá có `COMPLETE/PARTIAL/UNKNOWN`, kết quả
 validation có `PASS/FAIL/UNKNOWN`, và fact sản phẩm chỉ được bổ sung từ tài liệu
-đã xác minh. Dataset Lab 1 có 50 mẫu tiếng Việt thuộc 25 scenario family, split
+đã xác minh. Dataset Lab 1 có 60 mẫu tiếng Việt thuộc 25 scenario family, split
 theo family để tránh leakage. Chưa có model training hay hạ tầng production.
 
 ## Development

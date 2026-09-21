@@ -10,6 +10,7 @@ from shared.tool_args import TOOL_ARG_MODELS
 from shared.tool_contracts import TOOL_DEFINITIONS
 
 SEED_PATH = Path(__file__).with_name("seed") / "gold_seed_vi.jsonl"
+GOLD_SOURCE_TYPE = "synthetic_curated_unreviewed"
 SYSTEM_MESSAGE = (
     "Bạn là trợ lý tư vấn AI Server và AI Workstation. Dùng dữ liệu công cụ để trả lời; "
     "không suy đoán thông số, giá hoặc tồn kho và hỏi lại khi thiếu yêu cầu bắt buộc."
@@ -43,7 +44,7 @@ def build_gold_seed_examples() -> list[FineTuneExample]:
         examples.append(FineTuneExample(
             example_id=example_id, scenario_family_id=spec["family"],
             scenario_summary=spec["scenario"], language="vi", difficulty="medium",
-            source_type="gold_human_review",
+            source_type=GOLD_SOURCE_TYPE,
             task_type="tool_calling" if expected else "conversation",
             messages=messages, tools=TOOL_DEFINITIONS if expected else [],
             labels=DatasetLabels(

@@ -129,15 +129,33 @@ class PriceBreakdown(ContractModel):
 
     @model_validator(mode="after")
     def check_complete(self) -> "PriceBreakdown":
-        values = [self.base_chassis_vnd, self.gpu_vnd, self.ram_vnd,
-                  self.storage_vnd, self.cpu_vnd]
+        components = {
+            "base_chassis": self.base_chassis_vnd,
+            "gpu": self.gpu_vnd,
+            "ram": self.ram_vnd,
+            "storage": self.storage_vnd,
+            "cpu": self.cpu_vnd,
+        }
+        values = list(components.values())
+        missing = [name for name, value in components.items() if value is None]
         total = sum(value for value in values if value is not None)
         if self.total_vnd is not None and self.total_vnd != total:
             raise ValueError("Price total must equal its component sum")
-        if self.status == PriceStatus.COMPLETE and (
-            self.missing_components or self.total_vnd is None
-        ):
-            raise ValueError("Complete price cannot have missing components")
+        if self.status == PriceStatus.COMPLETE and missing:
+            raise ValueError("COMPLETE price requires all components")
+        expected_status = (
+            PriceStatus.COMPLETE
+            if not missing
+            else PriceStatus.UNKNOWN
+            if len(missing) == len(components)
+            else PriceStatus.PARTIAL
+        )
+        if self.status != expected_status:
+            raise ValueError("Price status must match actual component completeness")
+        if sorted(self.missing_components) != sorted(missing):
+            raise ValueError("missing_components must match actual missing price components")
+        if self.status == PriceStatus.COMPLETE and self.total_vnd is None:
+            raise ValueError("Complete price must have a total")
         return self
 
 

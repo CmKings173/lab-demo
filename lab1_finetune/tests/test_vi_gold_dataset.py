@@ -28,6 +28,15 @@ def test_gold_seed_has_exactly_25_families_and_at_least_50_vietnamese_examples()
     assert DatasetValidator().validate(examples).valid is True
 
 
+def test_gold_seed_does_not_claim_manual_review_without_review_gate() -> None:
+    examples = load_gold_seed()
+
+    assert {example.source_type for example in examples} == {
+        "synthetic_curated_unreviewed"
+    }
+    assert not any("human_review" in example.source_type for example in examples)
+
+
 def test_gold_seed_has_no_old_english_placeholders() -> None:
     serialized = "\n".join(
         message.content or ""

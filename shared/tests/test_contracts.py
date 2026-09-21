@@ -5,6 +5,8 @@ from pydantic import ValidationError
 
 from shared.contracts import (
     CustomerRequirement,
+    PriceBreakdown,
+    PriceStatus,
     Product,
     ProductFilter,
     ProductType,
@@ -55,3 +57,31 @@ def test_product_and_filter_are_json_serializable() -> None:
 
     assert Product.model_validate_json(product.model_dump_json()).sku == "SKU-1"
     assert product_filter.model_dump()["min_gpu_count"] == 4
+
+
+def test_complete_price_requires_every_component_and_consistent_missing_fields() -> None:
+    with pytest.raises(ValidationError, match="COMPLETE price requires all components"):
+        PriceBreakdown(
+            base_chassis_vnd=100,
+            gpu_vnd=None,
+            ram_vnd=20,
+            storage_vnd=30,
+            cpu_vnd=0,
+            total_vnd=150,
+            missing_components=[],
+            status=PriceStatus.COMPLETE,
+        )
+
+
+def test_price_status_must_match_actual_component_completeness() -> None:
+    with pytest.raises(ValidationError, match="missing_components must match"):
+        PriceBreakdown(
+            base_chassis_vnd=100,
+            gpu_vnd=None,
+            ram_vnd=20,
+            storage_vnd=30,
+            cpu_vnd=0,
+            total_vnd=150,
+            missing_components=[],
+            status=PriceStatus.PARTIAL,
+        )

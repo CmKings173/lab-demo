@@ -66,16 +66,10 @@ class ProductConfigurationBuilder:
                 prices = {
                     "base_chassis": product.base_price_vnd,
                     "gpu": gpu.price_vnd * count if gpu and gpu.price_vnd is not None else None,
-                    "ram": (
-                        0
-                        if ram and "ram" in product.base_price_includes
-                        else ram.price_vnd if ram else None
-                    ),
+                    "ram": ram.price_vnd if ram else None,
                     "cpu": 0 if "cpu" in product.base_price_includes else None,
                     "storage": (
-                        0
-                        if storage and "storage" in product.base_price_includes
-                        else storage.price_vnd
+                        storage.price_vnd
                         if storage
                         else 0
                         if storage_target is None

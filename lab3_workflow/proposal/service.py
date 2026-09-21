@@ -75,12 +75,25 @@ class RuleBasedProposalVerifier:
     def verify(self, proposal: Proposal) -> ProposalVerificationResult:
         errors: list[str] = []
         evidence_by_claim = {item.claim: item for item in proposal.evidence}
-        configuration_ids = {
-            configuration.configuration_id for configuration in proposal.selected_configurations
+        configurations_by_id = {
+            configuration.configuration_id: configuration
+            for configuration in proposal.selected_configurations
         }
         for option in proposal.options:
-            if option.configuration.configuration_id not in configuration_ids:
+            canonical = configurations_by_id.get(option.configuration.configuration_id)
+            if canonical is None:
                 errors.append(f"Unknown configuration: {option.configuration.configuration_id}")
+                continue
+            if option.configuration != canonical:
+                errors.append(
+                    "Proposal option does not match selected configuration: "
+                    f"{option.configuration.configuration_id}"
+                )
+            if option.estimated_price_vnd != canonical.estimated_price_vnd:
+                errors.append(
+                    "Proposal option price does not match selected configuration: "
+                    f"{option.configuration.configuration_id}"
+                )
         for claim, value in proposal.technical_claims.items():
             item = evidence_by_claim.get(claim)
             if item is None:
