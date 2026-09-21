@@ -27,7 +27,12 @@ OpenClaw chỉ gọi domain tools, không nhận quyền SQL hay shell tùy ý.
 
 ## Luồng phụ thuộc
 
-Contracts không phụ thuộc implementation. Lab 3 phụ thuộc interfaces và domain
-services của Lab 2, không phụ thuộc database/vector SDK. Dữ liệu chưa biết giữ
-nguyên `None`/`UNKNOWN`; chỉ `ResolvedProductFact` có evidence khớp product,
-field, value và `verified=true` mới được áp dụng rồi revalidate.
+Contracts không phụ thuộc implementation. Fake implementations dùng chung nằm ở
+`adapters/fake`; Lab 2 không phụ thuộc Lab 1 và unit tool tests không phụ thuộc
+concrete service của Lab 3. Các tool schema được sinh duy nhất từ Pydantic args
+models trong `shared/tool_args.py`; runtime và dataset validator dùng cùng registry.
+
+Dữ liệu chưa biết giữ nguyên `None`/`UNKNOWN`. Product fact resolver chỉ xử lý
+technical fact; nó không biến URL bất kỳ thành giá cấu hình. Chỉ
+`ResolvedProductFact` có evidence khớp product, field, value và `verified=true`
+mới được áp dụng rồi revalidate.

@@ -163,10 +163,9 @@ class DeterministicWorkflow:
             validation = context.validation_results[configuration.configuration_id]
             if validation.status == ValidationStatus.FAIL:
                 continue
-            query_fields = validation.unknown_fields + [
-                "total_vram_gb",
-                "configured_ram_gb",
-            ]
+            resolvable = [field for field in validation.unknown_fields
+                          if field in {"max_ram_gb", "max_gpu_slots", "max_storage_gb"}]
+            query_fields = resolvable + ["memory_gb", "capacity_gb", "max_gpu_slots", "max_ram_gb"]
             result = self.document_search.search(
                 DocumentSearchRequest(
                     query=" ".join(query_fields),
@@ -175,7 +174,7 @@ class DeterministicWorkflow:
             )
             context.document_hits.extend(result.hits)
             facts = self.fact_resolver.resolve(
-                configuration, validation.unknown_fields, result.hits
+                configuration, resolvable, result.hits
             )
             facts_by_configuration[configuration.configuration_id] = facts
             context.resolved_facts.extend(facts)
@@ -246,7 +245,7 @@ class DeterministicWorkflow:
         return ProductSearchRequest(
             filters=ProductFilter(
                 min_ram_gb=sizing.recommended_system_ram_gb,
-                max_price_vnd=budget_vnd,
+                max_base_price_vnd=budget_vnd,
             )
         )
 

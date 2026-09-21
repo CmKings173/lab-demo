@@ -3,6 +3,7 @@
 from .catalog import ProductRepository
 from .comparison import ComparisonService
 from .configuration import ConfigurationBuilder
+from .configuration_repository import ConfigurationRepository
 from .documents import DocumentSearch
 from .embeddings import EmbeddingProvider
 from .evidence import ProductFactResolver
@@ -17,6 +18,7 @@ from .workflow import WorkflowRunner
 __all__ = [
     "ComparisonService",
     "ConfigurationBuilder",
+    "ConfigurationRepository",
     "DocumentSearch",
     "ProductFactResolver",
     "EmbeddingProvider",

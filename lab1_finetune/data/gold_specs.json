@@ -1,0 +1,2039 @@
+[
+  {
+    "example_id": "01_solution_complete-1",
+    "family": "01_solution_complete",
+    "scenario": "solution_complete",
+    "intent": "solution_design",
+    "user": "Bên mình đang dựng chatbot nội bộ bằng Qwen 32B. Chỉ chạy inference, khoảng 5 người dùng cùng lúc, ngân sách tối đa 300 triệu. Tư vấn giúp một cấu hình phù hợp.",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "inference",
+      "concurrent_users": 5,
+      "budget_vnd": 300000000
+    },
+    "missing": [],
+    "final": "Kết quả ước lượng cần khoảng 96GB tổng VRAM và 336GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 32,
+          "usage": "inference",
+          "concurrent_users": 5
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 76.8,
+          "recommended_total_vram_gb": 96,
+          "recommended_system_ram_gb": 336,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "01_solution_complete-2",
+    "family": "01_solution_complete",
+    "scenario": "solution_complete",
+    "intent": "solution_design",
+    "user": "Team R&D cần chạy model 14B local, tầm 8 đến 10 user truy cập đồng thời, không fine-tune. Budget khoảng 220 triệu, ưu tiên workstation nếu đủ.",
+    "requirement": {
+      "model_size_b": 14,
+      "usage": "inference",
+      "concurrent_users": 10,
+      "budget_vnd": 220000000
+    },
+    "missing": [],
+    "final": "Kết quả ước lượng cần khoảng 42GB tổng VRAM và 272GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 14,
+          "usage": "inference",
+          "concurrent_users": 10
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 33.6,
+          "recommended_total_vram_gb": 42,
+          "recommended_system_ram_gb": 272,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "02_missing_budget-1",
+    "family": "02_missing_budget",
+    "scenario": "missing_budget",
+    "intent": "solution_design",
+    "user": "Bên anh cần máy chạy Qwen 32B local, chủ yếu inference, khoảng 5 user. Cấu hình thế nào ổn?",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "inference",
+      "concurrent_users": 5
+    },
+    "missing": [
+      "budget_vnd"
+    ],
+    "final": "Bạn dự kiến ngân sách tối đa cho hệ thống là bao nhiêu?",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "02_missing_budget-2",
+    "family": "02_missing_budget",
+    "scenario": "missing_budget",
+    "intent": "solution_design",
+    "user": "Mình cần workstation cho model 14B, chỉ chạy nội bộ thôi, không train.",
+    "requirement": {
+      "model_size_b": 14,
+      "usage": "inference"
+    },
+    "missing": [
+      "budget_vnd"
+    ],
+    "final": "Bạn dự kiến ngân sách tối đa cho hệ thống là bao nhiêu?",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "03_missing_usage-1",
+    "family": "03_missing_usage",
+    "scenario": "missing_usage",
+    "intent": "solution_design",
+    "user": "Bên mình đã chốt ngân sách 350 triệu, model cỡ 32B. Nhờ tư vấn cấu hình.",
+    "requirement": {
+      "model_size_b": 32,
+      "budget_vnd": 350000000
+    },
+    "missing": [
+      "usage"
+    ],
+    "final": "Bạn cần hệ thống để chạy inference hay fine-tune model?",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "03_missing_usage-2",
+    "family": "03_missing_usage",
+    "scenario": "missing_usage",
+    "intent": "solution_design",
+    "user": "Đang tính server cho model 70B, budget tối đa 800 triệu. Có phương án nào không?",
+    "requirement": {
+      "model_size_b": 70,
+      "budget_vnd": 800000000
+    },
+    "missing": [
+      "usage"
+    ],
+    "final": "Bạn cần hệ thống để chạy inference hay fine-tune model?",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "04_missing_model_size-1",
+    "family": "04_missing_model_size",
+    "scenario": "missing_model_size",
+    "intent": "solution_design",
+    "user": "Công ty cần workstation chạy AI nội bộ, chủ yếu inference, ngân sách 250 triệu.",
+    "requirement": {
+      "usage": "inference",
+      "budget_vnd": 250000000
+    },
+    "missing": [
+      "model_size_b"
+    ],
+    "final": "Bạn dự kiến chạy model nào hoặc model có khoảng bao nhiêu tỷ tham số?",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "04_missing_model_size-2",
+    "family": "04_missing_model_size",
+    "scenario": "missing_model_size",
+    "intent": "solution_design",
+    "user": "Bên mình muốn triển khai LLM local cho bộ phận pháp chế, chỉ dùng hỏi đáp, budget khoảng 600 triệu.",
+    "requirement": {
+      "usage": "inference",
+      "budget_vnd": 600000000
+    },
+    "missing": [
+      "model_size_b"
+    ],
+    "final": "Bạn dự kiến chạy model nào hoặc model có khoảng bao nhiêu tỷ tham số?",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "05_missing_multiple_fields-1",
+    "family": "05_missing_multiple_fields",
+    "scenario": "missing_multiple_fields",
+    "intent": "solution_design",
+    "user": "Bên em cần một máy AI cho team kỹ thuật, tư vấn giúp.",
+    "requirement": {},
+    "missing": [
+      "model_size_b",
+      "usage",
+      "budget_vnd"
+    ],
+    "final": "Bạn cho biết model hoặc quy mô model, mục đích inference hay fine-tune và ngân sách tối đa nhé.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "05_missing_multiple_fields-2",
+    "family": "05_missing_multiple_fields",
+    "scenario": "missing_multiple_fields",
+    "intent": "solution_design",
+    "user": "Sếp giao lên cấu hình hệ thống chạy LLM nội bộ, hiện mới có nhu cầu chung thôi.",
+    "requirement": {},
+    "missing": [
+      "model_size_b",
+      "usage",
+      "budget_vnd"
+    ],
+    "final": "Bạn cho biết model hoặc quy mô model, mục đích inference hay fine-tune và ngân sách tối đa nhé.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "06_ambiguous_solution-1",
+    "family": "06_ambiguous_solution",
+    "scenario": "ambiguous_solution",
+    "intent": "solution_design",
+    "user": "Có con máy AI nào mạnh nhất bên mình đang có không?",
+    "requirement": {},
+    "missing": [
+      "model_size_b",
+      "usage",
+      "budget_vnd"
+    ],
+    "final": "Tôi cần biết workload, quy mô model, mục đích sử dụng và ngân sách trước khi cấu hình.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "06_ambiguous_solution-2",
+    "family": "06_ambiguous_solution",
+    "scenario": "ambiguous_solution",
+    "intent": "solution_design",
+    "user": "Lên cho anh một cấu hình thật mạnh, sau này khỏi nâng cấp nhiều.",
+    "requirement": {},
+    "missing": [
+      "model_size_b",
+      "usage",
+      "budget_vnd"
+    ],
+    "final": "Tôi cần biết workload, quy mô model, mục đích sử dụng và ngân sách trước khi cấu hình.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "07_contradictory_requirement-1",
+    "family": "07_contradictory_requirement",
+    "scenario": "contradictory_requirement",
+    "intent": "solution_design",
+    "user": "Muốn fine-tune 70B bằng LoRA nhưng chỉ dùng 1 GPU 24GB, budget 100tr, có cách nào không?",
+    "requirement": {
+      "model_size_b": 70,
+      "usage": "fine_tune",
+      "budget_vnd": 100000000,
+      "training_method": "LoRA"
+    },
+    "missing": [],
+    "final": "Các ràng buộc hiện tại mâu thuẫn với nhu cầu tài nguyên; tôi chưa thể khẳng định có cấu hình phù hợp.",
+    "should_abstain": true,
+    "steps": []
+  },
+  {
+    "example_id": "07_contradictory_requirement-2",
+    "family": "07_contradictory_requirement",
+    "scenario": "contradictory_requirement",
+    "intent": "solution_design",
+    "user": "Bên mình bắt buộc chạy 70B full precision nhưng máy chỉ được một GPU 16GB. Cấu hình giúp.",
+    "requirement": {
+      "model_size_b": 70,
+      "usage": "inference"
+    },
+    "missing": [
+      "budget_vnd"
+    ],
+    "final": "Các ràng buộc hiện tại mâu thuẫn với nhu cầu tài nguyên; tôi chưa thể khẳng định có cấu hình phù hợp.",
+    "should_abstain": true,
+    "steps": []
+  },
+  {
+    "example_id": "08_search_workstation_by_ram-1",
+    "family": "08_search_workstation_by_ram",
+    "scenario": "search_workstation_by_ram",
+    "intent": "product_search",
+    "user": "Có workstation nào hỗ trợ tối thiểu 512GB RAM không? Gửi mình mấy mẫu đang có trong catalog.",
+    "requirement": {},
+    "missing": [],
+    "final": "Danh mục giả lập trả về DEMO-WS-101: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_workstation",
+            "min_ram_gb": 512
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [
+            {
+              "id": "DEMO-WS-101",
+              "sku": "DEMO-WS-101",
+              "name": "DEMO-WS-101",
+              "manufacturer": "DEMO",
+              "product_type": "ai_workstation",
+              "max_ram_gb": 1024,
+              "max_gpu_slots": 8,
+              "base_price_vnd": 80000000
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "08_search_workstation_by_ram-2",
+    "family": "08_search_workstation_by_ram",
+    "scenario": "search_workstation_by_ram",
+    "intent": "product_search",
+    "user": "Tìm giúp workstation có đường nâng RAM lên 1TB, chưa cần tư vấn model.",
+    "requirement": {},
+    "missing": [],
+    "final": "Danh mục giả lập trả về DEMO-WS-101: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_workstation",
+            "min_ram_gb": 1024
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [
+            {
+              "id": "DEMO-WS-101",
+              "sku": "DEMO-WS-101",
+              "name": "DEMO-WS-101",
+              "manufacturer": "DEMO",
+              "product_type": "ai_workstation",
+              "max_ram_gb": 1024,
+              "max_gpu_slots": 8,
+              "base_price_vnd": 80000000
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "09_search_server_by_gpu_slots-1",
+    "family": "09_search_server_by_gpu_slots",
+    "scenario": "search_server_by_gpu_slots",
+    "intent": "product_search",
+    "user": "Bên mình cần shortlist server lắp được ít nhất 4 GPU.",
+    "requirement": {},
+    "missing": [],
+    "final": "Danh mục giả lập trả về DEMO-SRV-201: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_server",
+            "min_gpu_count": 4
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [
+            {
+              "id": "DEMO-SRV-201",
+              "sku": "DEMO-SRV-201",
+              "name": "DEMO-SRV-201",
+              "manufacturer": "DEMO",
+              "product_type": "ai_server",
+              "max_ram_gb": 1024,
+              "max_gpu_slots": 8,
+              "base_price_vnd": 80000000
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "09_search_server_by_gpu_slots-2",
+    "family": "09_search_server_by_gpu_slots",
+    "scenario": "search_server_by_gpu_slots",
+    "intent": "product_search",
+    "user": "Trong catalog có mẫu server nào hỗ trợ 8 GPU không?",
+    "requirement": {},
+    "missing": [],
+    "final": "Danh mục giả lập trả về DEMO-SRV-201: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_server",
+            "min_gpu_count": 8
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [
+            {
+              "id": "DEMO-SRV-201",
+              "sku": "DEMO-SRV-201",
+              "name": "DEMO-SRV-201",
+              "manufacturer": "DEMO",
+              "product_type": "ai_server",
+              "max_ram_gb": 1024,
+              "max_gpu_slots": 8,
+              "base_price_vnd": 80000000
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "10_search_product_by_budget-1",
+    "family": "10_search_product_by_budget",
+    "scenario": "search_product_by_budget",
+    "intent": "product_search",
+    "user": "Tìm giúp workstation có giá nền trong catalog không quá 200 triệu.",
+    "requirement": {},
+    "missing": [],
+    "final": "Danh mục giả lập trả về DEMO-WS-101: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_workstation",
+            "max_base_price_vnd": 200000000
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [
+            {
+              "id": "DEMO-WS-101",
+              "sku": "DEMO-WS-101",
+              "name": "DEMO-WS-101",
+              "manufacturer": "DEMO",
+              "product_type": "ai_workstation",
+              "max_ram_gb": 1024,
+              "max_gpu_slots": 8,
+              "base_price_vnd": 80000000
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "10_search_product_by_budget-2",
+    "family": "10_search_product_by_budget",
+    "scenario": "search_product_by_budget",
+    "intent": "product_search",
+    "user": "Lọc giúp server AI có giá nền tối đa 500 triệu.",
+    "requirement": {},
+    "missing": [],
+    "final": "Danh mục giả lập trả về DEMO-SRV-201: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_server",
+            "max_base_price_vnd": 500000000
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [
+            {
+              "id": "DEMO-SRV-201",
+              "sku": "DEMO-SRV-201",
+              "name": "DEMO-SRV-201",
+              "manufacturer": "DEMO",
+              "product_type": "ai_server",
+              "max_ram_gb": 1024,
+              "max_gpu_slots": 8,
+              "base_price_vnd": 80000000
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "11_no_product_found-1",
+    "family": "11_no_product_found",
+    "scenario": "no_product_found",
+    "intent": "product_search",
+    "user": "Có server nào 8 GPU mà giá nền dưới 100 triệu không? Nếu không có thì nói thẳng giúp mình.",
+    "requirement": {},
+    "missing": [],
+    "final": "Hiện tôi chưa tìm thấy sản phẩm nào trong danh mục đáp ứng đồng thời các điều kiện trên.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_server",
+            "min_gpu_count": 8,
+            "max_base_price_vnd": 100000000
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "11_no_product_found-2",
+    "family": "11_no_product_found",
+    "scenario": "no_product_found",
+    "intent": "product_search",
+    "user": "Tìm workstation hỗ trợ 4 GPU, RAM tối đa ít nhất 2TB, giá nền dưới 150 triệu.",
+    "requirement": {},
+    "missing": [],
+    "final": "Hiện tôi chưa tìm thấy sản phẩm nào trong danh mục đáp ứng đồng thời các điều kiện trên.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_workstation",
+            "min_gpu_count": 4,
+            "min_ram_gb": 2048,
+            "max_base_price_vnd": 150000000
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "12_compare_products-1",
+    "family": "12_compare_products",
+    "scenario": "compare_products",
+    "intent": "product_comparison",
+    "user": "So giúp DEMO-SRV-201 với DEMO-SRV-202, mình cần nhìn RAM tối đa, số GPU và giá nền.",
+    "requirement": {},
+    "missing": [],
+    "final": "Chưa đủ thông số xác minh để kết luận DEMO-SRV-201 và DEMO-SRV-202 mẫu nào phù hợp hơn.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "compare_products",
+        "arguments": {
+          "product_ids": [
+            "DEMO-SRV-201",
+            "DEMO-SRV-202"
+          ]
+        },
+        "ok": true,
+        "data": {
+          "product_ids": [
+            "DEMO-SRV-201",
+            "DEMO-SRV-202"
+          ],
+          "dimensions": [
+            "max_ram_gb",
+            "max_gpu_slots",
+            "base_price_vnd"
+          ],
+          "summary": "Chưa đủ thông số xác minh để kết luận DEMO-SRV-201 và DEMO-SRV-202 mẫu nào phù hợp hơn."
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "12_compare_products-2",
+    "family": "12_compare_products",
+    "scenario": "compare_products",
+    "intent": "product_comparison",
+    "user": "DEMO-WS-101 và DEMO-WS-102 khác nhau chỗ nào? Chỉ lấy dữ liệu catalog nhé.",
+    "requirement": {},
+    "missing": [],
+    "final": "Chưa đủ thông số xác minh để kết luận DEMO-WS-101 và DEMO-WS-102 mẫu nào phù hợp hơn.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "compare_products",
+        "arguments": {
+          "product_ids": [
+            "DEMO-WS-101",
+            "DEMO-WS-102"
+          ]
+        },
+        "ok": true,
+        "data": {
+          "product_ids": [
+            "DEMO-WS-101",
+            "DEMO-WS-102"
+          ],
+          "dimensions": [
+            "max_ram_gb",
+            "max_gpu_slots",
+            "base_price_vnd"
+          ],
+          "summary": "Chưa đủ thông số xác minh để kết luận DEMO-WS-101 và DEMO-WS-102 mẫu nào phù hợp hơn."
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "13_compare_configurations-1",
+    "family": "13_compare_configurations",
+    "scenario": "compare_configurations",
+    "intent": "product_comparison",
+    "user": "So hai phương án vừa tạo giúp mình. Một phương án 2 GPU 48GB, một phương án 1 GPU 96GB.",
+    "requirement": {},
+    "missing": [],
+    "final": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "compare_configurations",
+        "arguments": {
+          "configuration_ids": [
+            "cfg-a",
+            "cfg-b"
+          ]
+        },
+        "ok": true,
+        "data": {
+          "product_ids": [
+            "DEMO-WS-101"
+          ],
+          "configuration_ids": [
+            "cfg-a",
+            "cfg-b"
+          ],
+          "configurations": [
+            {
+              "configuration_id": "cfg-a",
+              "product_id": "DEMO-WS-101",
+              "gpu_model": "DEMO GPU 48",
+              "gpu_count": 2,
+              "total_vram_gb": 96,
+              "configured_ram_gb": 256,
+              "price_status": "unknown",
+              "unknown_facts": [
+                "complete_price"
+              ]
+            },
+            {
+              "configuration_id": "cfg-b",
+              "product_id": "DEMO-WS-101",
+              "gpu_model": "DEMO GPU 96",
+              "gpu_count": 1,
+              "total_vram_gb": 96,
+              "configured_ram_gb": 256,
+              "price_status": "unknown",
+              "unknown_facts": [
+                "complete_price"
+              ]
+            }
+          ],
+          "summary": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ."
+        },
+        "error": null
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "Các cấu hình đã tạo và lưu trước đó là cfg-a, cfg-b."
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi sẽ dùng đúng các mã cấu hình đã lưu để so sánh."
+      }
+    ]
+  },
+  {
+    "example_id": "13_compare_configurations-2",
+    "family": "13_compare_configurations",
+    "scenario": "compare_configurations",
+    "intent": "product_comparison",
+    "user": "Giữa hai cấu hình vừa rồi, cho mình bảng so GPU, tổng VRAM, RAM và giá.",
+    "requirement": {},
+    "missing": [],
+    "final": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "compare_configurations",
+        "arguments": {
+          "configuration_ids": [
+            "cfg-c",
+            "cfg-d"
+          ]
+        },
+        "ok": true,
+        "data": {
+          "product_ids": [
+            "DEMO-WS-101"
+          ],
+          "configuration_ids": [
+            "cfg-c",
+            "cfg-d"
+          ],
+          "configurations": [
+            {
+              "configuration_id": "cfg-c",
+              "product_id": "DEMO-WS-101",
+              "gpu_model": "DEMO GPU 48",
+              "gpu_count": 2,
+              "total_vram_gb": 96,
+              "configured_ram_gb": 256,
+              "price_status": "unknown",
+              "unknown_facts": [
+                "complete_price"
+              ]
+            },
+            {
+              "configuration_id": "cfg-d",
+              "product_id": "DEMO-WS-101",
+              "gpu_model": "DEMO GPU 96",
+              "gpu_count": 1,
+              "total_vram_gb": 96,
+              "configured_ram_gb": 256,
+              "price_status": "unknown",
+              "unknown_facts": [
+                "complete_price"
+              ]
+            }
+          ],
+          "summary": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ."
+        },
+        "error": null
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "Các cấu hình đã tạo và lưu trước đó là cfg-c, cfg-d."
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi sẽ dùng đúng các mã cấu hình đã lưu để so sánh."
+      }
+    ]
+  },
+  {
+    "example_id": "14_technical_max_ram-1",
+    "family": "14_technical_max_ram",
+    "scenario": "technical_max_ram",
+    "intent": "technical_question",
+    "user": "DEMO-SRV-201 hỗ trợ RAM tối đa bao nhiêu? Có nguồn datasheet thì dẫn giúp.",
+    "requirement": {},
+    "missing": [],
+    "final": "Theo tài liệu giả lập https://example.invalid/DEMO-SRV-201/max_ram_gb, DEMO-SRV-201 hỗ trợ tối đa 1024GB RAM.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_product_documents",
+        "arguments": {
+          "query": "RAM tối đa",
+          "product_id": "DEMO-SRV-201"
+        },
+        "ok": true,
+        "data": {
+          "hits": [
+            {
+              "chunk": {
+                "id": "doc-DEMO-SRV-201-max_ram_gb",
+                "text": "DEMO-SRV-201: max_ram_gb = 1024.",
+                "product_id": "DEMO-SRV-201",
+                "source_url": "https://example.invalid/DEMO-SRV-201/max_ram_gb",
+                "metadata": {
+                  "field_name": "max_ram_gb",
+                  "value": "1024",
+                  "verified": "true"
+                }
+              },
+              "rank": 1,
+              "retrieval_method": "fictional_gold_fixture"
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "14_technical_max_ram-2",
+    "family": "14_technical_max_ram",
+    "scenario": "technical_max_ram",
+    "intent": "technical_question",
+    "user": "Kiểm tra giúp DEMO-WS-101 nâng được tối đa bao nhiêu RAM, đừng đoán nếu tài liệu không ghi.",
+    "requirement": {},
+    "missing": [],
+    "final": "Theo tài liệu giả lập https://example.invalid/DEMO-WS-101/max_ram_gb, DEMO-WS-101 hỗ trợ tối đa 1024GB RAM.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_product_documents",
+        "arguments": {
+          "query": "RAM tối đa",
+          "product_id": "DEMO-WS-101"
+        },
+        "ok": true,
+        "data": {
+          "hits": [
+            {
+              "chunk": {
+                "id": "doc-DEMO-WS-101-max_ram_gb",
+                "text": "DEMO-WS-101: max_ram_gb = 1024.",
+                "product_id": "DEMO-WS-101",
+                "source_url": "https://example.invalid/DEMO-WS-101/max_ram_gb",
+                "metadata": {
+                  "field_name": "max_ram_gb",
+                  "value": "1024",
+                  "verified": "true"
+                }
+              },
+              "rank": 1,
+              "retrieval_method": "fictional_gold_fixture"
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "15_technical_max_gpu-1",
+    "family": "15_technical_max_gpu",
+    "scenario": "technical_max_gpu",
+    "intent": "technical_question",
+    "user": "DEMO-SRV-202 lắp tối đa được mấy GPU?",
+    "requirement": {},
+    "missing": [],
+    "final": "Theo tài liệu giả lập https://example.invalid/DEMO-SRV-202/max_gpu_slots, DEMO-SRV-202 hỗ trợ tối đa 8 GPU.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_product_documents",
+        "arguments": {
+          "query": "số GPU tối đa",
+          "product_id": "DEMO-SRV-202"
+        },
+        "ok": true,
+        "data": {
+          "hits": [
+            {
+              "chunk": {
+                "id": "doc-DEMO-SRV-202-max_gpu_slots",
+                "text": "DEMO-SRV-202: max_gpu_slots = 8.",
+                "product_id": "DEMO-SRV-202",
+                "source_url": "https://example.invalid/DEMO-SRV-202/max_gpu_slots",
+                "metadata": {
+                  "field_name": "max_gpu_slots",
+                  "value": "8",
+                  "verified": "true"
+                }
+              },
+              "rank": 1,
+              "retrieval_method": "fictional_gold_fixture"
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "15_technical_max_gpu-2",
+    "family": "15_technical_max_gpu",
+    "scenario": "technical_max_gpu",
+    "intent": "technical_question",
+    "user": "DEMO-WS-102 có bao nhiêu khe GPU theo tài liệu kỹ thuật?",
+    "requirement": {},
+    "missing": [],
+    "final": "Theo tài liệu giả lập https://example.invalid/DEMO-WS-102/max_gpu_slots, DEMO-WS-102 hỗ trợ tối đa 8 GPU.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "search_product_documents",
+        "arguments": {
+          "query": "khe GPU",
+          "product_id": "DEMO-WS-102"
+        },
+        "ok": true,
+        "data": {
+          "hits": [
+            {
+              "chunk": {
+                "id": "doc-DEMO-WS-102-max_gpu_slots",
+                "text": "DEMO-WS-102: max_gpu_slots = 8.",
+                "product_id": "DEMO-WS-102",
+                "source_url": "https://example.invalid/DEMO-WS-102/max_gpu_slots",
+                "metadata": {
+                  "field_name": "max_gpu_slots",
+                  "value": "8",
+                  "verified": "true"
+                }
+              },
+              "rank": 1,
+              "retrieval_method": "fictional_gold_fixture"
+            }
+          ],
+          "total": 1
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "16_unknown_product_spec-1",
+    "family": "16_unknown_product_spec",
+    "scenario": "unknown_product_spec",
+    "intent": "technical_question",
+    "user": "DEMO-SRV-203 tối đa mấy GPU? Mình cần con số có nguồn.",
+    "requirement": {},
+    "missing": [],
+    "final": "Tài liệu hiện có chưa đủ để xác nhận số GPU tối đa của DEMO-SRV-203.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "search_product_documents",
+        "arguments": {
+          "query": "số lượng GPU tối đa",
+          "product_id": "DEMO-SRV-203"
+        },
+        "ok": true,
+        "data": {
+          "hits": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "16_unknown_product_spec-2",
+    "family": "16_unknown_product_spec",
+    "scenario": "unknown_product_spec",
+    "intent": "technical_question",
+    "user": "DEMO-WS-104 max RAM bao nhiêu? Nếu catalog chưa có thì báo chưa đủ dữ liệu.",
+    "requirement": {},
+    "missing": [],
+    "final": "Tài liệu hiện có chưa đủ để xác nhận dung lượng RAM tối đa của DEMO-WS-104.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "search_product_documents",
+        "arguments": {
+          "query": "dung lượng RAM tối đa",
+          "product_id": "DEMO-WS-104"
+        },
+        "ok": true,
+        "data": {
+          "hits": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "17_tool_failure-1",
+    "family": "17_tool_failure",
+    "scenario": "tool_failure",
+    "intent": "product_search",
+    "user": "Tìm giúp mình server AI hỗ trợ ít nhất 4 GPU.",
+    "requirement": {},
+    "missing": [],
+    "final": "Hiện tôi chưa truy vấn được danh mục sản phẩm nên chưa thể xác nhận mẫu phù hợp.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "product_type": "ai_server",
+            "min_gpu_count": 4
+          }
+        },
+        "ok": false,
+        "data": null,
+        "error": "service_unavailable"
+      }
+    ]
+  },
+  {
+    "example_id": "17_tool_failure-2",
+    "family": "17_tool_failure",
+    "scenario": "tool_failure",
+    "intent": "technical_question",
+    "user": "Kiểm tra giúp RAM tối đa của DEMO-SRV-205.",
+    "requirement": {},
+    "missing": [],
+    "final": "Hiện tôi chưa truy cập được tài liệu kỹ thuật nên chưa thể xác nhận dung lượng RAM tối đa của DEMO-SRV-205.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "search_product_documents",
+        "arguments": {
+          "query": "RAM tối đa",
+          "product_id": "DEMO-SRV-205"
+        },
+        "ok": false,
+        "data": null,
+        "error": "service_unavailable"
+      }
+    ]
+  },
+  {
+    "example_id": "18_general_vram-1",
+    "family": "18_general_vram",
+    "scenario": "general_vram",
+    "intent": "general_ai_question",
+    "user": "VRAM với RAM hệ thống khác nhau thế nào khi chạy LLM?",
+    "requirement": {},
+    "missing": [],
+    "final": "VRAM lưu trọng số model và dữ liệu trung gian khi GPU tính toán; model và ngữ cảnh càng lớn thì nhu cầu VRAM thường càng cao.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "18_general_vram-2",
+    "family": "18_general_vram",
+    "scenario": "general_vram",
+    "intent": "general_ai_question",
+    "user": "Vì sao cùng một model mà tăng context lên thì thường lại tốn thêm VRAM?",
+    "requirement": {},
+    "missing": [],
+    "final": "VRAM lưu trọng số model và dữ liệu trung gian khi GPU tính toán; model và ngữ cảnh càng lớn thì nhu cầu VRAM thường càng cao.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "19_general_inference-1",
+    "family": "19_general_inference",
+    "scenario": "general_inference",
+    "intent": "general_ai_question",
+    "user": "Inference là gì? Bên mình chỉ chạy model chứ không train thì có tính là inference không?",
+    "requirement": {},
+    "missing": [],
+    "final": "Inference là giai đoạn dùng model đã huấn luyện để tạo dự đoán hoặc câu trả lời; training cập nhật trọng số còn inference thì không.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "19_general_inference-2",
+    "family": "19_general_inference",
+    "scenario": "general_inference",
+    "intent": "general_ai_question",
+    "user": "Training với inference khác nhau ở nhu cầu tài nguyên như thế nào?",
+    "requirement": {},
+    "missing": [],
+    "final": "Inference là giai đoạn dùng model đã huấn luyện để tạo dự đoán hoặc câu trả lời; training cập nhật trọng số còn inference thì không.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "20_general_lora-1",
+    "family": "20_general_lora",
+    "scenario": "general_lora",
+    "intent": "general_ai_question",
+    "user": "LoRA là gì vậy? Có phải train lại toàn bộ model không?",
+    "requirement": {},
+    "missing": [],
+    "final": "LoRA chỉ huấn luyện các ma trận hạng thấp bổ sung thay vì cập nhật toàn bộ trọng số, nên thường cần ít bộ nhớ và tính toán hơn.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "20_general_lora-2",
+    "family": "20_general_lora",
+    "scenario": "general_lora",
+    "intent": "general_ai_question",
+    "user": "Fine-tune bằng LoRA thường nhẹ hơn full fine-tune ở chỗ nào?",
+    "requirement": {},
+    "missing": [],
+    "final": "LoRA chỉ huấn luyện các ma trận hạng thấp bổ sung thay vì cập nhật toàn bộ trọng số, nên thường cần ít bộ nhớ và tính toán hơn.",
+    "should_abstain": false,
+    "steps": []
+  },
+  {
+    "example_id": "21_out_scope_laptop-1",
+    "family": "21_out_scope_laptop",
+    "scenario": "out_scope_laptop",
+    "intent": "out_of_scope",
+    "user": "Tầm 35 triệu có laptop nào chạy AI local ổn không?",
+    "requirement": {},
+    "missing": [],
+    "final": "Phạm vi hiện tại chỉ hỗ trợ AI Server và AI Workstation, chưa bao gồm laptop.",
+    "should_abstain": true,
+    "steps": []
+  },
+  {
+    "example_id": "21_out_scope_laptop-2",
+    "family": "21_out_scope_laptop",
+    "scenario": "out_scope_laptop",
+    "intent": "out_of_scope",
+    "user": "Tư vấn cho mình laptop có GPU mạnh để chạy LLM.",
+    "requirement": {},
+    "missing": [],
+    "final": "Phạm vi hiện tại chỉ hỗ trợ AI Server và AI Workstation, chưa bao gồm laptop.",
+    "should_abstain": true,
+    "steps": []
+  },
+  {
+    "example_id": "22_out_scope_network_switch-1",
+    "family": "22_out_scope_network_switch",
+    "scenario": "out_scope_network_switch",
+    "intent": "out_of_scope",
+    "user": "Bên mình cần switch 48 port cho rack AI, tư vấn luôn được không?",
+    "requirement": {},
+    "missing": [],
+    "final": "Yêu cầu này nằm ngoài phạm vi AI Server và AI Workstation hiện tại.",
+    "should_abstain": true,
+    "steps": []
+  },
+  {
+    "example_id": "22_out_scope_network_switch-2",
+    "family": "22_out_scope_network_switch",
+    "scenario": "out_scope_network_switch",
+    "intent": "out_of_scope",
+    "user": "Có firewall nào phù hợp cho văn phòng khoảng 100 người không?",
+    "requirement": {},
+    "missing": [],
+    "final": "Yêu cầu này nằm ngoài phạm vi AI Server và AI Workstation hiện tại.",
+    "should_abstain": true,
+    "steps": []
+  },
+  {
+    "example_id": "23_finetune_32b_solution-1",
+    "family": "23_finetune_32b_solution",
+    "scenario": "finetune_32b_solution",
+    "intent": "solution_design",
+    "user": "Team ML muốn fine-tune Qwen 32B bằng LoRA, budget khoảng 500tr. Chưa chốt batch size.",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "fine_tune",
+      "budget_vnd": 500000000,
+      "training_method": "LoRA"
+    },
+    "missing": [],
+    "final": "Kết quả ước lượng cần khoảng 144GB tổng VRAM và 272GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 32,
+          "usage": "fine_tune",
+          "training_method": "LoRA"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 115.19999999999999,
+          "recommended_total_vram_gb": 144,
+          "recommended_system_ram_gb": 272,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "23_finetune_32b_solution-2",
+    "family": "23_finetune_32b_solution",
+    "scenario": "finetune_32b_solution",
+    "intent": "solution_design",
+    "user": "Bên em cần máy để LoRA model 32B, ngân sách khoảng 600 triệu. Context dự kiến 8K.",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "fine_tune",
+      "budget_vnd": 600000000,
+      "training_method": "LoRA",
+      "context_length": 8192
+    },
+    "missing": [],
+    "final": "Kết quả ước lượng cần khoảng 144GB tổng VRAM và 272GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 32,
+          "usage": "fine_tune",
+          "context_length": 8192,
+          "training_method": "LoRA"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 115.19999999999999,
+          "recommended_total_vram_gb": 144,
+          "recommended_system_ram_gb": 272,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "24_large_model_low_budget-1",
+    "family": "24_large_model_low_budget",
+    "scenario": "large_model_low_budget",
+    "intent": "solution_design",
+    "user": "Muốn chạy 70B local nhưng sếp chỉ duyệt 80 triệu. Cứ tính nhu cầu tài nguyên trước giúp mình.",
+    "requirement": {
+      "model_size_b": 70,
+      "usage": "inference",
+      "budget_vnd": 80000000
+    },
+    "missing": [],
+    "final": "Kết quả ước lượng cần khoảng 210GB tổng VRAM và 576GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 70,
+          "usage": "inference"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 168,
+          "recommended_total_vram_gb": 210,
+          "recommended_system_ram_gb": 576,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "24_large_model_low_budget-2",
+    "family": "24_large_model_low_budget",
+    "scenario": "large_model_low_budget",
+    "intent": "solution_design",
+    "user": "70B inference, budget trần 100tr. Nếu chưa đủ dữ liệu giá thì đừng khẳng định có cấu hình phù hợp.",
+    "requirement": {
+      "model_size_b": 70,
+      "usage": "inference",
+      "budget_vnd": 100000000
+    },
+    "missing": [],
+    "final": "Kết quả ước lượng cần khoảng 210GB tổng VRAM và 576GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 70,
+          "usage": "inference"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 168,
+          "recommended_total_vram_gb": 210,
+          "recommended_system_ram_gb": 576,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "25_requirement_changed_mid_conversation-1",
+    "family": "25_requirement_changed_mid_conversation",
+    "scenario": "requirement_changed_mid_conversation",
+    "intent": "solution_design",
+    "user": "Kế hoạch đổi rồi, phải lên 32B. Budget nâng lên 300 triệu.",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "inference",
+      "budget_vnd": 300000000
+    },
+    "missing": [],
+    "final": "Kết quả ước lượng cần khoảng 96GB tổng VRAM và 272GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 32,
+          "usage": "inference"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 76.8,
+          "recommended_total_vram_gb": 96,
+          "recommended_system_ram_gb": 272,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "Ban đầu bên mình định chạy 14B inference, ngân sách 200 triệu."
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi đã ghi nhận nhu cầu ban đầu. Bạn muốn điều chỉnh gì thêm?"
+      }
+    ]
+  },
+  {
+    "example_id": "25_requirement_changed_mid_conversation-2",
+    "family": "25_requirement_changed_mid_conversation",
+    "scenario": "requirement_changed_mid_conversation",
+    "intent": "solution_design",
+    "user": "À team ML vừa chốt là cần fine-tune LoRA nữa.",
+    "requirement": {
+      "model_size_b": 14,
+      "usage": "fine_tune",
+      "budget_vnd": 200000000,
+      "training_method": "LoRA"
+    },
+    "missing": [],
+    "final": "Kết quả ước lượng cần khoảng 63GB tổng VRAM và 128GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 14,
+          "usage": "fine_tune",
+          "training_method": "LoRA"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 50.4,
+          "recommended_total_vram_gb": 63,
+          "recommended_system_ram_gb": 128,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "Bên mình chỉ chạy 14B inference, ngân sách 200 triệu."
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi đã ghi nhận nhu cầu ban đầu. Bạn muốn điều chỉnh gì thêm?"
+      }
+    ]
+  },
+  {
+    "example_id": "01_solution_complete-1-multi",
+    "family": "01_solution_complete",
+    "scenario": "solution_complete",
+    "intent": "solution_design",
+    "user": "Bên mình đang dựng chatbot nội bộ bằng Qwen 32B. Chỉ chạy inference, khoảng 5 người dùng cùng lúc, ngân sách tối đa 300 triệu. Tư vấn giúp một cấu hình phù hợp.",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "inference",
+      "concurrent_users": 5,
+      "budget_vnd": 300000000
+    },
+    "missing": [],
+    "final": "Sizing yêu cầu 336GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 32,
+          "usage": "inference",
+          "concurrent_users": 5
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 76.8,
+          "recommended_total_vram_gb": 96,
+          "recommended_system_ram_gb": 336,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      },
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "min_ram_gb": 336
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "01_solution_complete-2-multi",
+    "family": "01_solution_complete",
+    "scenario": "solution_complete",
+    "intent": "solution_design",
+    "user": "Team R&D cần chạy model 14B local, tầm 8 đến 10 user truy cập đồng thời, không fine-tune. Budget khoảng 220 triệu, ưu tiên workstation nếu đủ.",
+    "requirement": {
+      "model_size_b": 14,
+      "usage": "inference",
+      "concurrent_users": 10,
+      "budget_vnd": 220000000
+    },
+    "missing": [],
+    "final": "Sizing yêu cầu 272GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 14,
+          "usage": "inference",
+          "concurrent_users": 10
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 33.6,
+          "recommended_total_vram_gb": 42,
+          "recommended_system_ram_gb": 272,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      },
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "min_ram_gb": 272
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "23_finetune_32b_solution-1-multi",
+    "family": "23_finetune_32b_solution",
+    "scenario": "finetune_32b_solution",
+    "intent": "solution_design",
+    "user": "Team ML muốn fine-tune Qwen 32B bằng LoRA, budget khoảng 500tr. Chưa chốt batch size.",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "fine_tune",
+      "budget_vnd": 500000000,
+      "training_method": "LoRA"
+    },
+    "missing": [],
+    "final": "Sizing yêu cầu 272GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 32,
+          "usage": "fine_tune",
+          "training_method": "LoRA"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 115.19999999999999,
+          "recommended_total_vram_gb": 144,
+          "recommended_system_ram_gb": 272,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      },
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "min_ram_gb": 272
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "23_finetune_32b_solution-2-multi",
+    "family": "23_finetune_32b_solution",
+    "scenario": "finetune_32b_solution",
+    "intent": "solution_design",
+    "user": "Bên em cần máy để LoRA model 32B, ngân sách khoảng 600 triệu. Context dự kiến 8K.",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "fine_tune",
+      "budget_vnd": 600000000,
+      "training_method": "LoRA",
+      "context_length": 8192
+    },
+    "missing": [],
+    "final": "Sizing yêu cầu 272GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 32,
+          "usage": "fine_tune",
+          "context_length": 8192,
+          "training_method": "LoRA"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 115.19999999999999,
+          "recommended_total_vram_gb": 144,
+          "recommended_system_ram_gb": 272,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      },
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "min_ram_gb": 272
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "25_requirement_changed_mid_conversation-1-multi",
+    "family": "25_requirement_changed_mid_conversation",
+    "scenario": "requirement_changed_mid_conversation",
+    "intent": "solution_design",
+    "user": "Kế hoạch đổi rồi, phải lên 32B. Budget nâng lên 300 triệu.",
+    "requirement": {
+      "model_size_b": 32,
+      "usage": "inference",
+      "budget_vnd": 300000000
+    },
+    "missing": [],
+    "final": "Sizing yêu cầu 272GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 32,
+          "usage": "inference"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 76.8,
+          "recommended_total_vram_gb": 96,
+          "recommended_system_ram_gb": 272,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      },
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "min_ram_gb": 272
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "Ban đầu bên mình định chạy 14B inference, ngân sách 200 triệu."
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi đã ghi nhận nhu cầu ban đầu. Bạn muốn điều chỉnh gì thêm?"
+      }
+    ]
+  },
+  {
+    "example_id": "25_requirement_changed_mid_conversation-2-multi",
+    "family": "25_requirement_changed_mid_conversation",
+    "scenario": "requirement_changed_mid_conversation",
+    "intent": "solution_design",
+    "user": "À team ML vừa chốt là cần fine-tune LoRA nữa.",
+    "requirement": {
+      "model_size_b": 14,
+      "usage": "fine_tune",
+      "budget_vnd": 200000000,
+      "training_method": "LoRA"
+    },
+    "missing": [],
+    "final": "Sizing yêu cầu 128GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 14,
+          "usage": "fine_tune",
+          "training_method": "LoRA"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 50.4,
+          "recommended_total_vram_gb": 63,
+          "recommended_system_ram_gb": 128,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      },
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "min_ram_gb": 128
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "Bên mình chỉ chạy 14B inference, ngân sách 200 triệu."
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi đã ghi nhận nhu cầu ban đầu. Bạn muốn điều chỉnh gì thêm?"
+      }
+    ]
+  },
+  {
+    "example_id": "13_compare_configurations-1-multi",
+    "family": "13_compare_configurations",
+    "scenario": "compare_configurations",
+    "intent": "product_comparison",
+    "user": "So hai phương án vừa tạo giúp mình. Một phương án 2 GPU 48GB, một phương án 1 GPU 96GB.",
+    "requirement": {},
+    "missing": [],
+    "final": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "get_product",
+        "arguments": {
+          "product_id": "DEMO-WS-101"
+        },
+        "ok": true,
+        "data": {
+          "id": "DEMO-WS-101",
+          "sku": "DEMO-WS-101",
+          "name": "DEMO-WS-101",
+          "manufacturer": "DEMO",
+          "product_type": "ai_workstation"
+        },
+        "error": null
+      },
+      {
+        "name": "compare_configurations",
+        "arguments": {
+          "configuration_ids": [
+            "cfg-a",
+            "cfg-b"
+          ]
+        },
+        "ok": true,
+        "data": {
+          "product_ids": [
+            "DEMO-WS-101"
+          ],
+          "configuration_ids": [
+            "cfg-a",
+            "cfg-b"
+          ],
+          "configurations": [
+            {
+              "configuration_id": "cfg-a",
+              "product_id": "DEMO-WS-101",
+              "gpu_model": "DEMO GPU 48",
+              "gpu_count": 2,
+              "total_vram_gb": 96,
+              "configured_ram_gb": 256,
+              "price_status": "unknown",
+              "unknown_facts": [
+                "complete_price"
+              ]
+            },
+            {
+              "configuration_id": "cfg-b",
+              "product_id": "DEMO-WS-101",
+              "gpu_model": "DEMO GPU 96",
+              "gpu_count": 1,
+              "total_vram_gb": 96,
+              "configured_ram_gb": 256,
+              "price_status": "unknown",
+              "unknown_facts": [
+                "complete_price"
+              ]
+            }
+          ],
+          "summary": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ."
+        },
+        "error": null
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "Các cấu hình đã tạo và lưu trước đó là cfg-a, cfg-b."
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi sẽ dùng đúng các mã cấu hình đã lưu để so sánh."
+      }
+    ]
+  },
+  {
+    "example_id": "13_compare_configurations-2-multi",
+    "family": "13_compare_configurations",
+    "scenario": "compare_configurations",
+    "intent": "product_comparison",
+    "user": "Giữa hai cấu hình vừa rồi, cho mình bảng so GPU, tổng VRAM, RAM và giá.",
+    "requirement": {},
+    "missing": [],
+    "final": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ.",
+    "should_abstain": false,
+    "steps": [
+      {
+        "name": "get_product",
+        "arguments": {
+          "product_id": "DEMO-WS-101"
+        },
+        "ok": true,
+        "data": {
+          "id": "DEMO-WS-101",
+          "sku": "DEMO-WS-101",
+          "name": "DEMO-WS-101",
+          "manufacturer": "DEMO",
+          "product_type": "ai_workstation"
+        },
+        "error": null
+      },
+      {
+        "name": "compare_configurations",
+        "arguments": {
+          "configuration_ids": [
+            "cfg-c",
+            "cfg-d"
+          ]
+        },
+        "ok": true,
+        "data": {
+          "product_ids": [
+            "DEMO-WS-101"
+          ],
+          "configuration_ids": [
+            "cfg-c",
+            "cfg-d"
+          ],
+          "configurations": [
+            {
+              "configuration_id": "cfg-c",
+              "product_id": "DEMO-WS-101",
+              "gpu_model": "DEMO GPU 48",
+              "gpu_count": 2,
+              "total_vram_gb": 96,
+              "configured_ram_gb": 256,
+              "price_status": "unknown",
+              "unknown_facts": [
+                "complete_price"
+              ]
+            },
+            {
+              "configuration_id": "cfg-d",
+              "product_id": "DEMO-WS-101",
+              "gpu_model": "DEMO GPU 96",
+              "gpu_count": 1,
+              "total_vram_gb": 96,
+              "configured_ram_gb": 256,
+              "price_status": "unknown",
+              "unknown_facts": [
+                "complete_price"
+              ]
+            }
+          ],
+          "summary": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ."
+        },
+        "error": null
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "Các cấu hình đã tạo và lưu trước đó là cfg-c, cfg-d."
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi sẽ dùng đúng các mã cấu hình đã lưu để so sánh."
+      }
+    ]
+  },
+  {
+    "example_id": "24_large_model_low_budget-1-multi",
+    "family": "24_large_model_low_budget",
+    "scenario": "large_model_low_budget",
+    "intent": "solution_design",
+    "user": "Muốn chạy 70B local nhưng sếp chỉ duyệt 80 triệu. Cứ tính nhu cầu tài nguyên trước giúp mình.",
+    "requirement": {
+      "model_size_b": 70,
+      "usage": "inference",
+      "budget_vnd": 80000000
+    },
+    "missing": [],
+    "final": "Sizing yêu cầu 576GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "estimate_ai_requirements",
+        "arguments": {
+          "model_parameters_b": 70,
+          "usage": "inference"
+        },
+        "ok": true,
+        "data": {
+          "estimated_model_memory_gb": 168,
+          "recommended_total_vram_gb": 210,
+          "recommended_system_ram_gb": 576,
+          "confidence": 0.4,
+          "assumptions": [
+            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+          ],
+          "warnings": [
+            "Chưa xác minh giá cấu hình đầy đủ."
+          ]
+        },
+        "error": null
+      },
+      {
+        "name": "search_products",
+        "arguments": {
+          "filters": {
+            "min_ram_gb": 576
+          }
+        },
+        "ok": true,
+        "data": {
+          "products": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "example_id": "16_unknown_product_spec-1-multi",
+    "family": "16_unknown_product_spec",
+    "scenario": "unknown_product_spec",
+    "intent": "technical_question",
+    "user": "DEMO-SRV-203 tối đa mấy GPU? Mình cần con số có nguồn.",
+    "requirement": {},
+    "missing": [],
+    "final": "Tài liệu hiện có chưa đủ để xác nhận số GPU tối đa của DEMO-SRV-203.",
+    "should_abstain": true,
+    "steps": [
+      {
+        "name": "get_product",
+        "arguments": {
+          "product_id": "DEMO-SRV-203"
+        },
+        "ok": true,
+        "data": {
+          "id": "DEMO-SRV-203",
+          "sku": "DEMO-SRV-203",
+          "name": "DEMO-SRV-203",
+          "manufacturer": "DEMO",
+          "product_type": "ai_server"
+        },
+        "error": null
+      },
+      {
+        "name": "search_product_documents",
+        "arguments": {
+          "query": "số lượng GPU tối đa",
+          "product_id": "DEMO-SRV-203"
+        },
+        "ok": true,
+        "data": {
+          "hits": [],
+          "total": 0
+        },
+        "error": null
+      }
+    ]
+  }
+]

@@ -37,6 +37,10 @@ class DeterministicSizingService:
             ),
             "GPU count is selected later from the memory capacity of an actual GPU option.",
         ]
+        if request.context_length is None:
+            assumptions.append("Context length unspecified; temporarily assuming 4096 tokens.")
+        if request.concurrent_users is None:
+            assumptions.append("Concurrency unspecified; temporarily assuming 1 user.")
         warnings = [
             (
                 "Validate with an actual model, context, batch and concurrency benchmark "
@@ -44,6 +48,8 @@ class DeterministicSizingService:
             ),
         ]
         if request.usage == UsageType.FINE_TUNE:
+            if request.training_method is None:
+                warnings.append("Missing training method; using generic fine-tuning multiplier.")
             warnings.append(
                 "Fine-tuning memory depends strongly on batch size, optimizer and sequence length."
             )

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from lab3_workflow.proposal.evidence import build_evidence, verify_derived
 from shared.contracts import (
     ComparisonResult,
     CustomerRequirement,
     DocumentHit,
-    Evidence,
     PriceStatus,
     ProductConfiguration,
     Proposal,
@@ -12,6 +12,8 @@ from shared.contracts import (
     ProposalVerificationResult,
     SizingResult,
 )
+from shared.contracts.models import EvidenceKind
+from shared.storage import required_storage_target_gb
 
 
 class RuleBasedProposalService:
@@ -24,7 +26,7 @@ class RuleBasedProposalService:
         document_hits: list[DocumentHit],
     ) -> Proposal:
         selected = configurations[:2]
-        evidence = self._build_evidence(selected, document_hits)
+        evidence = build_evidence(selected, document_hits)
         options = [
             ProposalOption(
                 name=f"Option {chr(ord('A') + index)}",
@@ -36,7 +38,7 @@ class RuleBasedProposalService:
             )
             for index, configuration in enumerate(selected)
         ]
-        sources = sorted({item.source_url for item in evidence})
+        sources = sorted({item.source_url for item in evidence if item.source_url})
         technical_claims = {
             f"{configuration.configuration_id}.total_vram_gb": configuration.total_vram_gb
             for configuration in selected
@@ -68,48 +70,6 @@ class RuleBasedProposalService:
             estimated_price_vnd=(selected[0].estimated_price_vnd if selected else None),
         )
 
-    @staticmethod
-    def _build_evidence(
-        configurations: list[ProductConfiguration], document_hits: list[DocumentHit]
-    ) -> list[Evidence]:
-        evidence: list[Evidence] = []
-        hits_by_product: dict[str, list[DocumentHit]] = {}
-        for hit in document_hits:
-            if hit.chunk.product_id:
-                hits_by_product.setdefault(hit.chunk.product_id, []).append(hit)
-        for configuration in configurations:
-            product_id = configuration.product.id
-            product_hits = hits_by_product.get(product_id, [])
-            for field, value in (
-                ("total_vram_gb", configuration.total_vram_gb),
-                ("configured_ram_gb", configuration.configured_ram_gb),
-            ):
-                matching_hit = next(
-                    (
-                        hit
-                        for hit in product_hits
-                        if hit.chunk.source_url
-                        and hit.chunk.metadata.get("field_name") == field
-                        and hit.chunk.metadata.get("value") == str(value)
-                        and hit.chunk.metadata.get("verified", "").casefold() == "true"
-                    ),
-                    None,
-                )
-                if matching_hit is None:
-                    continue
-                evidence.append(
-                    Evidence(
-                        claim=f"{configuration.configuration_id}.{field}",
-                        value=value,
-                        source_url=matching_hit.chunk.source_url,
-                        product_id=product_id,
-                        document_id=matching_hit.chunk.id,
-                        page=matching_hit.chunk.page,
-                        verified=True,
-                    )
-                )
-        return evidence
-
 
 class RuleBasedProposalVerifier:
     def verify(self, proposal: Proposal) -> ProposalVerificationResult:
@@ -135,14 +95,20 @@ class RuleBasedProposalVerifier:
                 ),
                 None,
             )
-            if not item.verified:
-                errors.append(f"Unverified evidence: {claim}")
             if item.value != value:
                 errors.append(f"Evidence value mismatch: {claim}")
             if configuration is None or item.product_id != configuration.product.id:
                 errors.append(f"Evidence has wrong product: {claim}")
-            if item.document_id is None:
-                errors.append(f"Evidence lacks document linkage: {claim}")
+            if item.kind == EvidenceKind.DERIVED:
+                if configuration is None or not verify_derived(
+                    item, configuration, proposal.evidence
+                ):
+                    errors.append(f"Invalid derivation: {claim}")
+            else:
+                if not item.verified:
+                    errors.append(f"Unverified evidence: {claim}")
+                if item.document_id is None:
+                    errors.append(f"Evidence lacks document linkage: {claim}")
         for configuration in proposal.selected_configurations:
             if configuration.total_vram_gb is None:
                 errors.append(f"Configuration {configuration.configuration_id} has unknown VRAM")
@@ -159,7 +125,9 @@ class RuleBasedProposalVerifier:
                 errors.append(
                     f"Configuration {configuration.configuration_id} does not meet RAM sizing"
                 )
-            recommended_storage = proposal.sizing_result.recommended_storage_gb
+            recommended_storage = required_storage_target_gb(
+                proposal.customer_requirement, proposal.sizing_result,
+            )
             if recommended_storage is not None:
                 if configuration.configured_storage_gb is None:
                     errors.append(
@@ -171,13 +139,18 @@ class RuleBasedProposalVerifier:
                         f"{configuration.configuration_id} does not meet storage sizing"
                     )
             budget = proposal.customer_requirement.budget_vnd
-            if (
-                budget is not None
-                and configuration.price_status == PriceStatus.COMPLETE
-                and configuration.estimated_price_vnd is not None
-                and configuration.estimated_price_vnd > budget
-            ):
-                errors.append(f"Configuration {configuration.configuration_id} exceeds budget")
+            if budget is not None:
+                if (
+                    configuration.price_status != PriceStatus.COMPLETE
+                    or configuration.estimated_price_vnd is None
+                ):
+                    errors.append(
+                        f"Configuration {configuration.configuration_id} has incomplete price"
+                    )
+                elif configuration.estimated_price_vnd > budget:
+                    errors.append(
+                        f"Configuration {configuration.configuration_id} exceeds budget"
+                    )
         if not proposal.options:
             errors.append("Proposal has no options")
         return ProposalVerificationResult(valid=not errors, errors=errors)

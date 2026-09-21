@@ -6,6 +6,7 @@ from lab1_finetune.evaluation.metrics import (
     unsupported_product_claim_rate,
 )
 from lab1_finetune.evaluation.schema import EvaluationCase, EvaluationPrediction
+from shared.contracts import ToolCall
 
 
 def test_evaluation_metrics_compute_real_values() -> None:
@@ -39,9 +40,8 @@ def test_evaluation_report_exposes_all_required_metrics() -> None:
                 exclude_none=True
             ),
             missing_fields=case.gold_labels.missing_fields,
-            tool_name=case.gold_labels.expected_tool,
-            tool_arguments_valid=True,
-            structured_output_valid=True,
+            tool_calls=[ToolCall(id=str(index), name=call.name, arguments=call.arguments)
+                        for index, call in enumerate(case.gold_labels.expected_tool_calls)],
             total_product_claims=1,
             abstained=(case.gold_labels.scenario_type.value == "no_product_found"),
         )
@@ -56,7 +56,7 @@ def test_evaluation_report_exposes_all_required_metrics() -> None:
     assert report.tool_needed_accuracy == 1.0
     assert report.tool_name_accuracy == 1.0
     assert report.tool_argument_validity == 1.0
-    assert report.structured_output_validity == 1.0
+    assert report.structured_output_validity == 0.0  # No case requires structured output.
     assert report.unsupported_product_claim_rate == 0.0
     assert report.abstention_accuracy == 1.0
 

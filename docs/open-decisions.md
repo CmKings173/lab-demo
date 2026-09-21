@@ -6,6 +6,8 @@
 - Xác định field nào bắt buộc có evidence theo từng hãng.
 - Chọn dense/sparse weighting, reranker cutoff và giá trị `k` từ retrieval eval.
 - Chọn OpenClaw release/deployment policy; runtime hiện chưa được tích hợp.
-- Review thủ công 50 gold examples trước khi mở rộng lên dataset production.
+- Review thủ công 60 gold examples trước khi mở rộng lên dataset production.
+- Chọn nguồn authoritative cho option price; thiếu bất kỳ selected component
+  price nào thì tổng giá vẫn `PARTIAL/UNKNOWN`, không được suy diễn.
 - Định nghĩa confidence interval và release threshold cho từng metric.
 - Chọn UI sau khi API/workflow ổn định.

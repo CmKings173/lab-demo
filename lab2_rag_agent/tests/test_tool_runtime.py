@@ -1,14 +1,16 @@
-from lab1_finetune.evaluation.model import FakeModelClient
-from lab2_rag_agent.catalog.repository import InMemoryProductRepository
+from adapters.fake.catalog import InMemoryProductRepository
+from adapters.fake.configurations import InMemoryConfigurationRepository
+from adapters.fake.documents import FakeDocumentSearch
+from adapters.fake.model import FakeModelClient
+from adapters.fake.options import ram_options
+from adapters.fake.services import FakeComparisonService, FakeSizingService
 from lab2_rag_agent.openclaw.plugins.catalog_tools import CatalogTools
-from lab2_rag_agent.retrieval.documents import FakeDocumentSearch
-from lab3_workflow.comparison.service import RuleBasedComparisonService
-from lab3_workflow.sizing.service import DeterministicSizingService
 from shared.contracts import (
     ChatMessage,
     ComparisonResult,
     DocumentChunk,
     Product,
+    ProductConfiguration,
     ProductType,
     UsageType,
 )
@@ -24,13 +26,19 @@ def make_tools() -> CatalogTools:
         product_type=ProductType.AI_SERVER,
         source_urls=["https://example.invalid/p-1"],
     )
+    configuration = ProductConfiguration(
+        configuration_id="cfg-1",
+        product=product,
+        selected_ram=ram_options(["p-1"])[0],
+    )
     return CatalogTools(
-        repository=InMemoryProductRepository([product]),
+        repository=InMemoryProductRepository([product, product.model_copy(update={"id": "p-2"})]),
         document_search=FakeDocumentSearch(
             [DocumentChunk(id="doc-1", text="GPU memory", product_id="p-1")]
         ),
-        comparison_service=RuleBasedComparisonService(),
-        sizing_service=DeterministicSizingService(),
+        comparison_service=FakeComparisonService(),
+        sizing_service=FakeSizingService(),
+        configuration_repository=InMemoryConfigurationRepository([configuration]),
     )
 
 
@@ -49,13 +57,13 @@ def test_document_search_supports_product_id_and_compare_returns_contract() -> N
     tools = make_tools()
 
     documents = tools.search_product_documents("GPU", product_id="p-1")
-    comparison = tools.compare_products(["p-1"])
+    comparison = tools.compare_products(["p-1", "p-2"])
 
     assert documents.ok is True
     assert documents.data.hits[0].chunk.product_id == "p-1"
     assert comparison.ok is True
     assert isinstance(comparison.data, ComparisonResult)
-    assert comparison.data.product_ids == ["p-1"]
+    assert comparison.data.product_ids == ["p-1", "p-2"]
 
 
 def test_estimate_tool_uses_shared_sizing_contract() -> None:
@@ -63,6 +71,17 @@ def test_estimate_tool_uses_shared_sizing_contract() -> None:
 
     assert result.ok is True
     assert result.data.recommended_total_vram_gb > 0
+
+
+def test_compare_configurations_resolves_ids_at_runtime_boundary() -> None:
+    result = make_tools().compare_configurations(["cfg-1", "missing"])
+
+    assert result.ok is False
+    assert result.error == "unknown_configuration"
+
+    found = make_tools().compare_configurations(["cfg-1", "cfg-1"])
+    assert found.ok is True
+    assert found.data.configuration_ids == ["cfg-1", "cfg-1"]
 
 
 def test_model_client_supports_chat_messages_and_tool_definitions() -> None:

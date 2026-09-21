@@ -1,3 +1,5 @@
+from adapters.fake.evidence import option_documents
+from adapters.fake.options import ram_options, storage_options
 from lab2_rag_agent.catalog.repository import InMemoryProductRepository
 from lab2_rag_agent.retrieval.documents import FakeDocumentSearch
 from lab3_workflow.comparison.service import RuleBasedComparisonService
@@ -32,6 +34,7 @@ def make_product(product_id: str, *, ram: int | None = 1024) -> Product:
         max_gpu_slots=4,
         max_storage_gb=8000,
         base_price_vnd=100_000_000,
+        base_price_includes={"chassis", "cpu", "storage"},
         source_urls=[f"https://example.invalid/{product_id}"],
     )
 
@@ -75,7 +78,7 @@ def test_validation_distinguishes_pass_fail_and_unknown() -> None:
     )
     validator = RuleBasedConfigurationValidator()
     passing = ProductConfigurationBuilder(
-        [make_gpu(["pass"])], {"pass": {"ram": 20_000_000, "storage": 10_000_000}}
+        [make_gpu(["pass"])], ram_options(["pass"]), storage_options(["pass"])
     ).build(
         [make_product("pass")], sizing, requirement()
     )[0]
@@ -105,10 +108,8 @@ def build_workflow(
         sizing_service=DeterministicSizingService(),
         configuration_builder=ProductConfigurationBuilder(
             gpu_options,
-            {
-                product.id: {"ram": 20_000_000, "storage": 10_000_000}
-                for product in products
-            },
+            ram_options([product.id for product in products]),
+            storage_options([product.id for product in products]),
         ),
         validator=RuleBasedConfigurationValidator(),
         document_search=FakeDocumentSearch(chunks),
@@ -124,17 +125,7 @@ def test_workflow_calls_document_search_and_builds_option_a_and_b() -> None:
     workflow = build_workflow(
         products,
         [gpu],
-        [
-            DocumentChunk(
-                id=f"doc-{product.id}-{field}",
-                text=f"verified {field}",
-                product_id=product.id,
-                source_url=f"https://example.invalid/{product.id}/{field}",
-                metadata={"field_name": field, "value": str(value), "verified": "true"},
-            )
-            for product in products
-            for field, value in (("total_vram_gb", 96), ("configured_ram_gb", 176))
-        ],
+        [chunk for product in products for chunk in option_documents(product, gpu, 256)],
     )
 
     context = workflow.run(requirement())
@@ -144,6 +135,39 @@ def test_workflow_calls_document_search_and_builds_option_a_and_b() -> None:
     assert context.document_hits
     assert [option.name for option in context.proposal.options] == ["Option A", "Option B"]
     assert context.comparison is not None
+
+
+def test_complete_workflow_does_not_require_storage_when_customer_and_sizing_do_not() -> None:
+    products = [make_product("p-1")]
+    gpu = make_gpu(["p-1"])
+    workflow = build_workflow(products, [gpu], option_documents(products[0], gpu, 256))
+    no_storage_requirement = CustomerRequirement(
+        model_size_b=20,
+        usage=UsageType.INFERENCE,
+        budget_vnd=500_000_000,
+    )
+
+    context = workflow.run(no_storage_requirement)
+
+    assert context.state == WorkflowState.COMPLETE
+    assert context.configurations[0].selected_storage is None
+    assert context.configurations[0].configured_storage_gb is None
+    assert "configured_storage_gb" not in context.validation_results[
+        context.configurations[0].configuration_id
+    ].unknown_fields
+
+
+def test_partial_price_remains_unknown_and_is_not_sent_to_fact_resolver() -> None:
+    product = make_product("p-1").model_copy(update={"base_price_includes": {"chassis"}})
+    gpu = make_gpu(["p-1"])
+    workflow = build_workflow([product], [gpu], option_documents(product, gpu, 256))
+
+    context = workflow.run(requirement())
+
+    assert context.state == WorkflowState.INSUFFICIENT_PRODUCT_DATA
+    assert all(fact.field_name != "price" for fact in context.resolved_facts)
+    result = context.validation_results[context.configurations[0].configuration_id]
+    assert "price" in result.unknown_fields
 
 
 def test_unknown_only_candidates_stop_as_insufficient_product_data() -> None:
@@ -237,8 +261,9 @@ def test_proposal_evidence_requires_field_specific_document_facts() -> None:
     )
 
     evidence = {item.claim.rsplit(".", 1)[-1]: item for item in proposal.evidence}
-    assert evidence["total_vram_gb"].source_url.endswith("gpu-96")
-    assert evidence["configured_ram_gb"].source_url.endswith("p-1")
+    assert evidence["total_vram_gb"].source_url is None
+    assert evidence["total_vram_gb"].kind == "derived"
+    assert not RuleBasedProposalVerifier().verify(proposal).valid
 
 
 def test_proposal_verifier_rejects_undersized_ram_and_storage() -> None:

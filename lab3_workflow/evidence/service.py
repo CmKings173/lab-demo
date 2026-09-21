@@ -10,7 +10,7 @@ from shared.contracts import DocumentHit, ProductConfiguration, ResolvedProductF
 class DeterministicProductFactResolver:
     """Resolve only explicitly tagged and verified product facts."""
 
-    _PRODUCT_FIELDS = {"max_ram_gb", "max_gpu_slots", "max_storage_gb", "base_price_vnd"}
+    _PRODUCT_FIELDS = {"max_ram_gb", "max_gpu_slots", "max_storage_gb"}
 
     def resolve(
         self,
@@ -57,6 +57,7 @@ class DeterministicProductFactResolver:
             fact.field_name: fact.value
             for fact in facts
             if fact.verified and fact.product_id == configuration.product.id
+            and fact.field_name in self._PRODUCT_FIELDS
         }
         if not updates:
             return configuration

@@ -1,23 +1,9 @@
 from collections.abc import Sequence
 
+from adapters.fake.model import FakeModelClient
 from shared.contracts import ChatMessage, ModelResponse, ToolDefinition
 
-
-class FakeModelClient:
-    """Offline chat client used only by Lab 1 evaluation tests."""
-
-    def __init__(self, response: str = "fake-model-response") -> None:
-        self.response = response
-
-    def complete(
-        self,
-        messages: Sequence[ChatMessage],
-        tools: Sequence[ToolDefinition] = (),
-    ) -> ModelResponse:
-        return ModelResponse(
-            message=ChatMessage(role="assistant", content=self.response),
-            finish_reason="stop",
-        )
+__all__ = ["FakeModelClient", "VLLMModelClient"]
 
 
 class VLLMModelClient:

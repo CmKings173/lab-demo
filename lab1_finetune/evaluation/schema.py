@@ -1,7 +1,7 @@
 from pydantic import Field
 
 from lab1_finetune.data.schema import DatasetLabels
-from shared.contracts import ChatMessage, ToolDefinition
+from shared.contracts import ChatMessage, ToolCall, ToolDefinition
 from shared.contracts.models import ContractModel
 
 
@@ -16,9 +16,8 @@ class EvaluationPrediction(ContractModel):
     intent: str | None = None
     extracted_requirement: dict[str, object] = Field(default_factory=dict)
     missing_fields: list[str] = Field(default_factory=list)
-    tool_name: str | None = None
-    tool_arguments_valid: bool = False
-    structured_output_valid: bool = False
+    tool_calls: list[ToolCall] = Field(default_factory=list)
+    structured_output: dict[str, object] | str | None = None
     unsupported_product_claims: int = 0
     total_product_claims: int = 0
     abstained: bool = False
@@ -33,6 +32,10 @@ class EvaluationMetrics(ContractModel):
     tool_needed_accuracy: float
     tool_name_accuracy: float
     tool_argument_validity: float
+    tool_sequence_accuracy: float
+    tool_argument_schema_validity: float
+    tool_argument_exact_match: float
+    tool_argument_semantic_match: float
     structured_output_validity: float
     unsupported_product_claim_rate: float
     abstention_accuracy: float

@@ -33,14 +33,13 @@ class InMemoryProductRepository:
                 for p in products
                 if p.max_gpu_slots is None or p.max_gpu_slots >= filters.min_gpu_count
             ]
-        if filters.max_price_vnd is not None:
+        if filters.max_base_price_vnd is not None:
             products = [
                 p
                 for p in products
-                if p.base_price_vnd is None or p.base_price_vnd <= filters.max_price_vnd
+                if p.base_price_vnd is None or p.base_price_vnd <= filters.max_base_price_vnd
             ]
-        products = products[: request.limit]
-        return ProductSearchResult(products=products, total=len(products))
+        return ProductSearchResult(products=products[: request.limit], total=len(products))
 
     def get(self, product_id: str) -> Product | None:
         return self._products.get(product_id)

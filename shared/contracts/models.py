@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -77,6 +78,9 @@ class Product(ContractModel):
     power_w: int | None = Field(default=None, ge=0)
     form_factor: str | None = None
     base_price_vnd: int | None = Field(default=None, ge=0)
+    base_price_includes: set[Literal["chassis", "cpu", "ram", "storage"]] = Field(
+        default_factory=lambda: {"chassis"}
+    )
     availability: str | None = None
     source_urls: list[str] = Field(default_factory=list)
     updated_at: datetime | None = None
@@ -98,6 +102,45 @@ class GPUOption(ContractModel):
         )
 
 
+class RAMOption(ContractModel):
+    option_id: str
+    capacity_gb: int = Field(gt=0)
+    supported_product_ids: list[str] = Field(default_factory=list)
+    price_vnd: int | None = Field(default=None, ge=0)
+    source_urls: list[str] = Field(default_factory=list)
+
+    def supports(self, product: Product) -> bool:
+        return product.id in self.supported_product_ids
+
+
+class StorageOption(RAMOption):
+    storage_type: str | None = None
+
+
+class PriceBreakdown(ContractModel):
+    base_chassis_vnd: int | None = Field(default=None, ge=0)
+    gpu_vnd: int | None = Field(default=None, ge=0)
+    ram_vnd: int | None = Field(default=None, ge=0)
+    storage_vnd: int | None = Field(default=None, ge=0)
+    cpu_vnd: int | None = Field(default=None, ge=0)
+    total_vnd: int | None = Field(default=None, ge=0)
+    missing_components: list[str] = Field(default_factory=list)
+    status: PriceStatus = PriceStatus.UNKNOWN
+
+    @model_validator(mode="after")
+    def check_complete(self) -> "PriceBreakdown":
+        values = [self.base_chassis_vnd, self.gpu_vnd, self.ram_vnd,
+                  self.storage_vnd, self.cpu_vnd]
+        total = sum(value for value in values if value is not None)
+        if self.total_vnd is not None and self.total_vnd != total:
+            raise ValueError("Price total must equal its component sum")
+        if self.status == PriceStatus.COMPLETE and (
+            self.missing_components or self.total_vnd is None
+        ):
+            raise ValueError("Complete price cannot have missing components")
+        return self
+
+
 class ProductConfiguration(ContractModel):
     configuration_id: str
     product: Product
@@ -106,6 +149,9 @@ class ProductConfiguration(ContractModel):
     configured_ram_gb: int | None = Field(default=None, ge=1)
     configured_storage_gb: int | None = Field(default=None, ge=1)
     selected_cpu: str | None = None
+    selected_ram: RAMOption | None = None
+    selected_storage: StorageOption | None = None
+    price_breakdown: PriceBreakdown | None = None
     estimated_price_vnd: int | None = Field(default=None, ge=0)
     price_status: PriceStatus = PriceStatus.UNKNOWN
     priced_components: list[str] = Field(default_factory=list)
@@ -118,12 +164,31 @@ class ProductConfiguration(ContractModel):
             return None
         return self.selected_gpu.memory_gb * self.gpu_count
 
+    @model_validator(mode="after")
+    def sync_options(self) -> "ProductConfiguration":
+        for option_name, capacity_name in (
+            ("selected_ram", "configured_ram_gb"),
+            ("selected_storage", "configured_storage_gb"),
+        ):
+            option = getattr(self, option_name)
+            if option is not None:
+                capacity = getattr(self, capacity_name)
+                if capacity is not None and capacity != option.capacity_gb:
+                    raise ValueError(f"{capacity_name} must match selected option")
+                setattr(self, capacity_name, option.capacity_gb)
+        if self.price_breakdown is not None:
+            self.price_status = self.price_breakdown.status
+            self.estimated_price_vnd = self.price_breakdown.total_vnd
+            self.missing_price_components = list(self.price_breakdown.missing_components)
+        if self.price_status == PriceStatus.COMPLETE and self.missing_price_components:
+            raise ValueError("Complete price cannot have missing components")
+        return self
+
 
 class ProductFilter(ContractModel):
     min_ram_gb: int | None = Field(default=None, ge=0)
     min_gpu_count: int | None = Field(default=None, ge=0)
-    min_vram_gb: int | None = Field(default=None, ge=0)
-    max_price_vnd: int | None = Field(default=None, ge=0)
+    max_base_price_vnd: int | None = Field(default=None, ge=0)
     product_type: ProductType | None = None
 
 
@@ -263,12 +328,21 @@ class ResolvedProductFact(ContractModel):
     verified: bool = False
 
 
+class EvidenceKind(StrEnum):
+    DIRECT = "direct"
+    DERIVED = "derived"
+
+
 class Evidence(ContractModel):
     claim: str
     value: Any
-    source_url: str
+    source_url: str | None = None
     product_id: str
+    kind: EvidenceKind = EvidenceKind.DIRECT
+    derivation_rule: str | None = None
+    depends_on: list[str] = Field(default_factory=list)
     document_id: str | None = None
+    chunk_id: str | None = None
     page: int | None = Field(default=None, ge=1)
     verified: bool = False
 

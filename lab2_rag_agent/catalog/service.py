@@ -11,7 +11,7 @@ class CatalogService:
             ProductSearchRequest(
                 filters=ProductFilter(
                     min_ram_gb=sizing.recommended_system_ram_gb,
-                    max_price_vnd=budget_vnd,
+                    max_base_price_vnd=budget_vnd,
                 )
             )
         )

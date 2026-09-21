@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from lab1_finetune.data.fixtures.tool_results import TOOL_RESULT_MODELS
 from lab1_finetune.data.schema import (
     DatasetSplit,
     DatasetValidationReport,
@@ -14,6 +15,7 @@ from lab1_finetune.data.schema import (
 )
 from lab1_finetune.data.statistics import build_manifest
 from shared.contracts import ToolDefinition
+from shared.tool_args import TOOL_ARG_MODELS
 
 
 class DatasetValidator:
@@ -106,6 +108,8 @@ class DatasetValidator:
         definitions = {definition.name: definition for definition in example.tools}
         outstanding_calls: set[str] = set()
         actual_tools: list[str] = []
+        actual_calls = []
+        calls_by_id = {}
         if not example.messages:
             return [f"{example.example_id}: empty messages"]
         previous_role: str | None = None
@@ -134,6 +138,10 @@ class DatasetValidator:
             if message.role == "assistant":
                 for call in message.tool_calls:
                     actual_tools.append(call.name)
+                    actual_calls.append(call)
+                    if call.id in calls_by_id:
+                        errors.append(f"{example.example_id}: duplicate tool call id")
+                    calls_by_id[call.id] = call
                     definition = definitions.get(call.name)
                     if definition is None:
                         errors.append(
@@ -154,6 +162,11 @@ class DatasetValidator:
                     errors.append(f"{example.example_id}: unmatched tool_call_id")
                 else:
                     outstanding_calls.remove(message.tool_call_id)
+                    call = calls_by_id[message.tool_call_id]
+                    try:
+                        TOOL_RESULT_MODELS[call.name].model_validate_json(message.content or "")
+                    except (KeyError, ValueError):
+                        errors.append(f"{example.example_id}: invalid tool result")
             previous_role = message.role
         if outstanding_calls:
             errors.append(f"{example.example_id}: tool call has no matching tool response")
@@ -170,26 +183,39 @@ class DatasetValidator:
             errors.append(
                 f"{example.example_id}: expected_tool does not match actual tool call"
             )
+        try:
+            actual = [
+                (
+                    call.name,
+                    TOOL_ARG_MODELS[call.name]
+                    .model_validate(call.arguments)
+                    .model_dump(),
+                )
+                for call in actual_calls
+            ]
+            expected = [
+                (
+                    call.name,
+                    TOOL_ARG_MODELS[call.name]
+                    .model_validate(call.arguments)
+                    .model_dump(),
+                )
+                for call in example.labels.expected_tool_calls
+            ]
+            if actual != expected:
+                errors.append(
+                    f"{example.example_id}: expected_tool_calls argument/sequence mismatch"
+                )
+        except (KeyError, ValueError):
+            errors.append(f"{example.example_id}: invalid expected/actual arguments")
         return errors
 
     @staticmethod
     def _validate_arguments(
         example_id: str, arguments: dict[str, Any], definition: ToolDefinition
     ) -> list[str]:
-        errors: list[str] = []
-        schema = definition.parameters
-        for required in schema.get("required", []):
-            if required not in arguments:
-                errors.append(
-                    f"{example_id}: invalid arguments for {definition.name}; missing {required}"
-                )
-        properties = schema.get("properties", {})
-        type_map = {"string": str, "number": (int, float), "array": list, "object": dict}
-        for name, value in arguments.items():
-            expected_name = properties.get(name, {}).get("type")
-            expected_type = type_map.get(expected_name)
-            if expected_type and not isinstance(value, expected_type):
-                errors.append(
-                    f"{example_id}: invalid arguments for {definition.name}; {name} has wrong type"
-                )
-        return errors
+        try:
+            TOOL_ARG_MODELS[definition.name].model_validate(arguments)
+        except (KeyError, ValueError) as exc:
+            return [f"{example_id}: invalid arguments for {definition.name}: {exc}"]
+        return []

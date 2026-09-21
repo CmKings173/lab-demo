@@ -49,7 +49,7 @@ def test_product_and_filter_are_json_serializable() -> None:
     product_filter = ProductFilter(
         min_ram_gb=512,
         min_gpu_count=4,
-        max_price_vnd=350_000_000,
+        max_base_price_vnd=350_000_000,
         product_type=ProductType.AI_SERVER,
     )
 

@@ -1,5 +1,7 @@
 import pytest
 
+from adapters.fake.evidence import option_documents
+from adapters.fake.options import ram_options, storage_options
 from lab2_rag_agent.catalog.repository import InMemoryProductRepository
 from lab2_rag_agent.retrieval.documents import FakeDocumentSearch
 from lab3_workflow.comparison.service import RuleBasedComparisonService
@@ -13,7 +15,6 @@ from lab3_workflow.workflow.orchestrator import (
 )
 from shared.contracts import (
     CustomerRequirement,
-    DocumentChunk,
     GPUOption,
     Product,
     ProductType,
@@ -35,6 +36,7 @@ def make_compatible_product() -> Product:
         max_storage_gb=8000,
         storage_slots=8,
         base_price_vnd=100_000_000,
+        base_price_includes={"chassis", "cpu", "storage"},
         source_urls=["https://example.invalid/server-1"],
     )
 
@@ -52,35 +54,10 @@ def build_workflow(repository: InMemoryProductRepository) -> DeterministicWorkfl
         repository=repository,
         sizing_service=DeterministicSizingService(),
         configuration_builder=ProductConfigurationBuilder(
-            [gpu], {"server-1": {"ram": 20_000_000, "storage": 10_000_000}}
+            [gpu], ram_options(["server-1"]), storage_options(["server-1"])
         ),
         validator=RuleBasedConfigurationValidator(),
-        document_search=FakeDocumentSearch(
-            [
-                DocumentChunk(
-                    id="doc-vram",
-                    text="VRAM được xác minh",
-                    product_id="server-1",
-                    source_url="https://example.invalid/doc-vram",
-                    metadata={
-                        "field_name": "total_vram_gb",
-                        "value": "96",
-                        "verified": "true",
-                    },
-                ),
-                DocumentChunk(
-                    id="doc-ram",
-                    text="RAM được xác minh",
-                    product_id="server-1",
-                    source_url="https://example.invalid/doc-ram",
-                    metadata={
-                        "field_name": "configured_ram_gb",
-                        "value": "192",
-                        "verified": "true",
-                    },
-                ),
-            ]
-        ),
+        document_search=FakeDocumentSearch(option_documents(make_compatible_product(), gpu, 256)),
         comparison_service=RuleBasedComparisonService(),
         proposal_service=RuleBasedProposalService(),
         proposal_verifier=RuleBasedProposalVerifier(),

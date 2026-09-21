@@ -1,8 +1,8 @@
-from lab1_finetune.evaluation.model import FakeModelClient
-from lab2_rag_agent.catalog.repository import InMemoryProductRepository
-from lab2_rag_agent.reranking.service import FakeReranker
-from lab2_rag_agent.retrieval.documents import FakeDocumentSearch
-from lab2_rag_agent.retrieval.embeddings import FakeEmbeddingProvider
+from adapters.fake.catalog import InMemoryProductRepository
+from adapters.fake.documents import FakeDocumentSearch
+from adapters.fake.embeddings import FakeEmbeddingProvider
+from adapters.fake.model import FakeModelClient
+from adapters.fake.reranking import FakeReranker
 from shared.contracts import (
     ChatMessage,
     DocumentChunk,
@@ -34,11 +34,22 @@ def test_in_memory_catalog_applies_numeric_filters() -> None:
 
     result = repository.search(
         ProductSearchRequest(
-            filters=ProductFilter(min_ram_gb=512, min_gpu_count=4, max_price_vnd=350)
+            filters=ProductFilter(min_ram_gb=512, min_gpu_count=4, max_base_price_vnd=350)
         )
     )
 
     assert [product.id for product in result.products] == ["large"]
+
+
+def test_product_search_total_is_counted_before_limit() -> None:
+    repository = InMemoryProductRepository(
+        [make_product(f"p-{index:02d}", 100, 256, 2) for index in range(30)]
+    )
+
+    result = repository.search(ProductSearchRequest(limit=10))
+
+    assert len(result.products) == 10
+    assert result.total == 30
 
 
 def test_fake_document_search_and_reranker_are_deterministic() -> None:

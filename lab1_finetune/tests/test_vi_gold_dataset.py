@@ -1,6 +1,8 @@
 import json
+import re
 
 from lab1_finetune.data.exporter import export_qwen_jsonl
+from lab1_finetune.data.fixtures.tool_results import TOOL_RESULT_MODELS
 from lab1_finetune.data.schema import Intent, ScenarioType
 from lab1_finetune.data.seed import load_gold_seed
 from lab1_finetune.data.splitter import DatasetSplitter
@@ -8,8 +10,8 @@ from lab1_finetune.data.statistics import build_manifest
 from lab1_finetune.data.validator import DatasetValidator
 
 OLD_PLACEHOLDERS = {
-    "Review variant",
-    "Complete configuration request",
+    "Review " + "variant",
+    "Complete configuration " + "request",
     "I will clarify",
     "I will only report",
 }
@@ -81,7 +83,11 @@ def test_split_export_and_manifest_are_deterministic(tmp_path) -> None:
     assert manifest.example_count == len(examples)
     assert manifest.family_count == 25
     assert manifest.language_counts == {"vi": len(examples)}
-    assert manifest.split_counts == {"train": 40, "validation": 4, "test": 6}
+    assert manifest.split_counts == {
+        "train": len(split.train), "validation": len(split.validation), "test": len(split.test),
+    }
+    assert [len({item.scenario_family_id for item in part})
+            for part in (split.train, split.validation, split.test)] == [20, 2, 3]
     assert len(manifest.content_hash) == 64
     assert len(records) == len(examples)
     assert set(records[0]) == {"messages", "tools"}
@@ -115,7 +121,7 @@ def test_requirement_change_examples_are_multi_turn() -> None:
         == ScenarioType.REQUIREMENT_CHANGED_MID_CONVERSATION
     ]
 
-    assert len(examples) == 2
+    assert len(examples) == 4
     assert all(
         sum(message.role == "user" for message in example.messages) == 2
         for example in examples
@@ -125,12 +131,198 @@ def test_requirement_change_examples_are_multi_turn() -> None:
 def test_search_product_tool_has_strict_structured_filters() -> None:
     example = load_gold_seed()[0]
     search_tool = next(tool for tool in example.tools if tool.name == "search_products")
-    filters = search_tool.parameters["properties"]["filters"]
+    filters = search_tool.parameters["$defs"]["ProductFilter"]
 
     assert filters["additionalProperties"] is False
     assert set(filters["properties"]) == {
         "product_type",
         "min_ram_gb",
         "min_gpu_count",
-        "max_price_vnd",
+        "max_base_price_vnd",
     }
+
+
+def _calls_for(scenario: ScenarioType):
+    return [
+        (example, call)
+        for example in load_gold_seed()
+        if example.labels.scenario_type == scenario
+        for message in example.messages
+        for call in message.tool_calls
+    ]
+
+
+def test_no_product_found_examples_preserve_all_user_constraints() -> None:
+    calls = _calls_for(ScenarioType.NO_PRODUCT_FOUND)
+    server = next(
+        call
+        for _, call in calls
+        if call.arguments["filters"]["product_type"] == "ai_server"
+    )
+    workstation = next(
+        call for _, call in calls if call.arguments["filters"]["product_type"] == "ai_workstation"
+    )
+
+    assert server.arguments["filters"] == {
+        "product_type": "ai_server",
+        "min_gpu_count": 8,
+        "max_base_price_vnd": 100_000_000,
+    }
+    assert workstation.arguments["filters"] == {
+        "product_type": "ai_workstation",
+        "min_gpu_count": 4,
+        "min_ram_gb": 2048,
+        "max_base_price_vnd": 150_000_000,
+    }
+
+
+def test_unknown_product_questions_use_exact_product_and_missing_field_query() -> None:
+    calls = _calls_for(ScenarioType.UNKNOWN_PRODUCT_SPEC)
+    by_product = {call.arguments["product_id"]: call for _, call in calls}
+
+    assert "GPU" in by_product["DEMO-SRV-203"].arguments["query"]
+    assert "RAM" in by_product["DEMO-WS-104"].arguments["query"]
+
+
+def test_tool_failure_intent_is_labeled_per_example() -> None:
+    examples = [
+        example
+        for example in load_gold_seed()
+        if example.labels.scenario_type == ScenarioType.TOOL_FAILURE
+    ]
+    document_failure = next(
+        example
+        for example in examples
+        if example.labels.expected_tool == "search_product_documents"
+    )
+
+    assert document_failure.labels.intent == Intent.TECHNICAL_QUESTION
+    assert any(
+        "DEMO-SRV-205" in (message.content or "") and message.role == "user"
+        for message in document_failure.messages
+    )
+
+
+def test_solution_for_five_users_keeps_concurrency_in_sizing_args() -> None:
+    matching = [
+        call
+        for example, call in _calls_for(ScenarioType.SOLUTION_COMPLETE)
+        if "5 người dùng" in " ".join(message.content or "" for message in example.messages)
+    ]
+
+    assert any(
+        call.name == "estimate_ai_requirements"
+        and call.arguments.get("concurrent_users") == 5
+        for call in matching
+    )
+
+
+def test_gold_has_no_generic_final_or_generic_tool_result() -> None:
+    forbidden_final = "Tôi chỉ sử dụng dữ liệu vừa được " + (
+        "công cụ trả về để trả lời yêu cầu."
+    )
+    examples = load_gold_seed()
+
+    for example in examples:
+        for message in example.messages:
+            assert message.content != forbidden_final
+            if message.role == "tool":
+                assert json.loads(message.content or "null") != {"ok": True, "data": []}
+
+
+def test_all_gold_tool_results_parse_with_runtime_result_contract() -> None:
+    for example in load_gold_seed():
+        calls = {
+            call.id: call
+            for message in example.messages
+            for call in message.tool_calls
+        }
+        for message in example.messages:
+            if message.role == "tool":
+                call = calls[message.tool_call_id]
+                TOOL_RESULT_MODELS[call.name].model_validate_json(message.content)
+
+
+def test_gold_has_ten_multi_tool_trajectories() -> None:
+    examples = load_gold_seed()
+    multi_tool = [
+        example
+        for example in examples
+        if sum(len(message.tool_calls) for message in example.messages) > 1
+    ]
+
+    assert len(examples) == 60
+    assert len(multi_tool) == 10
+
+
+def test_demo_entity_ids_types_and_user_tool_references_are_consistent() -> None:
+    for example in load_gold_seed():
+        user_ids = set(
+            re.findall(
+                r"DEMO-(?:SRV|WS)-\d+",
+                " ".join(
+                    message.content or ""
+                    for message in example.messages
+                    if message.role == "user"
+                ),
+            )
+        )
+        call_ids = {
+            value
+            for message in example.messages
+            for call in message.tool_calls
+            for value in (
+                [call.arguments.get("product_id")]
+                + call.arguments.get("product_ids", [])
+            )
+            if isinstance(value, str)
+        }
+        assert user_ids <= call_ids or not example.labels.should_call_tool
+
+        calls = {
+            call.id: call
+            for message in example.messages
+            for call in message.tool_calls
+        }
+        for message in example.messages:
+            if message.role != "tool":
+                continue
+            call = calls[message.tool_call_id]
+            result = TOOL_RESULT_MODELS[call.name].model_validate_json(message.content)
+            products = []
+            if call.name == "get_product" and result.data:
+                products = [result.data]
+            elif call.name == "search_products" and result.data:
+                products = result.data.products
+            for product in products:
+                expected_type = "ai_server" if "-SRV-" in product.id else "ai_workstation"
+                assert product.product_type.value == expected_type
+
+    serialized = json.dumps(
+        [example.model_dump(mode="json") for example in load_gold_seed()],
+        ensure_ascii=False,
+    )
+    assert "DEMO-" + "DEMO-" not in serialized
+
+
+def test_base_price_search_is_not_labeled_as_full_solution_budget() -> None:
+    examples = [
+        example
+        for example in load_gold_seed()
+        if example.labels.scenario_type == ScenarioType.SEARCH_PRODUCT_BY_BUDGET
+    ]
+
+    assert all(
+        not example.labels.extracted_requirement.model_dump(exclude_none=True)
+        for example in examples
+    )
+
+
+def test_contradictory_solution_still_labels_missing_budget() -> None:
+    example = next(
+        example
+        for example in load_gold_seed()
+        if example.example_id == "07_contradictory_requirement-2"
+    )
+
+    assert example.labels.missing_fields == ["budget_vnd"]

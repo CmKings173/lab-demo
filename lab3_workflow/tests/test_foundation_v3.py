@@ -1,3 +1,4 @@
+from adapters.fake.options import ram_options
 from lab2_rag_agent.catalog.repository import InMemoryProductRepository
 from lab2_rag_agent.retrieval.documents import FakeDocumentSearch
 from lab3_workflow.comparison.service import RuleBasedComparisonService
@@ -70,8 +71,9 @@ def test_builder_does_not_invent_storage_or_cpu_and_marks_partial_price() -> Non
     assert configuration.configured_storage_gb is None
     assert configuration.selected_cpu is None
     assert configuration.price_status == PriceStatus.PARTIAL
-    assert set(configuration.priced_components) == {"base_chassis", "gpu"}
-    assert {"ram", "storage"} <= set(configuration.missing_price_components)
+    assert {"base_chassis", "gpu"} <= set(configuration.priced_components)
+    assert {"ram", "cpu"} <= set(configuration.missing_price_components)
+    assert "storage" in configuration.missing_price_components
 
 
 def test_partial_price_makes_budget_validation_unknown() -> None:
@@ -88,15 +90,14 @@ def test_partial_price_makes_budget_validation_unknown() -> None:
 
 
 def test_complete_price_can_pass_or_fail_budget() -> None:
-    configuration = ProductConfigurationBuilder([gpu()]).build(
-        [product()], sizing(), requirement()
-    )[0].model_copy(
-        update={
-            "price_status": PriceStatus.COMPLETE,
-            "missing_price_components": [],
-            "configured_storage_gb": 1000,
-        }
-    )
+    configuration = ProductConfigurationBuilder([gpu()], ram_options(["p-1"])).build(
+        [
+            product().model_copy(
+                update={"base_price_includes": {"chassis", "cpu", "storage"}}
+            )
+        ],
+        sizing(), requirement(),
+    )[0]
     validator = RuleBasedConfigurationValidator()
 
     assert (
@@ -214,7 +215,7 @@ def test_verifier_rejects_evidence_with_wrong_product_or_value() -> None:
     )
 
     proposal.evidence[0].product_id = "wrong-product"
-    proposal.evidence[1].value = -1
+    proposal.evidence[0].value = -1
     result = RuleBasedProposalVerifier().verify(proposal)
 
     assert result.valid is False

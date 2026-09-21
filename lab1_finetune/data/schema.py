@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -47,6 +47,11 @@ class ScenarioType(StrEnum):
     REQUIREMENT_CHANGED_MID_CONVERSATION = "requirement_changed_mid_conversation"
 
 
+class ExpectedToolCall(ContractModel):
+    name: str
+    arguments: dict[str, Any]
+
+
 class DatasetLabels(ContractModel):
     intent: Intent
     scenario_type: ScenarioType
@@ -54,6 +59,9 @@ class DatasetLabels(ContractModel):
     missing_fields: list[str] = Field(default_factory=list)
     should_call_tool: bool
     expected_tool: str | None = None
+    expected_tool_calls: list[ExpectedToolCall] = Field(default_factory=list)
+    expects_structured_output: bool = False
+    should_abstain: bool = False
     must_not_invent_product_fact: bool = True
     expected_behavior: str | None = None
     expected_final_response_type: str | None = None

@@ -36,7 +36,7 @@ def make_tool_example(example_id: str, family_id: str) -> FineTuneExample:
             ChatMessage(
                 role="tool",
                 tool_call_id="call-1",
-                content='{"products": []}',
+                content='{"ok": true, "data": {"products": [], "total": 0}, "error": null}',
             ),
             ChatMessage(role="assistant", content="Không tìm thấy sản phẩm phù hợp."),
         ],
@@ -46,6 +46,8 @@ def make_tool_example(example_id: str, family_id: str) -> FineTuneExample:
             scenario_type=ScenarioType.SEARCH_SERVER_BY_GPU_SLOTS,
             should_call_tool=True,
             expected_tool="search_products",
+            expected_tool_calls=[{"name": "search_products",
+                                  "arguments": {"filters": {"product_type": "ai_server"}}}],
             must_not_invent_product_fact=True,
         ),
     )

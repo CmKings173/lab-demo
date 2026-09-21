@@ -12,7 +12,7 @@ def build_manifest(
     *,
     split: DatasetSplit | None = None,
     seed: int = 42,
-    dataset_version: str = "3.0.0-vi-gold",
+    dataset_version: str = "4.0.0-vi-gold",
     created_at: datetime = DATASET_RELEASED_AT,
 ) -> DatasetManifest:
     canonical = "\n".join(
