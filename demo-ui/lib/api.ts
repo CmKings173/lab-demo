@@ -31,13 +31,19 @@ export async function fetchRun(runId: string): Promise<RunSnapshot> {
 
 export function subscribeToRun(
   runId: string, afterSequence: number, onEvent: (event: WorkflowEvent) => void,
-  onError: (message: string) => void, onTerminal: () => void,
+  onError: (message: string) => void, onConnected: () => void, onTerminal: () => void,
 ): () => void {
   const source = new EventSource(`/api/backend/runs/${encodeURIComponent(runId)}/events?after_sequence=${afterSequence}`);
+  let warningShown = false;
+  const markConnected = () => {
+    warningShown = false;
+    onConnected();
+  };
   const listeners = eventTypes.map((eventType) => {
     const listener = (message: Event) => {
       try {
         const event = JSON.parse((message as MessageEvent<string>).data) as WorkflowEvent;
+        markConnected();
         onEvent(event);
         if (eventType === "workflow.completed" || eventType === "workflow.failed") {
           onTerminal();
@@ -48,8 +54,12 @@ export function subscribeToRun(
     source.addEventListener(eventType, listener);
     return [eventType, listener] as const;
   });
+  source.onopen = markConnected;
   source.onerror = () => {
-    if (source.readyState !== EventSource.CLOSED) onError("Mất kết nối realtime; trình duyệt đang thử nối lại.");
+    if (source.readyState !== EventSource.CLOSED && !warningShown) {
+      warningShown = true;
+      onError("Mất kết nối realtime; trình duyệt đang thử nối lại.");
+    }
   };
   return () => {
     for (const [eventType, listener] of listeners) source.removeEventListener(eventType, listener);

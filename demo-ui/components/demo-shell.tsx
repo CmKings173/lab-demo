@@ -6,8 +6,9 @@ import { Inspector } from "@/components/inspector";
 import { RequestPanel } from "@/components/request-panel";
 import { Timeline } from "@/components/timeline";
 import { WorkflowGraph } from "@/components/workflow-graph";
-import { createRun, fetchRun, fetchTopology, subscribeToRun } from "@/lib/api";
+import { createRun, fetchTopology, subscribeToRun } from "@/lib/api";
 import type { RequirementForm, RunSnapshot, RunStatus, WorkflowEvent, WorkflowTopology } from "@/lib/contracts";
+import { fetchTerminalSnapshot } from "@/lib/terminal-snapshot";
 
 const initialRequirement: RequirementForm = {
   model_size_b: 20,
@@ -45,7 +46,12 @@ export function DemoShell() {
         if (event.type === "workflow.failed") setStatus("failed");
       },
       setConnectionNote,
-      () => { fetchRun(runId).then(setSnapshot).catch((reason: Error) => setError(reason.message)); },
+      () => setConnectionNote(null),
+      () => {
+        fetchTerminalSnapshot(runId)
+          .then(setSnapshot)
+          .catch((reason: Error) => setError(reason.message));
+      },
     );
     return close;
   }, [runId]);

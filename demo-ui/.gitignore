@@ -4,3 +4,4 @@ out/
 build/
 *.log
 .env.local
+*.tsbuildinfo

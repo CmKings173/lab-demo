@@ -17,6 +17,7 @@ Terminal 2 — frontend:
 
 ```bash
 npm install
+npm run typecheck
 npm run dev
 ```
 

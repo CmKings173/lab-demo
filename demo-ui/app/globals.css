@@ -73,7 +73,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .node-copy { display: grid; min-width: 0; gap: 2px; }
 .node-copy strong { overflow: hidden; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
 .node-copy span { color: var(--ink-soft); font-size: 0.67rem; }
-.graph-edge { padding-left: 17px; color: #9aa29e; font-size: 0.9rem; line-height: 0.75; }
+.graph-branches { display: grid; gap: 4px; margin: 0 0 2px 17px; padding: 2px 0 2px 12px; border-left: 1px solid var(--line); }
+.graph-branch { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 8px; color: var(--ink-soft); text-align: left; background: transparent; border: 0; border-radius: 6px; }
+.graph-branch:hover { color: var(--teal); background: var(--teal-soft); }
+.branch-glyph { flex: 0 0 20px; color: #9aa29e; font-family: Consolas, monospace; font-size: 0.78rem; }
+.branch-copy { display: grid; min-width: 0; gap: 1px; }
+.branch-copy strong { overflow: hidden; font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
+.branch-copy span { color: #8a9692; font-size: 0.61rem; }
 .inspector-body { min-height: 376px; }
 .empty-state { display: grid; min-height: 220px; place-items: center; padding: 24px; color: var(--ink-soft); font-size: 0.8rem; line-height: 1.5; text-align: center; }
 .event-kicker { margin: 0 0 8px; color: var(--teal); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
