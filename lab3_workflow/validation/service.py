@@ -146,17 +146,26 @@ class RuleBasedConfigurationValidator:
                     )
                 )
 
-        if requirement.budget_vnd is not None:
-            if configuration.price_status != PriceStatus.COMPLETE:
+        pricing_consistent = configuration.pricing_state_is_consistent()
+        if not pricing_consistent:
+            failures.append(
+                ValidationFailure(
+                    field="price_contract",
+                    message="Configuration pricing fields are inconsistent with price_breakdown.",
+                )
+            )
+        if requirement.budget_vnd is not None and pricing_consistent:
+            breakdown = configuration.price_breakdown
+            if breakdown is None or breakdown.status != PriceStatus.COMPLETE:
                 unknown.append("price")
-            elif configuration.estimated_price_vnd is None:
-                unknown.append("estimated_price_vnd")
-            elif configuration.estimated_price_vnd > requirement.budget_vnd:
+            elif breakdown.total_vnd is None:
+                unknown.append("price")
+            elif breakdown.total_vnd > requirement.budget_vnd:
                 failures.append(
                     ValidationFailure(
                         field="estimated_price_vnd",
                         message="Configuration price exceeds the customer budget.",
-                        actual=configuration.estimated_price_vnd,
+                        actual=breakdown.total_vnd,
                         required=requirement.budget_vnd,
                     )
                 )

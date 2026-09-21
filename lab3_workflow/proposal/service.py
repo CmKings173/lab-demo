@@ -152,20 +152,22 @@ class RuleBasedProposalVerifier:
                         f"{configuration.configuration_id} does not meet storage sizing"
                     )
             budget = proposal.customer_requirement.budget_vnd
-            if budget is not None:
+            pricing_consistent = configuration.pricing_state_is_consistent()
+            if not pricing_consistent:
+                errors.append(
+                    f"Configuration {configuration.configuration_id} has incomplete price"
+                )
+            if budget is not None and pricing_consistent:
                 breakdown = configuration.price_breakdown
                 if (
                     breakdown is None
                     or breakdown.status != PriceStatus.COMPLETE
                     or breakdown.total_vnd is None
-                    or configuration.price_status != breakdown.status
-                    or configuration.estimated_price_vnd != breakdown.total_vnd
-                    or configuration.missing_price_components != breakdown.missing_components
                 ):
                     errors.append(
                         f"Configuration {configuration.configuration_id} has incomplete price"
                     )
-                elif configuration.estimated_price_vnd > budget:
+                elif breakdown.total_vnd > budget:
                     errors.append(
                         f"Configuration {configuration.configuration_id} exceeds budget"
                     )

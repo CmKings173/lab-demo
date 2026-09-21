@@ -12,6 +12,18 @@ flowchart LR
   OC[OpenClaw boundary] -. controlled tools .-> L2
 ```
 
+## Ranh giới document evidence → Product
+
+`verified=true` chỉ xác nhận nguồn chứng cứ, không xác nhận kiểu hoặc miền giá trị.
+Resolver chỉ áp dụng fact khi document đúng `product_id`, đúng field kỹ thuật đang
+cần, có `source_url`, và giá trị đã được chuẩn hóa qua `Product.model_validate`.
+Giá trị sai kiểu, âm, boolean hoặc rỗng không được dùng để lấp `UNKNOWN`.
+
+Các document đã verified nhưng đưa ra hai giá trị khác nhau cho cùng một field
+sẽ khiến field đó tiếp tục `UNKNOWN`. Retrieval rank chỉ chọn chứng cứ đại diện
+khi các giá trị giống nhau; nó không giải quyết mâu thuẫn. Quy tắc chọn nguồn
+authoritative vẫn là quyết định mở trong `docs/open-decisions.md`.
+
 ## Ranh giới sở hữu
 
 - `lab1_finetune`: dataset, training entry points và behavior evaluation.

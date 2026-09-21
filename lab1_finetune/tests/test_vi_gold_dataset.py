@@ -252,6 +252,25 @@ def test_all_gold_tool_results_parse_with_runtime_result_contract() -> None:
                 TOOL_RESULT_MODELS[call.name].model_validate_json(message.content)
 
 
+def test_dataset_validator_inherits_tool_result_state_invariant() -> None:
+    example = next(
+        item for item in load_gold_seed()
+        if any(message.role == "tool" for message in item.messages)
+    )
+    messages = list(example.messages)
+    tool_index = next(i for i, message in enumerate(messages) if message.role == "tool")
+    payload = json.loads(messages[tool_index].content)
+    payload["ok"] = True
+    payload["error"] = "service_unavailable"
+    messages[tool_index] = messages[tool_index].model_copy(
+        update={"content": json.dumps(payload)}
+    )
+    result = DatasetValidator().validate([example.model_copy(update={"messages": messages})])
+
+    assert result.valid is False
+    assert any("invalid tool result" in error for error in result.errors)
+
+
 def test_gold_has_ten_multi_tool_trajectories() -> None:
     examples = load_gold_seed()
     multi_tool = [

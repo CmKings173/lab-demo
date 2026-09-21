@@ -1,18 +1,26 @@
+import pytest
+from pydantic import ValidationError
+
 from adapters.fake.evidence import option_documents
 from lab2_rag_agent.retrieval.documents import FakeDocumentSearch
 from lab3_workflow.comparison.service import RuleBasedComparisonService
 from lab3_workflow.configuration.service import ProductConfigurationBuilder
+from lab3_workflow.evidence.service import DeterministicProductFactResolver
 from lab3_workflow.proposal.service import RuleBasedProposalService, RuleBasedProposalVerifier
 from lab3_workflow.sizing.service import DeterministicSizingService
 from lab3_workflow.validation.service import RuleBasedConfigurationValidator
 from shared.contracts import (
     CustomerRequirement,
+    DocumentChunk,
+    DocumentHit,
     EvidenceKind,
     GPUOption,
+    PriceStatus,
     Product,
     ProductConfiguration,
     ProductType,
     RAMOption,
+    ResolvedProductFact,
     SizingRequest,
     SizingResult,
     StorageOption,
@@ -80,6 +88,186 @@ def _requirement(*, storage: int | None = None) -> CustomerRequirement:
         usage=UsageType.INFERENCE,
         storage_requirement_gb=storage,
     )
+
+
+def _fact_hit(value: str, *, doc_id: str = "doc-1", rerank: float | None = None,
+              retrieval: float | None = 0.8) -> DocumentHit:
+    return DocumentHit(
+        chunk=DocumentChunk(
+            id=doc_id,
+            product_id="p-1",
+            source_url=f"https://example.invalid/{doc_id}",
+            text="Verified platform RAM specification",
+            metadata={"field_name": "max_ram_gb", "value": value, "verified": "true"},
+        ),
+        rank=1,
+        retrieval_method="fake",
+        rerank_score=rerank,
+        retrieval_score=retrieval,
+    )
+
+
+def _unknown_ram_configuration() -> ProductConfiguration:
+    return ProductConfiguration(configuration_id="cfg", product=_product(max_ram_gb=None))
+
+
+@pytest.mark.parametrize("raw", ["512", '"512"'])
+def test_numeric_verified_fact_is_normalized_and_applied(raw: str) -> None:
+    resolver = DeterministicProductFactResolver()
+    configuration = _unknown_ram_configuration()
+    facts = resolver.resolve(configuration, ["max_ram_gb"], [_fact_hit(raw)])
+
+    assert len(facts) == 1
+    assert facts[0].value == 512
+    assert type(facts[0].value) is int
+    assert resolver.apply(configuration, facts).product.max_ram_gb == 512
+
+
+@pytest.mark.parametrize("raw", ['"abc"', "-1", "true", "null"])
+def test_invalid_verified_fact_is_ignored(raw: str) -> None:
+    resolver = DeterministicProductFactResolver()
+    configuration = _unknown_ram_configuration()
+    facts = resolver.resolve(configuration, ["max_ram_gb"], [_fact_hit(raw)])
+
+    assert facts == []
+    assert resolver.apply(configuration, facts).product.max_ram_gb is None
+
+
+def test_duplicate_same_verified_value_is_not_conflict() -> None:
+    resolver = DeterministicProductFactResolver()
+    facts = resolver.resolve(_unknown_ram_configuration(), ["max_ram_gb"], [
+        _fact_hit("512"), _fact_hit('"512"', doc_id="doc-2")
+    ])
+
+    assert len(facts) == 1
+    assert facts[0].value == 512
+
+
+def test_same_value_selects_highest_scoring_evidence_only() -> None:
+    resolver = DeterministicProductFactResolver()
+    facts = resolver.resolve(_unknown_ram_configuration(), ["max_ram_gb"], [
+        _fact_hit("512", doc_id="unscored", retrieval=None),
+        _fact_hit("512", doc_id="first", rerank=0.2),
+        _fact_hit("512", doc_id="best", rerank=0.9),
+        _fact_hit("512", doc_id="last", rerank=0.9),
+    ])
+    assert len(facts) == 1
+    assert facts[0].document_id == "best"
+
+
+@pytest.mark.parametrize("values", [("512", "1024"), ("1024", "512")])
+def test_conflicting_verified_values_remain_unknown(values: tuple[str, str]) -> None:
+    resolver = DeterministicProductFactResolver()
+    configuration = _unknown_ram_configuration()
+    hits = [_fact_hit(value, doc_id=f"doc-{index}") for index, value in enumerate(values)]
+    assert resolver.resolve(configuration, ["max_ram_gb"], hits) == []
+    direct_facts = [
+        ResolvedProductFact(product_id="p-1", field_name="max_ram_gb", value=int(value),
+                            source_url=hit.chunk.source_url, document_id=hit.chunk.id,
+                            chunk_id=hit.chunk.id, evidence_text=hit.chunk.text, verified=True)
+        for value, hit in zip(values, hits)
+    ]
+    assert resolver.apply(configuration, direct_facts).product.max_ram_gb is None
+
+
+@pytest.mark.parametrize("rerank,retrieval", [(0.0, 0.8), (None, 0.0)])
+def test_zero_evidence_score_remains_zero(rerank: float | None, retrieval: float) -> None:
+    facts = DeterministicProductFactResolver().resolve(
+        _unknown_ram_configuration(), ["max_ram_gb"],
+        [_fact_hit("512", rerank=rerank, retrieval=retrieval)],
+    )
+    assert facts[0].confidence == 0.0
+
+
+def test_evidence_without_scores_defaults_to_one() -> None:
+    facts = DeterministicProductFactResolver().resolve(
+        _unknown_ram_configuration(), ["max_ram_gb"],
+        [_fact_hit("512", retrieval=None)],
+    )
+    assert facts[0].confidence == 1.0
+
+
+def test_apply_revalidates_existing_configuration() -> None:
+    resolver = DeterministicProductFactResolver()
+    configuration = _unknown_ram_configuration()
+    facts = resolver.resolve(configuration, ["max_ram_gb"], [_fact_hit("512")])
+    forged = configuration.model_copy(update={"configured_ram_gb": -1})
+    with pytest.raises(ValidationError):
+        resolver.apply(forged, facts)
+
+
+def test_apply_ignores_untyped_direct_fact() -> None:
+    configuration = _unknown_ram_configuration()
+    invalid = ResolvedProductFact(
+        product_id="p-1", field_name="max_ram_gb", value=True,
+        source_url="https://example.invalid/doc", document_id="doc", chunk_id="doc",
+        evidence_text="Incorrect boolean RAM value", verified=True,
+    )
+    result = DeterministicProductFactResolver().apply(configuration, [invalid])
+    assert result.product.max_ram_gb is None
+
+
+def _priced_configuration(*, complete: bool = True) -> ProductConfiguration:
+    return ProductConfigurationBuilder(
+        [_gpu()], [_ram(256)], [_storage(2000)] if complete else []
+    ).build([_product()], _sizing(storage=1500 if complete else None),
+            _requirement(storage=1500 if complete else None))[0]
+
+
+def _budget_requirement(budget: int = 500_000_000) -> CustomerRequirement:
+    return _requirement(storage=1500).model_copy(update={"budget_vnd": budget})
+
+
+def test_validator_rejects_price_mirror_mismatch() -> None:
+    configuration = _priced_configuration()
+    forged = configuration.model_copy(update={"estimated_price_vnd": 1})
+    result = RuleBasedConfigurationValidator().validate(
+        _budget_requirement(), _sizing(storage=1500), forged
+    )
+    assert result.status == ValidationStatus.FAIL
+    assert any(f.field == "price_contract" for f in result.failures)
+
+
+def test_validator_rejects_price_status_mismatch() -> None:
+    forged = _priced_configuration().model_copy(update={"price_status": PriceStatus.PARTIAL})
+    result = RuleBasedConfigurationValidator().validate(
+        _budget_requirement(), _sizing(storage=1500), forged
+    )
+    assert result.status == ValidationStatus.FAIL
+    assert any(f.field == "price_contract" for f in result.failures)
+
+
+def test_validator_uses_breakdown_total_for_budget() -> None:
+    configuration = _priced_configuration()
+    breakdown_data = configuration.price_breakdown.model_dump(mode="python")
+    breakdown_data["base_chassis_vnd"] += 600_000_000 - breakdown_data["total_vnd"]
+    breakdown_data["total_vnd"] = 600_000_000
+    configuration = ProductConfiguration.model_validate({
+        **configuration.model_dump(mode="python"), "price_breakdown": breakdown_data,
+    })
+    result = RuleBasedConfigurationValidator().validate(
+        _budget_requirement(), _sizing(storage=1500), configuration
+    )
+    assert result.status == ValidationStatus.FAIL
+    assert any(f.field == "estimated_price_vnd" and f.actual == 600_000_000
+               for f in result.failures)
+
+
+def test_partial_breakdown_with_budget_is_unknown_not_fail() -> None:
+    configuration = _priced_configuration(complete=False)
+    result = RuleBasedConfigurationValidator().validate(
+        _budget_requirement(), _sizing(storage=1500), configuration
+    )
+    assert result.status == ValidationStatus.UNKNOWN
+    assert "price" in result.unknown_fields
+    assert not any(f.field == "price_contract" for f in result.failures)
+
+
+def test_complete_canonical_price_within_budget_passes() -> None:
+    result = RuleBasedConfigurationValidator().validate(
+        _budget_requirement(), _sizing(storage=1500), _priced_configuration()
+    )
+    assert result.status == ValidationStatus.PASS
 
 
 def test_builder_selects_smallest_real_ram_and_storage_options() -> None:
@@ -252,6 +440,19 @@ def test_budget_verifier_rejects_complete_claim_without_breakdown() -> None:
 
     result = RuleBasedProposalVerifier().verify(proposal)
 
+    assert result.valid is False
+    assert any("incomplete price" in error for error in result.errors)
+
+
+def test_proposal_verifier_rejects_inconsistent_pricing_without_budget() -> None:
+    proposal = _proposal_fixture()
+    forged = proposal.selected_configurations[0].model_copy(
+        update={"priced_components": ["gpu"]}
+    )
+    proposal.selected_configurations[0] = forged
+    proposal.options[0].configuration = forged
+
+    result = RuleBasedProposalVerifier().verify(proposal)
     assert result.valid is False
     assert any("incomplete price" in error for error in result.errors)
 
