@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Inspector } from "@/components/inspector";
 import { RequestPanel } from "@/components/request-panel";
@@ -28,6 +28,7 @@ export function DemoShell() {
   const [status, setStatus] = useState<RunStatus | "idle">("idle");
   const [error, setError] = useState<string | null>(null);
   const [connectionNote, setConnectionNote] = useState<string | null>(null);
+  const activeRunId = useRef<string | null>(null);
 
   useEffect(() => {
     fetchTopology().then(setTopology).catch((reason: Error) => setError(reason.message));
@@ -35,22 +36,24 @@ export function DemoShell() {
 
   useEffect(() => {
     if (!runId) return undefined;
+    const isCurrentRun = () => activeRunId.current === runId;
     const close = subscribeToRun(
       runId,
       0,
       (event) => {
+        if (!isCurrentRun()) return;
         setEvents((current) => current.some((item) => item.sequence === event.sequence) ? current : [...current, event]);
         setSelectedEvent(event);
         if (event.type === "workflow.started") setStatus("running");
         if (event.type === "workflow.completed") setStatus("completed");
         if (event.type === "workflow.failed") setStatus("failed");
       },
-      setConnectionNote,
-      () => setConnectionNote(null),
+      (message) => { if (isCurrentRun()) setConnectionNote(message); },
+      () => { if (isCurrentRun()) setConnectionNote(null); },
       () => {
         fetchTerminalSnapshot(runId)
-          .then(setSnapshot)
-          .catch((reason: Error) => setError(reason.message));
+          .then((nextSnapshot) => { if (isCurrentRun()) setSnapshot(nextSnapshot); })
+          .catch((reason: Error) => { if (isCurrentRun()) setError(reason.message); });
       },
     );
     return close;
@@ -58,9 +61,11 @@ export function DemoShell() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null); setConnectionNote(null); setSnapshot(null); setEvents([]); setSelectedEvent(null); setStatus("pending");
+    activeRunId.current = null;
+    setError(null); setConnectionNote(null); setSnapshot(null); setEvents([]); setSelectedEvent(null); setRunId(null); setStatus("pending");
     try {
       const created = await createRun(requirement);
+      activeRunId.current = created.run_id;
       setRunId(created.run_id); setStatus(created.status);
     } catch (reason) {
       setStatus("idle"); setError(reason instanceof Error ? reason.message : "Không thể tạo run.");
