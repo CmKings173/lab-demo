@@ -8,6 +8,7 @@ from shared.contracts import (
     PriceBreakdown,
     PriceStatus,
     Product,
+    ProductConfiguration,
     ProductFilter,
     ProductType,
     UsageType,
@@ -84,4 +85,59 @@ def test_price_status_must_match_actual_component_completeness() -> None:
             total_vnd=150,
             missing_components=[],
             status=PriceStatus.PARTIAL,
+        )
+
+
+def test_unknown_price_breakdown_default_declares_all_components_missing() -> None:
+    breakdown = PriceBreakdown()
+
+    assert breakdown.status == PriceStatus.UNKNOWN
+    assert breakdown.total_vnd is None
+    assert breakdown.missing_components == ["base_chassis", "gpu", "ram", "storage", "cpu"]
+
+
+def test_product_configuration_derives_priced_components_from_breakdown() -> None:
+    product = Product(
+        id="p-1",
+        sku="P-1",
+        name="Demo Server",
+        manufacturer="Demo",
+        product_type=ProductType.AI_SERVER,
+    )
+    breakdown = PriceBreakdown(
+        base_chassis_vnd=100,
+        gpu_vnd=200,
+        ram_vnd=None,
+        storage_vnd=None,
+        cpu_vnd=0,
+        total_vnd=300,
+        missing_components=["ram", "storage"],
+        status=PriceStatus.PARTIAL,
+    )
+
+    configuration = ProductConfiguration(
+        configuration_id="cfg-1",
+        product=product,
+        price_breakdown=breakdown,
+        priced_components=["forged"],
+    )
+
+    assert configuration.priced_components == ["base_chassis", "gpu", "cpu"]
+
+
+def test_product_configuration_pricing_requires_breakdown() -> None:
+    product = Product(
+        id="p-1",
+        sku="P-1",
+        name="Demo Server",
+        manufacturer="Demo",
+        product_type=ProductType.AI_SERVER,
+    )
+
+    with pytest.raises(ValidationError, match="Pricing fields require price_breakdown"):
+        ProductConfiguration(
+            configuration_id="cfg-1",
+            product=product,
+            estimated_price_vnd=123,
+            price_status=PriceStatus.COMPLETE,
         )

@@ -238,6 +238,24 @@ def test_proposal_verifier_rejects_incomplete_price_when_budget_exists() -> None
     assert any("incomplete price" in error for error in result.errors)
 
 
+def test_budget_verifier_rejects_complete_claim_without_breakdown() -> None:
+    proposal = _proposal_fixture()
+    forged = proposal.selected_configurations[0].model_copy(
+        update={"price_status": "complete", "estimated_price_vnd": 1}
+    )
+    proposal.selected_configurations[0] = forged
+    proposal.options[0].configuration = forged
+    proposal.options[0].estimated_price_vnd = 1
+    proposal.customer_requirement = proposal.customer_requirement.model_copy(
+        update={"budget_vnd": 500_000_000}
+    )
+
+    result = RuleBasedProposalVerifier().verify(proposal)
+
+    assert result.valid is False
+    assert any("incomplete price" in error for error in result.errors)
+
+
 def test_verifier_rejects_wrong_derived_total() -> None:
     proposal = _proposal_fixture()
     item = next(e for e in proposal.evidence if e.claim == "cfg-a.total_vram_gb")

@@ -153,9 +153,14 @@ class RuleBasedProposalVerifier:
                     )
             budget = proposal.customer_requirement.budget_vnd
             if budget is not None:
+                breakdown = configuration.price_breakdown
                 if (
-                    configuration.price_status != PriceStatus.COMPLETE
-                    or configuration.estimated_price_vnd is None
+                    breakdown is None
+                    or breakdown.status != PriceStatus.COMPLETE
+                    or breakdown.total_vnd is None
+                    or configuration.price_status != breakdown.status
+                    or configuration.estimated_price_vnd != breakdown.total_vnd
+                    or configuration.missing_price_components != breakdown.missing_components
                 ):
                     errors.append(
                         f"Configuration {configuration.configuration_id} has incomplete price"

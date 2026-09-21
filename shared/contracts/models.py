@@ -124,7 +124,9 @@ class PriceBreakdown(ContractModel):
     storage_vnd: int | None = Field(default=None, ge=0)
     cpu_vnd: int | None = Field(default=None, ge=0)
     total_vnd: int | None = Field(default=None, ge=0)
-    missing_components: list[str] = Field(default_factory=list)
+    missing_components: list[str] = Field(
+        default_factory=lambda: ["base_chassis", "gpu", "ram", "storage", "cpu"]
+    )
     status: PriceStatus = PriceStatus.UNKNOWN
 
     @model_validator(mode="after")
@@ -194,10 +196,29 @@ class ProductConfiguration(ContractModel):
                 if capacity is not None and capacity != option.capacity_gb:
                     raise ValueError(f"{capacity_name} must match selected option")
                 setattr(self, capacity_name, option.capacity_gb)
-        if self.price_breakdown is not None:
-            self.price_status = self.price_breakdown.status
-            self.estimated_price_vnd = self.price_breakdown.total_vnd
-            self.missing_price_components = list(self.price_breakdown.missing_components)
+        if self.price_breakdown is None:
+            if (
+                self.price_status != PriceStatus.UNKNOWN
+                or self.estimated_price_vnd is not None
+                or self.priced_components
+                or self.missing_price_components
+            ):
+                raise ValueError("Pricing fields require price_breakdown")
+            return self
+        self.price_status = self.price_breakdown.status
+        self.estimated_price_vnd = self.price_breakdown.total_vnd
+        self.priced_components = [
+            name
+            for name, value in {
+                "base_chassis": self.price_breakdown.base_chassis_vnd,
+                "gpu": self.price_breakdown.gpu_vnd,
+                "ram": self.price_breakdown.ram_vnd,
+                "storage": self.price_breakdown.storage_vnd,
+                "cpu": self.price_breakdown.cpu_vnd,
+            }.items()
+            if value is not None
+        ]
+        self.missing_price_components = list(self.price_breakdown.missing_components)
         if self.price_status == PriceStatus.COMPLETE and self.missing_price_components:
             raise ValueError("Complete price cannot have missing components")
         return self
