@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
+
 from lab3_workflow.evidence import DeterministicProductFactResolver
 from lab3_workflow.requirement import RequirementAnalyzer
+from lab3_workflow.workflow.events import NoOpWorkflowEventSink, WorkflowEventEmitter
 from shared.contracts import (
     CustomerRequirement,
     DocumentSearchRequest,
@@ -25,11 +30,35 @@ from shared.interfaces import (
     ProposalVerifier,
     SizingService,
     ValidationService,
+    WorkflowEventSink,
 )
 
 
 class WorkflowTransitionError(ValueError):
     """Raised when a workflow attempts a transition outside its state machine."""
+
+
+_ACTIVE_EVENT_EMITTER: ContextVar[WorkflowEventEmitter | None] = ContextVar(
+    "active_workflow_event_emitter", default=None
+)
+
+
+@contextmanager
+def _observed_tool(
+    name: str, payload: Mapping[str, object] | None = None
+) -> Iterator[None]:
+    emitter = _ACTIVE_EVENT_EMITTER.get()
+    if emitter is None:
+        yield
+        return
+    started_at = emitter.tool_started(name, payload)
+    try:
+        yield
+    except Exception as exc:
+        emitter.tool_failed(name, started_at, exc)
+        raise
+    else:
+        emitter.tool_completed(name, started_at)
 
 
 class DeterministicWorkflow:
@@ -97,6 +126,7 @@ class DeterministicWorkflow:
         proposal_service: ProposalService,
         proposal_verifier: ProposalVerifier,
         fact_resolver: ProductFactResolver | None = None,
+        event_sink: WorkflowEventSink | None = None,
     ) -> None:
         self.repository = repository
         self.sizing_service = sizing_service
@@ -107,9 +137,31 @@ class DeterministicWorkflow:
         self.comparison_service = comparison_service
         self.proposal_service = proposal_service
         self.proposal_verifier = proposal_verifier
+        self.event_sink = event_sink or NoOpWorkflowEventSink()
         self.requirement_analyzer = RequirementAnalyzer()
 
-    def run(self, requirement: CustomerRequirement) -> WorkflowContext:
+    def run(
+        self, requirement: CustomerRequirement, run_id: str | None = None
+    ) -> WorkflowContext:
+        emitter = WorkflowEventEmitter(self.event_sink, run_id=run_id)
+        token = _ACTIVE_EVENT_EMITTER.set(emitter)
+        emitter.workflow_started()
+        emitter.state_started(WorkflowState.RECEIVED)
+        try:
+            context = self._run_business(requirement)
+        except Exception as exc:
+            state = emitter.active_state or WorkflowState.RECEIVED
+            emitter.state_failed(state, exc)
+            emitter.workflow_failed(state, exc)
+            raise
+        else:
+            emitter.state_completed(context.state)
+            emitter.workflow_completed(context.state)
+            return context
+        finally:
+            _ACTIVE_EVENT_EMITTER.reset(token)
+
+    def _run_business(self, requirement: CustomerRequirement) -> WorkflowContext:
         context = WorkflowContext(requirement=requirement, history=[WorkflowState.RECEIVED])
         self._transition(context, WorkflowState.ANALYZE)
         self._transition(context, WorkflowState.CHECK_MISSING_INFORMATION)
@@ -133,14 +185,23 @@ class DeterministicWorkflow:
             )
         except Exception as exc:
             context.errors.append(str(exc))
+            emitter = _ACTIVE_EVENT_EMITTER.get()
+            if emitter is not None:
+                emitter.state_failed(WorkflowState.SIZE, exc)
             self._transition(context, WorkflowState.SIZING_FAILED)
             return context
 
         sizing = context.sizing_result
         self._transition(context, WorkflowState.SEARCH_PRODUCTS)
-        search_result = self.repository.search(
-            self._product_search_request(sizing, requirement.budget_vnd)
-        )
+        search_request = self._product_search_request(sizing, requirement.budget_vnd)
+        with _observed_tool(
+            "ProductRepository.search",
+            {
+                "min_ram_gb": search_request.filters.min_ram_gb,
+                "max_base_price_vnd": search_request.filters.max_base_price_vnd,
+            },
+        ):
+            search_result = self.repository.search(search_request)
         if not search_result.products:
             self._transition(context, WorkflowState.NO_SUITABLE_PRODUCT)
             return context
@@ -157,6 +218,11 @@ class DeterministicWorkflow:
         for configuration in context.configurations:
             result = self.validator.validate(requirement, sizing, configuration)
             context.validation_results[configuration.configuration_id] = result
+            emitter = _ACTIVE_EVENT_EMITTER.get()
+            if emitter is not None:
+                emitter.validation_result(
+                    configuration.configuration_id, result, WorkflowState.VALIDATE_INITIAL
+                )
         if {
             result.status for result in context.validation_results.values()
         } == {ValidationStatus.FAIL}:
@@ -173,18 +239,28 @@ class DeterministicWorkflow:
             resolvable = [field for field in validation.unknown_fields
                           if field in {"max_ram_gb", "max_gpu_slots", "max_storage_gb"}]
             query_fields = resolvable + ["memory_gb", "capacity_gb", "max_gpu_slots", "max_ram_gb"]
-            result = self.document_search.search(
-                DocumentSearchRequest(
-                    query=" ".join(query_fields),
-                    product_id=configuration.product.id,
-                )
+            document_request = DocumentSearchRequest(
+                query=" ".join(query_fields),
+                product_id=configuration.product.id,
             )
+            with _observed_tool(
+                "DocumentSearch.search",
+                {"product_id": document_request.product_id},
+            ):
+                result = self.document_search.search(document_request)
             context.document_hits.extend(result.hits)
+            emitter = _ACTIVE_EVENT_EMITTER.get()
+            if emitter is not None:
+                for hit in result.hits:
+                    emitter.document_hit(hit)
             facts = self.fact_resolver.resolve(
                 configuration, resolvable, result.hits
             )
             facts_by_configuration[configuration.configuration_id] = facts
             context.resolved_facts.extend(facts)
+            if emitter is not None:
+                for fact in facts:
+                    emitter.fact_resolved(fact)
 
         self._transition(context, WorkflowState.APPLY_VERIFIED_FACTS)
         context.configurations = [
@@ -201,6 +277,11 @@ class DeterministicWorkflow:
         for configuration in context.configurations:
             result = self.validator.validate(requirement, sizing, configuration)
             context.validation_results[configuration.configuration_id] = result
+            emitter = _ACTIVE_EVENT_EMITTER.get()
+            if emitter is not None:
+                emitter.validation_result(
+                    configuration.configuration_id, result, WorkflowState.REVALIDATE
+                )
             if result.status == ValidationStatus.PASS:
                 context.candidates.append(
                     ProductCandidate(
@@ -235,11 +316,23 @@ class DeterministicWorkflow:
             )
         except Exception as exc:
             context.errors.append(str(exc))
+            emitter = _ACTIVE_EVENT_EMITTER.get()
+            if emitter is not None:
+                emitter.state_failed(WorkflowState.GENERATE_PROPOSAL, exc)
             self._transition(context, WorkflowState.PROPOSAL_FAILED)
             return context
 
+        emitter = _ACTIVE_EVENT_EMITTER.get()
+        if emitter is not None:
+            emitter.proposal_generated(
+                [configuration.configuration_id for configuration in passing_configurations],
+                len(context.document_hits),
+            )
+
         self._transition(context, WorkflowState.VERIFY)
         verification = self.proposal_verifier.verify(context.proposal)
+        if emitter is not None:
+            emitter.proposal_verified(verification)
         if not verification.valid:
             context.errors.extend(verification.errors)
             self._transition(context, WorkflowState.PROPOSAL_FAILED)
@@ -257,11 +350,20 @@ class DeterministicWorkflow:
         )
 
     @staticmethod
-    def _transition(context: WorkflowContext, state: WorkflowState) -> None:
+    def _transition(
+        context: WorkflowContext,
+        state: WorkflowState,
+        event_emitter: WorkflowEventEmitter | None = None,
+    ) -> None:
         allowed = DeterministicWorkflow._ALLOWED_TRANSITIONS[context.state]
         if state not in allowed:
             raise WorkflowTransitionError(
                 f"Illegal workflow transition: {context.state.value} -> {state.value}"
             )
+        emitter = event_emitter or _ACTIVE_EVENT_EMITTER.get()
+        if emitter is not None:
+            emitter.state_completed(context.state)
         context.state = state
         context.history.append(state)
+        if emitter is not None:
+            emitter.state_started(state)
