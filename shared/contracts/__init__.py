@@ -38,6 +38,13 @@ from .models import (
     ValidationResult,
     WorkflowContext,
 )
+from .observability import (
+    WorkflowEvent,
+    WorkflowEventType,
+    WorkflowTopology,
+    WorkflowTopologyEdge,
+    WorkflowTopologyNode,
+)
 
 __all__ = [
     "ComparisonResult",
@@ -79,5 +86,10 @@ __all__ = [
     "ValidationFailure",
     "ValidationResult",
     "WorkflowContext",
+    "WorkflowEvent",
+    "WorkflowEventType",
+    "WorkflowTopology",
+    "WorkflowTopologyEdge",
+    "WorkflowTopologyNode",
     "WorkflowState",
 ]

@@ -13,6 +13,7 @@ from shared.contracts import (
     ValidationStatus,
     WorkflowContext,
     WorkflowState,
+    WorkflowTopology,
 )
 from shared.interfaces import (
     ComparisonService,
@@ -78,6 +79,12 @@ class DeterministicWorkflow:
         WorkflowState.VALIDATION_FAILED: frozenset(),
         WorkflowState.PROPOSAL_FAILED: frozenset(),
     }
+
+    @classmethod
+    def describe_topology(cls) -> WorkflowTopology:
+        """Describe the canonical workflow graph without duplicating its transitions."""
+
+        return WorkflowTopology.from_transitions(cls._ALLOWED_TRANSITIONS)
 
     def __init__(
         self,
