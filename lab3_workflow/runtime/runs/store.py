@@ -73,6 +73,8 @@ class InMemoryRunStore:
     def emit(self, event: WorkflowEvent) -> None:
         with self._lock:
             record = self._require_run(event.run_id)
+            if record.status in {RunStatus.COMPLETED, RunStatus.FAILED}:
+                raise RunStoreError("terminal run cannot receive additional events")
             expected_sequence = record.events[-1].sequence + 1 if record.events else 1
             if event.sequence != expected_sequence:
                 raise EventSequenceError(

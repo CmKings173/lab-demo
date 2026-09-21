@@ -192,6 +192,51 @@ def test_conflicting_terminal_event_does_not_corrupt_history() -> None:
     assert [event.sequence for event in record.events] == [1, 2]
 
 
+@pytest.mark.parametrize(
+    "event_type",
+    [WorkflowEventType.STATE_STARTED, WorkflowEventType.TOOL_STARTED],
+)
+def test_completed_run_rejects_events_after_terminal_event(
+    event_type: WorkflowEventType,
+) -> None:
+    store = InMemoryRunStore()
+    store.create_run("run-1")
+    store.append_event(make_event("run-1", 1, WorkflowEventType.WORKFLOW_STARTED))
+    store.append_event(
+        make_event("run-1", 2, WorkflowEventType.WORKFLOW_COMPLETED, state=WorkflowState.COMPLETE)
+    )
+
+    with pytest.raises(RunStoreError):
+        store.append_event(make_event("run-1", 3, event_type))
+
+    record = store.get("run-1")
+    assert record is not None
+    assert record.status == RunStatus.COMPLETED
+    assert [event.sequence for event in record.events] == [1, 2]
+
+
+def test_failed_run_rejects_events_after_terminal_event() -> None:
+    store = InMemoryRunStore()
+    store.create_run("run-1")
+    store.append_event(make_event("run-1", 1, WorkflowEventType.WORKFLOW_STARTED))
+    store.append_event(
+        make_event(
+            "run-1",
+            2,
+            WorkflowEventType.WORKFLOW_FAILED,
+            payload={"error": "catalog unavailable"},
+        )
+    )
+
+    with pytest.raises(RunStoreError):
+        store.append_event(make_event("run-1", 3, WorkflowEventType.STATE_STARTED))
+
+    record = store.get("run-1")
+    assert record is not None
+    assert record.status == RunStatus.FAILED
+    assert [event.sequence for event in record.events] == [1, 2]
+
+
 def test_run_record_rejects_failed_state_without_error() -> None:
     from lab3_workflow.runtime.runs.models import RunRecord
 
