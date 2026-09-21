@@ -11,8 +11,30 @@ from shared.contracts import (
     ProductConfiguration,
     ProductFilter,
     ProductType,
+    ToolResult,
     UsageType,
 )
+
+
+@pytest.mark.parametrize("ok,data,error", [
+    (True, {"id": "p-1"}, None),
+    (True, None, None),
+    (False, None, "service_unavailable"),
+])
+def test_tool_result_accepts_consistent_states(ok, data, error) -> None:
+    result = ToolResult[dict](ok=ok, data=data, error=error)
+    assert result.ok is ok
+
+
+@pytest.mark.parametrize("ok,data,error", [
+    (True, {"id": "p-1"}, "failure"),
+    (False, {"id": "p-1"}, "failure"),
+    (False, None, None),
+    (False, None, " "),
+])
+def test_tool_result_rejects_inconsistent_states(ok, data, error) -> None:
+    with pytest.raises(ValidationError):
+        ToolResult[dict](ok=ok, data=data, error=error)
 
 
 def test_customer_requirement_accepts_partial_input_for_missing_information_flow() -> None:
@@ -141,3 +163,30 @@ def test_product_configuration_pricing_requires_breakdown() -> None:
             estimated_price_vnd=123,
             price_status=PriceStatus.COMPLETE,
         )
+
+
+def test_pricing_consistency_revalidates_breakdown_and_mirrors() -> None:
+    product = Product(id="p-1", sku="P-1", name="Demo", manufacturer="Demo",
+                      product_type=ProductType.AI_SERVER)
+    breakdown = PriceBreakdown(
+        base_chassis_vnd=100, gpu_vnd=200, ram_vnd=30, storage_vnd=40,
+        cpu_vnd=0, total_vnd=370, missing_components=[], status=PriceStatus.COMPLETE,
+    )
+    configuration = ProductConfiguration(
+        configuration_id="cfg", product=product, price_breakdown=breakdown,
+    )
+    assert configuration.pricing_state_is_consistent()
+    forged_total = configuration.model_copy(update={"estimated_price_vnd": 1})
+    assert not forged_total.pricing_state_is_consistent()
+    duplicated = configuration.model_copy(update={"priced_components": ["gpu", "gpu"]})
+    assert not duplicated.pricing_state_is_consistent()
+    forged_breakdown = breakdown.model_copy(update={"total_vnd": 1})
+    assert not configuration.model_copy(
+        update={"price_breakdown": forged_breakdown}
+    ).pricing_state_is_consistent()
+    assert not configuration.model_copy(
+        update={"price_breakdown": {"total_vnd": 370}}
+    ).pricing_state_is_consistent()
+    assert not configuration.model_copy(
+        update={"price_status": "complete"}
+    ).pricing_state_is_consistent()

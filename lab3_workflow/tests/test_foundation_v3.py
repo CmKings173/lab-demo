@@ -1,3 +1,5 @@
+import pytest
+
 from adapters.fake.options import ram_options
 from lab2_rag_agent.catalog.repository import InMemoryProductRepository
 from lab2_rag_agent.retrieval.documents import FakeDocumentSearch
@@ -153,6 +155,40 @@ def test_unresolved_fact_finishes_as_insufficient_product_data() -> None:
     context = workflow.run(requirement())
 
     assert context.state == WorkflowState.INSUFFICIENT_PRODUCT_DATA
+
+
+@pytest.mark.parametrize("values", [
+    ('"abc"',), ("-1",), ("true",), ("512", "1024"), ("1024", "512"),
+])
+def test_invalid_or_conflicting_documents_leave_workflow_unknown(
+    values: tuple[str, ...],
+) -> None:
+    chunks = [
+        DocumentChunk(
+            id=f"doc-{index}",
+            product_id="p-1",
+            source_url=f"https://example.invalid/doc-{index}",
+            text="Verified RAM specification",
+            metadata={"field_name": "max_ram_gb", "value": value, "verified": "true"},
+        )
+        for index, value in enumerate(values)
+    ]
+    workflow = DeterministicWorkflow(
+        repository=InMemoryProductRepository([product(max_ram_gb=None)]),
+        sizing_service=DeterministicSizingService(),
+        configuration_builder=ProductConfigurationBuilder([gpu()]),
+        validator=RuleBasedConfigurationValidator(),
+        document_search=FakeDocumentSearch(chunks),
+        fact_resolver=DeterministicProductFactResolver(),
+        comparison_service=RuleBasedComparisonService(),
+        proposal_service=RuleBasedProposalService(),
+        proposal_verifier=RuleBasedProposalVerifier(),
+    )
+
+    context = workflow.run(requirement())
+    assert context.state == WorkflowState.INSUFFICIENT_PRODUCT_DATA
+    assert context.resolved_facts == []
+    assert context.configurations[0].product.max_ram_gb is None
 
 
 def test_comparison_contains_real_configuration_values() -> None:

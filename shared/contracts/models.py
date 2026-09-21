@@ -184,6 +184,52 @@ class ProductConfiguration(ContractModel):
             return None
         return self.selected_gpu.memory_gb * self.gpu_count
 
+    def pricing_state_is_consistent(self) -> bool:
+        """Check mutable pricing mirrors against the validated canonical breakdown."""
+        if (
+            not isinstance(self.price_status, PriceStatus)
+            or (
+                self.estimated_price_vnd is not None
+                and (type(self.estimated_price_vnd) is not int or self.estimated_price_vnd < 0)
+            )
+            or not isinstance(self.priced_components, list)
+            or not all(isinstance(name, str) for name in self.priced_components)
+            or not isinstance(self.missing_price_components, list)
+            or not all(isinstance(name, str) for name in self.missing_price_components)
+        ):
+            return False
+        if self.price_breakdown is None:
+            return (
+                self.price_status == PriceStatus.UNKNOWN
+                and self.estimated_price_vnd is None
+                and self.priced_components == []
+                and self.missing_price_components == []
+            )
+        if not isinstance(self.price_breakdown, PriceBreakdown):
+            return False
+        try:
+            breakdown = PriceBreakdown.model_validate(
+                self.price_breakdown.model_dump(mode="python")
+            )
+        except ValueError:
+            return False
+        components = {
+            "base_chassis": breakdown.base_chassis_vnd,
+            "gpu": breakdown.gpu_vnd,
+            "ram": breakdown.ram_vnd,
+            "storage": breakdown.storage_vnd,
+            "cpu": breakdown.cpu_vnd,
+        }
+        expected_priced = [name for name, value in components.items() if value is not None]
+        return (
+            self.price_status == breakdown.status
+            and self.estimated_price_vnd == breakdown.total_vnd
+            and len(self.priced_components) == len(set(self.priced_components))
+            and sorted(self.priced_components) == sorted(expected_priced)
+            and len(self.missing_price_components) == len(set(self.missing_price_components))
+            and sorted(self.missing_price_components) == sorted(breakdown.missing_components)
+        )
+
     @model_validator(mode="after")
     def sync_options(self) -> "ProductConfiguration":
         for option_name, capacity_name in (
@@ -441,3 +487,15 @@ class ToolResult(ContractModel, Generic[T]):
     ok: bool
     data: T | None = None
     error: str | None = None
+
+    @model_validator(mode="after")
+    def check_result_state(self) -> "ToolResult[T]":
+        if self.ok:
+            if self.error is not None:
+                raise ValueError("Successful tool result cannot contain an error")
+        else:
+            if self.data is not None:
+                raise ValueError("Failed tool result cannot contain data")
+            if self.error is None or not self.error.strip():
+                raise ValueError("Failed tool result requires a nonblank error")
+        return self
