@@ -14,3 +14,10 @@ export function glyphForStatus(status: NodeStatus): string {
   if (status === "failed") return "!";
   return "○";
 }
+
+export function labelForStatus(status: NodeStatus): string {
+  if (status === "running") return "Đang chạy";
+  if (status === "completed") return "Hoàn tất";
+  if (status === "failed") return "Lỗi";
+  return "Chờ";
+}

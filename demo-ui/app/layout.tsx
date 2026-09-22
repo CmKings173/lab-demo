@@ -8,7 +8,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('lab-demo-theme');document.documentElement.dataset.theme=t==='light'||t==='system'?t:'dark'}catch(e){document.documentElement.dataset.theme='dark'}` }} /></head>
       <body>{children}</body>
     </html>
   );

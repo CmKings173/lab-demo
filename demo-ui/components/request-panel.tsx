@@ -1,37 +1,41 @@
-import type { FormEvent } from "react";
-import type { RequirementForm, RunStatus } from "@/lib/contracts";
+import { useEffect, useRef, type FormEvent } from "react";
+import type { RequirementForm } from "@/lib/contracts";
 
 type RequestPanelProps = {
+  open: boolean;
   value: RequirementForm;
+  note: string;
+  error: string | null;
   onChange: (next: RequirementForm) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onClose: () => void;
   disabled: boolean;
-  runId: string | null;
-  status: RunStatus | "idle";
 };
 
-export function RequestPanel({ value, onChange, onSubmit, disabled, runId, status }: RequestPanelProps) {
+export function RequestPanel({ open, value, note, error, onChange, onSubmit, onClose, disabled }: RequestPanelProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
   const setNumber = (field: keyof RequirementForm, raw: string) => onChange({ ...value, [field]: Number(raw) });
-  const chipClass = `status-chip ${status === "running" ? "live" : ""} ${status === "failed" ? "fail" : ""}`;
-  return (
-    <section className="panel" aria-labelledby="request-title">
-      <div className="panel-header">
-        <div><h2 className="panel-title" id="request-title">Request</h2><p className="panel-subtitle">Gửi workload vào workflow deterministic.</p></div>
-        <span className={chipClass}>{status === "idle" ? "ready" : status}</span>
+
+  return <dialog ref={dialogRef} className="run-dialog" onClose={onClose} aria-labelledby="request-title" aria-describedby="request-help">
+    <div className="dialog-header"><div><p className="panel-overline">NEW EXECUTION</p><h2 id="request-title">Thiết lập workflow</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="Đóng bảng tạo run">×</button></div>
+    <p id="request-help" className="dialog-intro">Backend chạy theo năm thông số này. Ghi chú chat chỉ hiển thị trong giao diện.</p>
+    {error ? <p className="alert" role="alert">{error}</p> : null}
+    {note.trim() ? <p className="request-note"><span>Ghi chú</span>{note.trim()}</p> : null}
+    <form className="request-form" onSubmit={onSubmit}>
+      <div className="field"><label htmlFor="model-size">Model size · B</label><input id="model-size" type="number" min="1" step="0.1" value={value.model_size_b} onChange={(event) => setNumber("model_size_b", event.target.value)} required /></div>
+      <div className="form-grid">
+        <div className="field"><label htmlFor="usage">Usage</label><select id="usage" value={value.usage} onChange={(event) => onChange({ ...value, usage: event.target.value as RequirementForm["usage"] })}><option value="inference">Inference</option><option value="fine_tune">Fine-tune</option></select></div>
+        <div className="field"><label htmlFor="concurrent-users">Concurrent users</label><input id="concurrent-users" type="number" min="1" value={value.concurrent_users} onChange={(event) => setNumber("concurrent_users", event.target.value)} required /></div>
       </div>
-      <div className="panel-body">
-        <form className="request-form" onSubmit={onSubmit}>
-          <div className="field"><label htmlFor="model-size">Model size (B)</label><input id="model-size" type="number" min="1" step="0.1" value={value.model_size_b} onChange={(event) => setNumber("model_size_b", event.target.value)} required /></div>
-          <div className="form-grid">
-            <div className="field"><label htmlFor="usage">Usage</label><select id="usage" value={value.usage} onChange={(event) => onChange({ ...value, usage: event.target.value as RequirementForm["usage"] })}><option value="inference">Inference</option><option value="fine_tune">Fine-tune</option></select></div>
-            <div className="field"><label htmlFor="concurrent-users">Concurrent users</label><input id="concurrent-users" type="number" min="1" value={value.concurrent_users} onChange={(event) => setNumber("concurrent_users", event.target.value)} required /></div>
-          </div>
-          <div className="field"><label htmlFor="budget">Budget (VND)</label><input id="budget" type="number" min="1000000" step="1000000" value={value.budget_vnd} onChange={(event) => setNumber("budget_vnd", event.target.value)} required /></div>
-          <div className="field"><label htmlFor="storage">Storage requirement (GB)</label><input id="storage" type="number" min="1" value={value.storage_requirement_gb} onChange={(event) => setNumber("storage_requirement_gb", event.target.value)} required /></div>
-          <button className="primary-button" type="submit" disabled={disabled}>{disabled ? "Workflow đang chạy…" : "Start workflow"}</button>
-        </form>
-        {runId ? <div className="run-meta" aria-live="polite"><div className="meta-row"><span>run id</span><strong>{runId.slice(0, 12)}…</strong></div><div className="meta-row"><span>transport</span><strong>SSE / replay</strong></div></div> : null}
-      </div>
-    </section>
-  );
+      <div className="field"><label htmlFor="budget">Budget · VND</label><input id="budget" type="number" min="1000000" step="1000000" value={value.budget_vnd} onChange={(event) => setNumber("budget_vnd", event.target.value)} required /></div>
+      <div className="field"><label htmlFor="storage">Storage requirement · GB</label><input id="storage" type="number" min="1" value={value.storage_requirement_gb} onChange={(event) => setNumber("storage_requirement_gb", event.target.value)} required /></div>
+      <div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>Hủy</button><button className="primary-button" type="submit" disabled={disabled}>{disabled ? "Đang tạo run…" : "Start workflow →"}</button></div>
+    </form>
+  </dialog>;
 }
