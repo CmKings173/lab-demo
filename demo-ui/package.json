@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test lib/graph-layout.test.mjs"
+    "test": "node --experimental-strip-types --test lib/graph-layout.test.mjs lib/run-creation-state.test.mjs"
   },
   "dependencies": {
     "next": "16.3.5",

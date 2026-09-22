@@ -13,6 +13,7 @@ import { createRun, fetchTopology, subscribeToRun } from "@/lib/api";
 import type { RequirementForm, RunSnapshot, RunStatus, WorkflowEvent, WorkflowTopology } from "@/lib/contracts";
 import { nodeStatusFor } from "@/lib/fold-events";
 import { stateDuration } from "@/lib/graph-runtime";
+import { resolveRunCreation } from "@/lib/run-creation-state";
 import { fetchTerminalSnapshot } from "@/lib/terminal-snapshot";
 
 const initialRequirement: RequirementForm = {
@@ -76,19 +77,36 @@ export function DemoShell() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const generation = ++requestGeneration.current;
+    const pendingRequirement = { ...requirement };
+    const pendingNote = draft;
     activeRunId.current = null;
     pinnedSelection.current = false;
     setCreating(true);
     setError(null); setConnectionNote(null); setSnapshot(null); setEvents([]); setSelection(null); setRunId(null); setStatus("pending");
-    setSubmitted({ ...requirement }); setSubmittedNote(draft);
     try {
-      const created = await createRun(requirement);
-      if (generation !== requestGeneration.current) return;
-      activeRunId.current = created.run_id;
-      setRunId(created.run_id); setStatus(created.status); setDrawerOpen(false); setDraft("");
+      const created = await createRun(pendingRequirement);
+      const transition = resolveRunCreation({
+        generation,
+        currentGeneration: requestGeneration.current,
+        requirement: pendingRequirement,
+        note: pendingNote,
+        outcome: { kind: "success", created },
+      });
+      if (transition.kind !== "created") return;
+      setSubmitted(transition.submitted);
+      setSubmittedNote(transition.submittedNote);
+      activeRunId.current = transition.runId;
+      setRunId(transition.runId); setStatus(transition.status); setDrawerOpen(false); setDraft("");
     } catch (reason) {
-      if (generation !== requestGeneration.current) return;
-      setStatus("idle"); setError(reason instanceof Error ? reason.message : "Không thể tạo run.");
+      const transition = resolveRunCreation({
+        generation,
+        currentGeneration: requestGeneration.current,
+        requirement: pendingRequirement,
+        note: pendingNote,
+        outcome: { kind: "failure", error: reason instanceof Error ? reason.message : "Không thể tạo run." },
+      });
+      if (transition.kind !== "failed") return;
+      setStatus("idle"); setError(transition.error);
     } finally {
       if (generation === requestGeneration.current) setCreating(false);
     }
