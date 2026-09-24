@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from lab1_finetune.data.exporter import export_qwen_jsonl
 from lab1_finetune.data.schema import FineTuneExample
 from lab1_finetune.data.seed import SEED_PATH, build_gold_seed_examples
 from lab1_finetune.data.splitter import DatasetSplitter
@@ -27,6 +28,12 @@ def build_artifacts(seed: int = 42) -> None:
     _write_examples(DATA_ROOT / "splits" / "train.jsonl", split.train)
     _write_examples(DATA_ROOT / "splits" / "validation.jsonl", split.validation)
     _write_examples(DATA_ROOT / "splits" / "test.jsonl", split.test)
+    for split_name, items in (
+        ("train", split.train),
+        ("validation", split.validation),
+        ("test", split.test),
+    ):
+        export_qwen_jsonl(items, DATA_ROOT / "exports" / f"{split_name}_qwen.jsonl")
     manifest = build_manifest(examples, split=split, seed=seed)
     manifest_path = DATA_ROOT / "manifests" / "gold_seed_vi_manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

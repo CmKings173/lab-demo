@@ -1,0 +1,42 @@
+{
+  "dataset_version": "lab1-evaluation-v1",
+  "seed": 20260923,
+  "total_examples": 120,
+  "scenario_counts": {
+    "eval_solution_design": 10,
+    "eval_clarification": 10,
+    "eval_novice": 10,
+    "eval_product_search": 10,
+    "eval_comparison": 10,
+    "eval_multi_tool": 10,
+    "eval_technical": 10,
+    "eval_lora": 10,
+    "eval_requirement_change": 10,
+    "eval_contradiction": 10,
+    "eval_failure": 10,
+    "eval_out_of_scope": 10
+  },
+  "persona_robustness_assessed": false,
+  "difficulty_counts": {
+    "easy": 70,
+    "medium": 20,
+    "hard": 30
+  },
+  "tool_pattern_counts": {
+    "single_tool": 60,
+    "no_tool": 50,
+    "multi_tool": 10,
+    "failure": 10
+  },
+  "failure_cases": 10,
+  "abstention_cases": 40,
+  "exact_overlap_with_training": 0,
+  "near_duplicate_pairs_with_training": 0,
+  "internal_exact_user_duplicates": 0,
+  "internal_near_user_pairs": 0,
+  "internal_near_user_example_ratio": 0.0,
+  "semantic_template_overlap_with_training": 0,
+  "semantic_errors": [],
+  "near_duplicate_threshold": 0.92,
+  "content_hash": "5674ef64a0092f14dde2ecde1bfe4f26aca630f60318fc88c6fa013528026781"
+}

@@ -1,0 +1,187 @@
+{
+  "dataset_version": "1.0.0-vi-expansion",
+  "seed": 20260922,
+  "total_examples": 1200,
+  "target_examples": 1200,
+  "split_counts": {
+    "train": 961,
+    "validation": 239
+  },
+  "family_counts": {
+    "expanded_solution_design": 160,
+    "expanded_missing_information": 160,
+    "expanded_novice_users": 120,
+    "expanded_product_search": 110,
+    "expanded_comparison": 90,
+    "expanded_multi_tool": 110,
+    "expanded_technical_questions": 90,
+    "expanded_lora_inference": 80,
+    "expanded_requirement_change": 80,
+    "expanded_contradictory": 60,
+    "expanded_failure_abstention": 90,
+    "expanded_out_of_scope": 50
+  },
+  "persona_counts": {
+    "IT_GENERALIST": 172,
+    "DEVELOPER": 172,
+    "ML_ENGINEER": 172,
+    "SOLUTION_ARCHITECT": 171,
+    "NON_TECHNICAL_USER": 171,
+    "MANAGER": 171,
+    "PURCHASING": 171
+  },
+  "difficulty_counts": {
+    "easy": 569,
+    "medium": 464,
+    "hard": 167
+  },
+  "turn_counts": {
+    "single_turn": 843,
+    "multi_turn": 357
+  },
+  "tool_pattern_counts": {
+    "single_tool": 627,
+    "no_tool": 433,
+    "multi_tool": 110,
+    "failure": 30
+  },
+  "exact_duplicates": 0,
+  "near_duplicate_pairs": 2016,
+  "near_duplicate_rate": 0.0028023352793994996,
+  "near_duplicate_threshold": 0.92,
+  "family_leakage": [],
+  "content_hash": "e39e3b451fa8cf651a5ed896ef0503b2b7a6dcd518c9ac257219e885af52ec6d",
+  "train_family_counts": {
+    "expanded_solution_design": 130,
+    "expanded_missing_information": 128,
+    "expanded_novice_users": 99,
+    "expanded_product_search": 88,
+    "expanded_comparison": 72,
+    "expanded_multi_tool": 88,
+    "expanded_technical_questions": 74,
+    "expanded_lora_inference": 67,
+    "expanded_requirement_change": 64,
+    "expanded_contradictory": 51,
+    "expanded_failure_abstention": 75,
+    "expanded_out_of_scope": 25
+  },
+  "validation_family_counts": {
+    "expanded_solution_design": 30,
+    "expanded_missing_information": 32,
+    "expanded_novice_users": 21,
+    "expanded_product_search": 22,
+    "expanded_comparison": 18,
+    "expanded_multi_tool": 22,
+    "expanded_technical_questions": 16,
+    "expanded_lora_inference": 13,
+    "expanded_requirement_change": 16,
+    "expanded_contradictory": 9,
+    "expanded_failure_abstention": 15,
+    "expanded_out_of_scope": 25
+  },
+  "train_persona_counts": {
+    "IT_GENERALIST": 144,
+    "ML_ENGINEER": 143,
+    "SOLUTION_ARCHITECT": 130,
+    "NON_TECHNICAL_USER": 144,
+    "MANAGER": 133,
+    "PURCHASING": 134,
+    "DEVELOPER": 133
+  },
+  "validation_persona_counts": {
+    "DEVELOPER": 39,
+    "SOLUTION_ARCHITECT": 41,
+    "IT_GENERALIST": 28,
+    "PURCHASING": 37,
+    "MANAGER": 38,
+    "ML_ENGINEER": 29,
+    "NON_TECHNICAL_USER": 27
+  },
+  "train_difficulty_counts": {
+    "easy": 444,
+    "medium": 375,
+    "hard": 142
+  },
+  "validation_difficulty_counts": {
+    "medium": 89,
+    "easy": 125,
+    "hard": 25
+  },
+  "train_turn_counts": {
+    "single_turn": 668,
+    "multi_turn": 293
+  },
+  "validation_turn_counts": {
+    "single_turn": 175,
+    "multi_turn": 64
+  },
+  "train_tool_pattern_counts": {
+    "single_tool": 495,
+    "no_tool": 355,
+    "multi_tool": 88,
+    "failure": 23
+  },
+  "validation_tool_pattern_counts": {
+    "single_tool": 132,
+    "no_tool": 78,
+    "multi_tool": 22,
+    "failure": 7
+  },
+  "semantic_template_counts": {
+    "solution_inference_complete_v3": 80,
+    "solution_low_budget_abstain_v3": 80,
+    "clarify_missing_budget_v3": 40,
+    "clarify_missing_usage_v3": 40,
+    "clarify_missing_model_size_v3": 40,
+    "clarify_missing_multiple_fields_v3": 40,
+    "novice_ambiguous_solution_v3": 60,
+    "novice_missing_multiple_fields_v3": 60,
+    "search_base_price_v3": 37,
+    "search_workstation_ram_v3": 37,
+    "search_server_gpu_slots_v3": 36,
+    "compare_products_v3": 45,
+    "compare_saved_configs_v3": 45,
+    "search_then_get_v3": 43,
+    "get_then_document_v3": 34,
+    "estimate_then_search_v3": 33,
+    "general_vram_context_v3": 18,
+    "general_inference_definition_v3": 18,
+    "technical_ram_document_v3": 18,
+    "technical_gpu_document_v3": 18,
+    "technical_unknown_evidence_v3": 18,
+    "lora_resource_estimate_v3": 53,
+    "lora_explanation_v3": 27,
+    "requirement_change_model_v3": 20,
+    "requirement_change_usage_v3": 20,
+    "requirement_change_budget_v3": 20,
+    "requirement_change_multiple_v3": 20,
+    "contradiction_single_gpu_v3": 20,
+    "contradiction_context_vram_v3": 20,
+    "contradiction_low_budget_v3": 20,
+    "tool_failure_document_v3": 30,
+    "no_product_found_v3": 30,
+    "unknown_product_evidence_v3": 30,
+    "out_scope_laptop_v3": 25,
+    "out_scope_network_v3": 25
+  },
+  "semantic_group_count": 138,
+  "semantic_group_leakage": [],
+  "train_validation_near_user_pairs": 0,
+  "train_validation_near_conversation_pairs": 0,
+  "exact_user_duplicates": 0,
+  "exact_history_user_duplicates": 0,
+  "exact_final_duplicates": 423,
+  "near_user_duplicate_pairs": 201,
+  "near_user_duplicate_example_ratio": 0.24,
+  "exact_conversation_duplicates": 0,
+  "near_history_user_pairs": 111,
+  "near_conversation_duplicate_pairs": 2016,
+  "near_history_user_duplicate_example_ratio": 0.13916666666666666,
+  "near_conversation_duplicate_example_ratio": 0.6616666666666666,
+  "label_text_errors": [],
+  "semantic_errors": [],
+  "python_repr_errors": [],
+  "encoding_errors": [],
+  "final_unique_count": 777,
+  "final_duplicate_ratio": 0.3525
+}
