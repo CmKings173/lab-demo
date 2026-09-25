@@ -4,11 +4,14 @@ import json
 
 from lab1_finetune.data.schema import DatasetLabels, ExpectedToolCall, Intent, ScenarioType
 from lab1_finetune.evaluation.compare_results import compare_reports
+from lab1_finetune.evaluation.rescore_saved_eval import render_summary
 from lab1_finetune.evaluation.run_model_eval import (
     BENCHMARK_PATH,
+    _argument_metrics,
     _detect_abstention,
     _load_benchmark,
     evaluate_case,
+    rescore_report,
     run_evaluation,
 )
 from lab1_finetune.evaluation.schema import EvaluationCase
@@ -57,6 +60,12 @@ def _response(content=None, calls=None):
                                               tool_calls=calls or []))
 
 
+def _score_arguments(tool_name, gold_arguments, predicted_arguments):
+    predicted = [ToolCall(id="predicted", name=tool_name, arguments=predicted_arguments)]
+    gold = [ExpectedToolCall(name=tool_name, arguments=gold_arguments)]
+    return _argument_metrics(predicted, gold)
+
+
 def test_evaluation_teacher_forces_fixture_without_leaking_gold_answer() -> None:
     client = _FakeClient([
         _response(calls=[ToolCall(id="prediction", name="get_product",
@@ -93,6 +102,148 @@ def test_evaluation_records_case_failure_and_continues(tmp_path) -> None:
     assert report["cases"][0]["error"] == "RuntimeError: bad response"
     assert report["cases"][1]["predicted_assistant_content"] == "Safe answer"
     assert json.loads(output.read_text(encoding="utf-8"))["benchmark_hash"] == "frozen-hash"
+
+
+def test_argument_metrics_separate_exact_contract_and_critical_fields() -> None:
+    scores, categories = _score_arguments(
+        "search_products",
+        {"filters": {"min_ram_gb": 512}, "query": None, "limit": 20},
+        {"filters": {"min_ram_gb": 512}, "query": "", "limit": 20},
+    )
+
+    assert scores == {
+        "tool_argument_accuracy": False,
+        "tool_argument_contract_normalized_accuracy": True,
+        "tool_argument_critical_field_accuracy": True,
+    }
+    assert categories == []
+
+
+def test_critical_accuracy_ignores_document_query_and_top_k() -> None:
+    scores, categories = _score_arguments(
+        "search_product_documents",
+        {"query": "RAM tối đa", "product_id": "P-1", "top_k": 5},
+        {"query": "maximum memory capacity", "product_id": "P-1", "top_k": 20},
+    )
+
+    assert scores["tool_argument_accuracy"] is False
+    assert scores["tool_argument_contract_normalized_accuracy"] is False
+    assert scores["tool_argument_critical_field_accuracy"] is True
+    assert categories == []
+
+
+def test_critical_accuracy_keeps_user_business_values_exact() -> None:
+    cases = [
+        ("search_products", {"filters": {"min_ram_gb": 512}},
+         {"filters": {"min_ram_gb": 1024}}, "search_products.filters.min_ram_gb"),
+        ("search_products", {"filters": {"min_gpu_count": 4}},
+         {"filters": {"min_gpu_count": 8}}, "search_products.filters.min_gpu_count"),
+        ("search_products", {"filters": {"max_base_price_vnd": 300_000_000}},
+         {"filters": {"max_base_price_vnd": 400_000_000}},
+         "search_products.filters.max_base_price_vnd"),
+        ("search_products", {"filters": {"product_type": "ai_server"}},
+         {"filters": {"product_type": "ai_workstation"}},
+         "search_products.filters.product_type"),
+        ("get_product", {"product_id": "P-1"}, {"product_id": "P-2"},
+         "get_product.product_id"),
+        ("estimate_ai_requirements", {
+            "model_parameters_b": 14, "usage": "inference", "context_length": 32768,
+            "concurrent_users": 8, "training_method": None,
+         }, {
+            "model_parameters_b": 14, "usage": "inference", "context_length": 65536,
+            "concurrent_users": 8, "training_method": None,
+         }, "estimate_ai_requirements.context_length"),
+        ("estimate_ai_requirements", {
+            "model_parameters_b": 14, "usage": "fine_tune", "context_length": 8192,
+            "concurrent_users": 4, "training_method": "LoRA",
+         }, {
+            "model_parameters_b": 14, "usage": "fine_tune", "context_length": 8192,
+            "concurrent_users": 4, "training_method": "full fine-tuning",
+         }, "estimate_ai_requirements.training_method"),
+    ]
+    for tool_name, gold, predicted, expected_category in cases:
+        scores, categories = _score_arguments(tool_name, gold, predicted)
+        assert scores["tool_argument_critical_field_accuracy"] is False
+        assert expected_category in categories
+
+
+def test_pydantic_contract_defaults_are_equal_to_missing_values() -> None:
+    scores, categories = _score_arguments(
+        "search_products",
+        {"filters": {}, "query": None, "limit": 20},
+        {},
+    )
+
+    assert scores["tool_argument_accuracy"] is True
+    assert scores["tool_argument_contract_normalized_accuracy"] is True
+    assert scores["tool_argument_critical_field_accuracy"] is None
+    assert categories == []
+
+
+def test_saved_report_rescoring_uses_stored_calls_without_mutating_input() -> None:
+    report = {
+        "model_name": "stored-model-output",
+        "total_cases": 1,
+        "successful_cases": 1,
+        "failed_cases": 0,
+        "metrics": {},
+        "cases": [{
+            "case_id": "case-1",
+            "error": None,
+            "gold_labels": {
+                "expected_tool_calls": [{
+                    "name": "get_product", "arguments": {"product_id": "P1"},
+                }],
+            },
+            "predicted_tool_calls": [{
+                "id": "stored-prediction", "name": "get_product",
+                "arguments": {"product_id": "P2"},
+            }],
+            "metrics": {"tool_name_accuracy": True},
+        }],
+    }
+
+    rescored = rescore_report(report)
+
+    assert report["cases"][0]["metrics"] == {"tool_name_accuracy": True}
+    assert rescored["cases"][0]["metrics"]["tool_argument_accuracy"] is False
+    assert rescored["cases"][0]["metrics"][
+        "tool_argument_contract_normalized_accuracy"
+    ] is False
+    assert rescored["cases"][0]["metrics"][
+        "tool_argument_critical_field_accuracy"
+    ] is False
+    assert rescored["critical_argument_mismatch_categories"] == [
+        {"category": "get_product.product_id", "count": 1},
+    ]
+
+
+def test_rescore_summary_reports_base_lora_and_delta() -> None:
+    base = {
+        "benchmark_hash": "same-benchmark",
+        "total_cases": 1,
+        "evaluation_config": {},
+        "cases": [{"case_id": "case-1"}],
+        "metrics": {
+            "tool_argument_accuracy": {"value": 0.5, "count": 1},
+            "tool_argument_contract_normalized_accuracy": {"value": 0.75, "count": 1},
+            "tool_argument_critical_field_accuracy": {"value": 1.0, "count": 1},
+        },
+    }
+    lora = {
+        **base,
+        "metrics": {
+            "tool_argument_accuracy": {"value": 0.6, "count": 1},
+            "tool_argument_contract_normalized_accuracy": {"value": 0.8, "count": 1},
+            "tool_argument_critical_field_accuracy": {"value": 0.9, "count": 1},
+        },
+    }
+
+    summary = render_summary(base, lora)
+
+    assert "Exact (existing) | 50.00% | 60.00% | +10.00 pp" in summary
+    assert "Contract-normalized | 75.00% | 80.00% | +5.00 pp" in summary
+    assert "Critical business fields | 100.00% | 90.00% | -10.00 pp" in summary
 
 
 def test_comparison_requires_same_benchmark_and_reports_deltas() -> None:
