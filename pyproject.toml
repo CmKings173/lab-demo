@@ -8,14 +8,24 @@ version = "0.1.0"
 description = "Phase 0-1 foundation for an on-prem AI configuration advisor"
 requires-python = ">=3.11"
 dependencies = [
+  "fastapi>=0.115,<1",
   "pydantic>=2.5,<3",
 ]
 
 [project.optional-dependencies]
+lab1-train = [
+  "accelerate==1.15.0",
+  "datasets==5.0.1",
+  "peft==0.21.0",
+  "transformers==5.17.0",
+  "trl==1.13.0",
+]
 dev = [
   "jsonschema>=4.21,<5",
+  "httpx>=0.27,<1",
   "pytest>=8.0,<9",
   "ruff>=0.6,<1",
+  "uvicorn>=0.30,<1",
 ]
 
 [tool.setuptools.packages.find]

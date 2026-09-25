@@ -1,6 +1,7 @@
 import json
 import re
 
+import lab1_finetune.data.build_artifacts as build_artifacts_module
 from lab1_finetune.data.exporter import export_qwen_jsonl
 from lab1_finetune.data.fixtures.tool_results import TOOL_RESULT_MODELS
 from lab1_finetune.data.schema import Intent, ScenarioType
@@ -102,6 +103,31 @@ def test_split_export_and_manifest_are_deterministic(tmp_path) -> None:
     assert set(records[0]) == {"messages", "tools"}
     assert manifest == build_manifest(examples, split=split, seed=42)
     assert manifest.created_at.isoformat() == "2026-09-20T00:00:00+00:00"
+
+
+def test_build_artifacts_writes_qwen_exports_for_each_split(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(build_artifacts_module, "DATA_ROOT", tmp_path)
+    monkeypatch.setattr(
+        build_artifacts_module,
+        "SEED_PATH",
+        tmp_path / "seed" / "gold_seed_vi.jsonl",
+    )
+
+    build_artifacts_module.build_artifacts()
+
+    for split_name, expected_count in (
+        ("train", 46),
+        ("validation", 8),
+        ("test", 6),
+    ):
+        output = tmp_path / "exports" / f"{split_name}_qwen.jsonl"
+        records = [
+            json.loads(line)
+            for line in output.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        assert len(records) == expected_count
+        assert all(set(record) == {"messages", "tools"} for record in records)
 
 
 def test_validator_rejects_label_and_tool_flow_mismatches() -> None:
