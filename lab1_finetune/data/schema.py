@@ -6,8 +6,12 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from shared.contracts import ChatMessage, CustomerRequirement, ToolDefinition
-from shared.contracts.models import ContractModel
+from lab1_finetune.data.frozen_contracts import (
+    ChatMessage,
+    ContractModel,
+    CustomerRequirement,
+    ToolDefinition,
+)
 
 
 class Intent(StrEnum):

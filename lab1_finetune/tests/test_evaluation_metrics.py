@@ -1,3 +1,4 @@
+from lab1_finetune.data.frozen_contracts import ToolCall
 from lab1_finetune.data.seed import load_gold_seed
 from lab1_finetune.evaluation.metrics import (
     accuracy,
@@ -6,7 +7,6 @@ from lab1_finetune.evaluation.metrics import (
     unsupported_product_claim_rate,
 )
 from lab1_finetune.evaluation.schema import EvaluationCase, EvaluationPrediction
-from shared.contracts import ToolCall
 
 
 def test_evaluation_metrics_compute_real_values() -> None:

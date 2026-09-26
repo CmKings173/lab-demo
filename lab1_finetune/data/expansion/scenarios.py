@@ -4,8 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from random import Random
 
+from lab1_finetune.data.frozen_contracts import ProductType, UsageType
 from lab1_finetune.data.schema import ScenarioType
-from shared.contracts import ProductType, UsageType
 
 
 @dataclass(frozen=True)
@@ -39,8 +39,30 @@ DOMAINS = (
 MODELS = ("Qwen", "Llama", "Mistral", "Qwen coder", "Yi", "Llama coder")
 MODEL_SIZES = (7.0, 8.0, 14.0, 32.0, 34.0, 70.0)
 BUDGETS = (120_000_000, 180_000_000, 240_000_000, 320_000_000, 500_000_000, 800_000_000)
-CONCURRENCY = (2, 4, 6, 10, 16, 24)
-CONTEXT_LENGTHS = (4096, 8192, 16384, 32768)
+CONCURRENCY = (2, 3, 4, 6, 7, 10, 13, 16, 17, 19, 23, 24, 29, 31, 37, 41, 47, 53, 61, 71)
+CONTEXT_LENGTHS = (
+    4096,
+    5120,
+    6144,
+    7168,
+    7680,
+    8192,
+    8704,
+    9216,
+    12288,
+    14336,
+    16384,
+    18432,
+    18944,
+    24576,
+    25600,
+    26624,
+    27648,
+    28672,
+    30720,
+    31744,
+    32768,
+)
 STORAGE_GB = (512, 1024, 2048, 4096)
 
 

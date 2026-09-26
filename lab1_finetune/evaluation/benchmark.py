@@ -14,6 +14,14 @@ from typing import Any, Iterable
 
 from lab1_finetune.data.expansion.difficulty import infer_difficulty
 from lab1_finetune.data.fixtures.tool_results import typed_result
+from lab1_finetune.data.frozen_contracts import (
+    TOOL_ARG_MODELS,
+    TOOL_DEFINITIONS,
+    ChatMessage,
+    CustomerRequirement,
+    ProductType,
+    ToolCall,
+)
 from lab1_finetune.data.schema import (
     DatasetLabels,
     ExpectedToolCall,
@@ -24,9 +32,6 @@ from lab1_finetune.data.schema import (
 from lab1_finetune.data.similarity import near_duplicate_pairs, near_duplicate_stats
 from lab1_finetune.evaluation.schema import EvaluationCase
 from lab1_finetune.evaluation.wording import render_eval_prompt
-from shared.contracts import ChatMessage, CustomerRequirement, ProductType, ToolCall
-from shared.tool_args import TOOL_ARG_MODELS
-from shared.tool_contracts import TOOL_DEFINITIONS
 
 EVAL_SEED = 20260923
 EVAL_TARGET = 120

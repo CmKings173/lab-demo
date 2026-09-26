@@ -2,13 +2,12 @@ import json
 
 from pydantic import BaseModel
 
+from lab1_finetune.data.frozen_contracts import TOOL_ARG_MODELS, CustomerRequirement
 from lab1_finetune.evaluation.schema import (
     EvaluationCase,
     EvaluationMetrics,
     EvaluationPrediction,
 )
-from shared.contracts import CustomerRequirement
-from shared.tool_args import TOOL_ARG_MODELS
 
 
 class ExtractionScores(BaseModel):

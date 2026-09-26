@@ -2,6 +2,12 @@
 
 import json
 
+from lab1_finetune.data.frozen_contracts import (
+    ChatMessage,
+    CustomerRequirement,
+    ModelResponse,
+    ToolCall,
+)
 from lab1_finetune.data.schema import DatasetLabels, ExpectedToolCall, Intent, ScenarioType
 from lab1_finetune.evaluation.compare_results import compare_reports
 from lab1_finetune.evaluation.rescore_saved_eval import render_summary
@@ -15,7 +21,6 @@ from lab1_finetune.evaluation.run_model_eval import (
     run_evaluation,
 )
 from lab1_finetune.evaluation.schema import EvaluationCase
-from shared.contracts import ChatMessage, CustomerRequirement, ModelResponse, ToolCall
 
 
 class _FakeClient:

@@ -46,14 +46,9 @@ from lab1_finetune.data.expansion.wording import (
     variant_index,
 )
 from lab1_finetune.data.fixtures.tool_results import typed_result
-from lab1_finetune.data.schema import (
-    DatasetLabels,
-    ExpectedToolCall,
-    FineTuneExample,
-    Intent,
-    ScenarioType,
-)
-from shared.contracts import (
+from lab1_finetune.data.frozen_contracts import (
+    TOOL_ARG_MODELS,
+    TOOL_DEFINITIONS,
     ChatMessage,
     CustomerRequirement,
     ProductFilter,
@@ -61,8 +56,13 @@ from shared.contracts import (
     ToolCall,
     UsageType,
 )
-from shared.tool_args import TOOL_ARG_MODELS
-from shared.tool_contracts import TOOL_DEFINITIONS
+from lab1_finetune.data.schema import (
+    DatasetLabels,
+    ExpectedToolCall,
+    FineTuneExample,
+    Intent,
+    ScenarioType,
+)
 
 SYSTEM_MESSAGE = (
     "Bạn là trợ lý tư vấn AI Server và AI Workstation. Chỉ dùng dữ kiện từ công cụ; "
@@ -113,7 +113,11 @@ def _product(ordinal: int, product_type: ProductType, *, ram: int = 512) -> dict
     }
 
 
-def _estimate_result(context: ScenarioContext) -> dict[str, Any]:
+def _estimate_result(
+    context: ScenarioContext,
+    *,
+    include_storage_recommendation: bool = True,
+) -> dict[str, Any]:
     multiplier = 4.5 if context.usage.value == "fine_tune" else 3.0
     memory = round(context.model_size_b * multiplier, 1)
     vram = max(24, int(((memory / 24) + 0.999) // 1) * 24)
@@ -122,7 +126,9 @@ def _estimate_result(context: ScenarioContext) -> dict[str, Any]:
         "estimated_model_memory_gb": memory,
         "recommended_total_vram_gb": vram,
         "recommended_system_ram_gb": ram,
-        "recommended_storage_gb": context.storage_gb,
+        "recommended_storage_gb": (
+            context.storage_gb if include_storage_recommendation else None
+        ),
         "assumptions": ["Ước tính deterministic; cần benchmark thực tế trước khi chốt."],
         "warnings": ["Chưa có giá cấu hình đầy đủ trong bước tính tài nguyên."],
         "confidence": 0.5,
@@ -141,7 +147,11 @@ def _search_step(product: dict[str, Any] | None, filters: dict[str, Any] | Produ
     }
 
 
-def _estimate_step(context: ScenarioContext) -> dict[str, Any]:
+def _estimate_step(
+    context: ScenarioContext,
+    *,
+    include_storage_recommendation: bool = True,
+) -> dict[str, Any]:
     arguments: dict[str, Any] = {
         "model_parameters_b": context.model_size_b,
         "usage": context.usage.value,
@@ -154,7 +164,10 @@ def _estimate_step(context: ScenarioContext) -> dict[str, Any]:
         "name": "estimate_ai_requirements",
         "arguments": arguments,
         "ok": True,
-        "data": _estimate_result(context),
+        "data": _estimate_result(
+            context,
+            include_storage_recommendation=include_storage_recommendation,
+        ),
         "error": None,
     }
 
@@ -740,14 +753,23 @@ def _build_multi_tool(
     context = context_for_scenario(
         seed=ordinal, index=index, scenario_type=scenario_type, persona_id=profile.persona_id
     )
-    estimate_step = _estimate_step(context) if flow == MultiToolFlow.ESTIMATE_THEN_SEARCH else None
+    estimate_step = (
+        _estimate_step(
+            context,
+            include_storage_recommendation=False,
+        )
+        if flow == MultiToolFlow.ESTIMATE_THEN_SEARCH
+        else None
+    )
 
     if flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
         recommended_ram = estimate_step["data"]["recommended_system_ram_gb"]
         product = _product(ordinal, context.product_type, ram=max(512, recommended_ram))
+        product["base_price_vnd"] = min(product["base_price_vnd"], context.budget_vnd)
         filters = ProductFilter(
             product_type=context.product_type,
             min_ram_gb=recommended_ram,
+            max_base_price_vnd=context.budget_vnd,
         )
         document_field = None
     elif flow == MultiToolFlow.SEARCH_THEN_GET:
@@ -775,10 +797,13 @@ def _build_multi_tool(
 
     if flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
         estimate = steps[0]["data"]
+        listed_price = f"{product['base_price_vnd']:,}".replace(",", ".")
+        budget = f"{context.budget_vnd:,}".replace(",", ".")
         final = (
             f"Ước tính ban đầu đề xuất {estimate['recommended_system_ram_gb']}GB RAM hệ thống. "
             f"Danh mục trả về {product['id']}, hỗ trợ tối đa {product['max_ram_gb']}GB RAM; "
-            "giá máy cơ bản chưa phải giá cấu hình hoàn chỉnh."
+            f"giá máy cơ bản {listed_price} VND nằm trong ngân sách tối đa "
+            f"{budget} VND; đây chưa phải giá cấu hình hoàn chỉnh."
         )
     elif flow == MultiToolFlow.SEARCH_THEN_GET:
         final = (
@@ -806,6 +831,11 @@ def _build_multi_tool(
             usage=context.usage,
             budget_vnd=context.budget_vnd,
             concurrent_users=context.concurrent_users,
+            context_length=(
+                context.context_length
+                if flow == MultiToolFlow.ESTIMATE_THEN_SEARCH
+                else None
+            ),
         ),
         missing_fields=[],
         should_abstain=False,

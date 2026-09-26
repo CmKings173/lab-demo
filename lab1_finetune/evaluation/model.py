@@ -8,7 +8,12 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from adapters.fake.model import FakeModelClient
-from shared.contracts import ChatMessage, ModelResponse, ToolCall, ToolDefinition
+from lab1_finetune.data.frozen_contracts import (
+    ChatMessage,
+    ModelResponse,
+    ToolCall,
+    ToolDefinition,
+)
 
 __all__ = ["FakeModelClient", "ModelEvaluationError", "VLLMModelClient"]
 

@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import Literal
 
 from lab1_finetune.data.expansion.scenarios import ScenarioContext
-from shared.contracts import ProductFilter, ProductType
+from lab1_finetune.data.frozen_contracts import ProductFilter, ProductType
 
 
 @dataclass(frozen=True)

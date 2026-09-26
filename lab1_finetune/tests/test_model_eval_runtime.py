@@ -5,8 +5,8 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
+from lab1_finetune.data.frozen_contracts import ChatMessage, ToolDefinition
 from lab1_finetune.evaluation.model import ModelEvaluationError, VLLMModelClient
-from shared.contracts import ChatMessage, ToolDefinition
 
 
 class _Response:

@@ -18,8 +18,8 @@ from lab1_finetune.data.expansion.semantic_specs import (
     RequirementChangeSpec,
     TechnicalFactSpec,
 )
+from lab1_finetune.data.frozen_contracts import ProductFilter, ProductType
 from lab1_finetune.data.schema import ScenarioType
-from shared.contracts import ProductFilter, ProductType
 
 
 @dataclass(frozen=True)
@@ -608,14 +608,29 @@ def _multi_tool_search_target(spec: MultiToolFlowSpec) -> str:
     )
 
 
+def _multi_tool_estimate_requirements(
+    context: ScenarioContext,
+    spec: MultiToolFlowSpec,
+) -> str:
+    filters = _multi_tool_filters(spec)
+    if filters.max_base_price_vnd is None:
+        raise ValueError("Estimate-then-search requires an explicit price constraint")
+    budget_vnd = f"{filters.max_base_price_vnd:,}".replace(",", ".")
+    usage = "chạy inference" if context.usage.value == "inference" else "fine-tune bằng LoRA"
+    return (
+        f"{context.model_name} để {usage}, context {context.context_length} token, "
+        f"{context.concurrent_users} người dùng đồng thời, ngân sách tối đa "
+        f"{budget_vnd} VND"
+    )
+
+
 def _multi_tool_flow_first(context: ScenarioContext, spec: MultiToolFlowSpec) -> str:
     if spec.flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
-        filters = _multi_tool_filters(spec)
-        if filters.min_ram_gb is None:
-            raise ValueError("Estimate-then-search needs the estimate-derived RAM constraint")
+        details = _multi_tool_estimate_requirements(context, spec)
         return (
-            f"Ước tính tài nguyên cho {context.model_name} trước, rồi tìm "
-            f"{product_type_label(spec.product_type)} đáp ứng tối thiểu {filters.min_ram_gb}GB RAM."
+            f"Ước tính tài nguyên cho {details} trước, rồi tìm "
+            f"{product_type_label(spec.product_type)} bằng mức RAM được đề xuất, "
+            "trong giới hạn giá đã nêu."
         )
     if spec.flow == MultiToolFlow.SEARCH_THEN_GET:
         return f"Tìm {_multi_tool_search_target(spec)} trước, rồi lấy chi tiết của kết quả tìm được."
@@ -624,12 +639,11 @@ def _multi_tool_flow_first(context: ScenarioContext, spec: MultiToolFlowSpec) ->
 
 def _multi_tool_goal_first(context: ScenarioContext, spec: MultiToolFlowSpec) -> str:
     if spec.flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
-        filters = _multi_tool_filters(spec)
-        if filters.min_ram_gb is None:
-            raise ValueError("Estimate-then-search needs the estimate-derived RAM constraint")
+        details = _multi_tool_estimate_requirements(context, spec)
         return (
-            f"Để triển khai {context.domain}, hãy ước tính tài nguyên cho {context.model_name}, "
-            f"sau đó tìm {product_type_label(spec.product_type)} có ít nhất {filters.min_ram_gb}GB RAM."
+            f"Để triển khai {context.domain}, bên mình cần {details}; hãy ước tính trước, "
+            f"sau đó dùng mức RAM được đề xuất để tìm {product_type_label(spec.product_type)} "
+            "không vượt trần giá đã nêu."
         )
     if spec.flow == MultiToolFlow.SEARCH_THEN_GET:
         return f"Cho nhu cầu {context.domain}, tìm {_multi_tool_search_target(spec)} rồi mở chi tiết sản phẩm trong kết quả."
@@ -638,12 +652,11 @@ def _multi_tool_goal_first(context: ScenarioContext, spec: MultiToolFlowSpec) ->
 
 def _multi_tool_evidence_first(context: ScenarioContext, spec: MultiToolFlowSpec) -> str:
     if spec.flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
-        filters = _multi_tool_filters(spec)
-        if filters.min_ram_gb is None:
-            raise ValueError("Estimate-then-search needs the estimate-derived RAM constraint")
+        details = _multi_tool_estimate_requirements(context, spec)
         return (
-            f"Dựa trên ước tính cho {context.model_name}, tìm {product_type_label(spec.product_type)} "
-            f"đáp ứng mức RAM đề xuất {filters.min_ram_gb}GB."
+            f"Dựa trên nhu cầu {details}, hãy ước tính tài nguyên rồi tìm và chỉ lấy "
+            f"{product_type_label(spec.product_type)} theo mức RAM được đề xuất, "
+            "trong phạm vi ngân sách đã nêu."
         )
     if spec.flow == MultiToolFlow.SEARCH_THEN_GET:
         return f"Tìm {_multi_tool_search_target(spec)} cho {context.domain}, rồi lấy thông tin chi tiết từ bản ghi danh mục."
@@ -652,12 +665,11 @@ def _multi_tool_evidence_first(context: ScenarioContext, spec: MultiToolFlowSpec
 
 def _multi_tool_decision_first(context: ScenarioContext, spec: MultiToolFlowSpec) -> str:
     if spec.flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
-        filters = _multi_tool_filters(spec)
-        if filters.min_ram_gb is None:
-            raise ValueError("Estimate-then-search needs the estimate-derived RAM constraint")
+        details = _multi_tool_estimate_requirements(context, spec)
         return (
-            f"Trước khi chọn máy cho {context.domain}, hãy ước tính nhu cầu rồi tìm "
-            f"{product_type_label(spec.product_type)} có ít nhất {filters.min_ram_gb}GB RAM."
+            f"Trước khi chọn máy cho {context.domain}, hãy ước tính {details}; sau đó tìm "
+            f"{product_type_label(spec.product_type)} theo mức RAM được đề xuất, "
+            "không vượt trần giá đã nêu."
         )
     if spec.flow == MultiToolFlow.SEARCH_THEN_GET:
         return f"Để xem lựa chọn cho {context.domain}, hãy tìm {_multi_tool_search_target(spec)} rồi lấy chi tiết kết quả."

@@ -8,14 +8,13 @@ from typing import Any
 from pydantic import ValidationError
 
 from lab1_finetune.data.fixtures.tool_results import TOOL_RESULT_MODELS
+from lab1_finetune.data.frozen_contracts import TOOL_ARG_MODELS, ToolDefinition
 from lab1_finetune.data.schema import (
     DatasetSplit,
     DatasetValidationReport,
     FineTuneExample,
 )
 from lab1_finetune.data.statistics import build_manifest
-from shared.contracts import ToolDefinition
-from shared.tool_args import TOOL_ARG_MODELS
 
 
 class DatasetValidator:

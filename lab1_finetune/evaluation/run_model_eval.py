@@ -18,12 +18,17 @@ from enum import Enum
 from pathlib import Path
 from typing import Protocol
 
+from lab1_finetune.data.frozen_contracts import (
+    TOOL_ARG_MODELS,
+    ChatMessage,
+    ContractModel,
+    ModelResponse,
+    ToolCall,
+    ToolDefinition,
+)
 from lab1_finetune.data.schema import ExpectedToolCall
 from lab1_finetune.evaluation.model import VLLMModelClient
 from lab1_finetune.evaluation.schema import EvaluationCase
-from shared.contracts import ChatMessage, ModelResponse, ToolCall, ToolDefinition
-from shared.contracts.models import ContractModel
-from shared.tool_args import TOOL_ARG_MODELS
 
 BENCHMARK_PATH = Path(__file__).with_name("gold_eval.jsonl")
 _ABSTENTION_PHRASES = (

@@ -42,7 +42,7 @@ def _prior_conversation_text(example: Any) -> str:
     return " ".join(
         message.content or ""
         for message in example.messages[:current_user]
-        if message.role in {"user", "assistant"}
+        if message.role == "user"
     )
 
 
@@ -68,6 +68,13 @@ def _current_user_text(example: Any) -> str:
     return next(
         (message.content or "" for message in reversed(example.messages) if message.role == "user"),
         "",
+    )
+
+
+def _user_conversation_text(example: Any) -> str:
+    """Only user-authored turns can establish provenance for user requirements."""
+    return " ".join(
+        message.content or "" for message in example.messages if message.role == "user"
     )
 
 
@@ -113,10 +120,11 @@ def _validate_comparison(
     target_ids = arguments.get(id_key, [])
     result_ids = (result.get("data") or {}).get(id_key, []) if result.get("ok") else []
     user = _current_user_text(example).casefold()
+    user_provenance = _user_conversation_text(example).casefold()
     final = _final_text(example).casefold()
     if len(target_ids) != 2 or result_ids != target_ids:
         errors.append(f"{example_id}:comparison tool/result target IDs disagree")
-    if any(str(target_id).casefold() not in user for target_id in target_ids):
+    if any(str(target_id).casefold() not in user_provenance for target_id in target_ids):
         errors.append(f"{example_id}:comparison user targets disagree with tool arguments")
     if any(str(target_id).casefold() not in final for target_id in target_ids):
         errors.append(f"{example_id}:comparison final omits a compared target")
@@ -170,24 +178,104 @@ def _validate_multi_tool(
     if template_id == "estimate_then_search_v3":
         if not all(term in user for term in ("ước tính", "tìm", "ram")):
             errors.append(f"{example_id}:multi-tool wording does not describe estimate then search")
+        estimate_arguments, estimate_result = record_by_name.get(
+            "estimate_ai_requirements", ({}, {})
+        )
+        requirement = labels.extracted_requirement if labels is not None else None
         estimate = records[0][2].get("data") or {}
         search_arguments, search_result = record_by_name.get("search_products", ({}, {}))
         filters = search_arguments.get("filters", {})
         recommended_ram = estimate.get("recommended_system_ram_gb")
+        user_provided_text = _user_conversation_text(example).casefold()
+        if requirement is None:
+            errors.append(f"{example_id}:multi-tool estimate has no structured requirement labels")
+        else:
+            for field in ("context_length", "concurrent_users", "model_size_b", "usage"):
+                expected_value = getattr(requirement, field)
+                argument_name = (
+                    "model_parameters_b" if field == "model_size_b" else field
+                )
+                if (
+                    expected_value is None
+                    or estimate_arguments.get(argument_name) != expected_value
+                ):
+                    errors.append(
+                        f"{example_id}:multi-tool estimate {field} "
+                        "disagrees with requirement labels"
+                    )
+            context_value = requirement.context_length
+            context_pattern = (
+                rf"\b(?:context|ngữ cảnh)(?:\s+(?:length|dài))?"
+                rf"\s*(?::|là)?\s*{context_value}\s+tokens?\b"
+            )
+            if context_value is None or not re.search(context_pattern, user_provided_text):
+                errors.append(
+                    f"{example_id}:multi-tool context length is absent or differs "
+                    "across user/labels/tool"
+                )
+            concurrency_value = requirement.concurrent_users
+            if concurrency_value is None or not re.search(
+                rf"\b{concurrency_value}\s+(?:người dùng đồng thời|concurrent users?)\b",
+                user_provided_text,
+            ):
+                errors.append(
+                    f"{example_id}:multi-tool concurrency is absent or differs "
+                    "across user/labels/tool"
+                )
+            if requirement.model_size_b is not None and (
+                f"{int(requirement.model_size_b)}b" not in user_provided_text
+            ):
+                errors.append(f"{example_id}:multi-tool model size is not visible in the request")
+            expected_usage_phrase = (
+                "chạy inference"
+                if requirement.usage is not None and requirement.usage.value == "inference"
+                else "fine-tune bằng lora"
+            )
+            if (
+                requirement.usage is not None
+                and expected_usage_phrase not in user_provided_text
+            ):
+                errors.append(f"{example_id}:multi-tool usage is not visible in the request")
+            if (
+                requirement.budget_vnd is None
+                or filters.get("max_base_price_vnd") != requirement.budget_vnd
+            ):
+                errors.append(
+                    f"{example_id}:multi-tool price ceiling "
+                    "disagrees with requirement labels"
+                )
+            elif f"{requirement.budget_vnd:,}".replace(",", ".") not in user_provided_text:
+                errors.append(
+                    f"{example_id}:multi-tool budget is not visible exactly in the request"
+                )
         if (
             recommended_ram is None
             or filters.get("min_ram_gb") != recommended_ram
-            or str(recommended_ram) not in user
         ):
             errors.append(f"{example_id}:multi-tool search RAM filter is not derived from estimate")
+        elif re.search(
+            rf"(?:ít nhất|tối thiểu)\s*{recommended_ram}\s*gb\s*ram|"
+            rf"ram\s+(?:ít nhất|tối thiểu)\s*{recommended_ram}\b",
+            user_provided_text,
+            re.IGNORECASE,
+        ):
+            errors.append(
+                f"{example_id}:estimate-derived RAM recommendation leaks into the user request"
+            )
         products = (search_result.get("data") or {}).get("products", [])
         if not products or any(
             product.get("max_ram_gb") is None
             or product["max_ram_gb"] < (recommended_ram or 0)
+            or product.get("base_price_vnd") is None
+            or product["base_price_vnd"] > filters.get("max_base_price_vnd", 0)
             for product in products
         ):
             errors.append(
                 f"{example_id}:multi-tool estimate result is not satisfied by catalog result"
+            )
+        if estimate_result.get("recommended_storage_gb") is not None:
+            errors.append(
+                f"{example_id}:multi-tool estimate invents an unrequested storage target"
             )
     elif template_id == "search_then_get_v3":
         if "tìm" not in user or not any(term in user for term in ("chi tiết", "thông tin")):
@@ -224,9 +312,10 @@ def _validate_multi_tool(
             "search_product_documents", ({}, {})
         )
         product_id = get_arguments.get("product_id")
+        user_provenance = _user_conversation_text(example).casefold()
         if (
             not product_id
-            or str(product_id).casefold() not in user
+            or str(product_id).casefold() not in user_provenance
             or "tài liệu" not in user
             or (get_result.get("data") or {}).get("id") != product_id
             or document_arguments.get("product_id") != product_id
@@ -293,6 +382,7 @@ def _validate_technical(
 ) -> list[str]:
     example_id = _example_id(example)
     user = _current_user_text(example).casefold()
+    user_provenance = _user_conversation_text(example).casefold()
     final = _final_text(example).casefold()
     errors: list[str] = []
     if scenario == ScenarioType.GENERAL_VRAM.value:
@@ -332,7 +422,7 @@ def _validate_technical(
     field_term = "ram" if field_name == "max_ram_gb" else "khe gpu"
     if (
         not product_id
-        or str(product_id).casefold() not in user
+        or str(product_id).casefold() not in user_provenance
         or str(product_id).casefold() not in final
     ):
         errors.append(f"{example_id}:technical product ID differs across user/tool/final")
@@ -397,7 +487,7 @@ def _validate_requirement_change(
         or estimate.get("training_method") != ("LoRA" if new.usage.value == "fine_tune" else None)
     ):
         errors.append(f"{example_id}:requirement change estimator does not use new requirement")
-    user = _current_user_text(example).casefold()
+    user_provenance = _user_conversation_text(example).casefold()
     old = spec.old
     history = _prior_conversation_text(example).casefold()
     if (
@@ -407,19 +497,22 @@ def _validate_requirement_change(
     ):
         errors.append(f"{example_id}:requirement change prior state is not visible")
     if "model_size_b" in spec.changed_fields and (
-        old.model_name.casefold() not in user or new.model_name.casefold() not in user
+        old.model_name.casefold() not in user_provenance
+        or new.model_name.casefold() not in user_provenance
     ):
         errors.append(f"{example_id}:requirement change model delta is not visible")
     if "usage" in spec.changed_fields and not all(
-        term in user for term in ("inference", "fine-tune", "lora")
+        term in user_provenance for term in ("inference", "fine-tune", "lora")
     ):
         errors.append(f"{example_id}:requirement change usage delta is not visible")
     if "budget_vnd" in spec.changed_fields and not all(
-        str(value // 1_000_000) in user for value in (old.budget_vnd, new.budget_vnd)
+        str(value // 1_000_000) in user_provenance
+        for value in (old.budget_vnd, new.budget_vnd)
     ):
         errors.append(f"{example_id}:requirement change budget delta is not visible")
     if "concurrent_users" in spec.changed_fields and not all(
-        str(value) in user for value in (old.concurrent_users, new.concurrent_users)
+        str(value) in user_provenance
+        for value in (old.concurrent_users, new.concurrent_users)
     ):
         errors.append(f"{example_id}:requirement change user-count delta is not visible")
     if "yêu cầu mới" not in _final_text(example).casefold():
@@ -448,6 +541,7 @@ def _validate_contradiction(
     labels = _labels_for(example)
     req = labels.extracted_requirement
     user = _current_user_text(example).casefold()
+    user_provenance = _user_conversation_text(example).casefold()
     final = _final_text(example).casefold()
     if template_id != templates[spec.subtype] or not labels.should_abstain:
         errors.append(f"{example_id}:contradiction template/abstention disagrees with constraint")
@@ -458,7 +552,7 @@ def _validate_contradiction(
         if (
             req.model_size_b is None or req.model_size_b < 32
             or req.budget_vnd is None or req.budget_vnd > 240_000_000
-            or str(req.budget_vnd // 1_000_000) not in user
+            or str(req.budget_vnd // 1_000_000) not in user_provenance
             or "toàn bộ cấu hình" not in user
             or "giá" not in final
         ):
@@ -477,8 +571,8 @@ def _validate_contradiction(
     elif (
         spec.gpu_memory_gb is None
         or spec.context.model_size_b * 2 <= spec.gpu_memory_gb
-        or str(spec.gpu_memory_gb) not in user
-        or str(int(spec.context.model_size_b)) not in user
+        or str(spec.gpu_memory_gb) not in user_provenance
+        or str(int(spec.context.model_size_b)) not in user_provenance
         or "một gpu" not in user
         or "gpu" not in final
     ):
@@ -487,7 +581,7 @@ def _validate_contradiction(
         errors.append(f"{example_id}:contradiction GPU case unexpectedly calls a tool")
     if spec.subtype == "context_vram_constraint" and (
         spec.context.context_length < 32768
-        or str(spec.context.context_length) not in user
+        or str(spec.context.context_length) not in user_provenance
         or req.context_length != spec.context.context_length
     ):
         errors.append(f"{example_id}:contradiction context constraint is absent")
@@ -504,10 +598,14 @@ def _validate_lora_family(
     example_id = _example_id(example)
     labels = _labels_for(example)
     req = labels.extracted_requirement
-    user = _current_user_text(example).casefold()
+    user_provenance = _user_conversation_text(example).casefold()
     final = _final_text(example).casefold()
     errors = []
-    if "lora" not in user or req.usage != "fine_tune" or req.training_method != "LoRA":
+    if (
+        "lora" not in user_provenance
+        or req.usage != "fine_tune"
+        or req.training_method != "LoRA"
+    ):
         errors.append(f"{example_id}:LoRA user/labels do not describe fine-tune")
     if labels.scenario_type == ScenarioType.GENERAL_LORA:
         if records or labels.should_call_tool or "lora" not in final:
@@ -525,7 +623,10 @@ def _validate_lora_family(
             or estimate.get("context_length") != req.context_length
         ):
             errors.append(f"{example_id}:LoRA estimate args disagree with labels")
-        if req.model_size_b is None or f"{int(req.model_size_b)}b" not in user:
+        if (
+            req.model_size_b is None
+            or f"{int(req.model_size_b)}b" not in user_provenance
+        ):
             errors.append(f"{example_id}:LoRA model is not visible in request")
         if labels.scenario_type == ScenarioType.FINETUNE_32B_SOLUTION and (
             req.model_size_b is None or req.model_size_b < 32
@@ -646,7 +747,7 @@ def validate_generated_semantics(items: Sequence[Any]) -> list[str]:
                 errors.append(f"{example_id}:tool failure must abstain")
             if record is not None and hasattr(example, "labels"):
                 product_id = record[0].get("product_id")
-                user = _current_user_text(example)
+                user = _user_conversation_text(example)
                 final = _final_text(example)
                 if not product_id or product_id not in user or product_id not in final:
                     errors.append(f"{example_id}:tool failure product ID is not grounded")
