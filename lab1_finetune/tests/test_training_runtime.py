@@ -1,12 +1,18 @@
 import json
+import sys
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
+from lab1_finetune.training import train as training_module
 from lab1_finetune.training.config import TrainingConfig
 from lab1_finetune.training.data import load_qwen_export, normalize_qwen_record
 from lab1_finetune.training.train import (
     _check_assistant_mask,
+    _load_data_and_tokenizer,
+    _prepare_training_chat_template,
+    calculate_warmup_steps,
     inspect_token_lengths,
     validate_training_inputs,
 )
@@ -145,6 +151,125 @@ def test_preflight_rejects_any_conversation_that_would_be_truncated() -> None:
 
     with pytest.raises(ValueError, match="exceed max_seq_length"):
         inspect_token_lengths(rows, Tokenizer(), 8)
+
+
+@pytest.mark.parametrize(
+    "encoded,expected_count",
+    [
+        ({"input_ids": [11, 12, 13]}, 3),
+        (SimpleNamespace(input_ids=[11, 12, 13, 14]), 4),
+        (SimpleNamespace(input_ids=SimpleNamespace(tolist=lambda: [11, 12])), 2),
+        ({"input_ids": [[11, 12, 13, 14, 15]]}, 5),
+    ],
+)
+def test_preflight_counts_token_ids_from_supported_tokenizer_outputs(
+    encoded, expected_count
+) -> None:
+    class Tokenizer:
+        def apply_chat_template(self, messages, **kwargs):
+            return encoded
+
+    rows = [{"messages": [{"role": "user", "content": "x"}], "tools": []}]
+
+    report = inspect_token_lengths(rows, Tokenizer(), 16)
+
+    assert report["max"] == expected_count
+
+
+def test_preflight_rejects_multi_conversation_batch_token_ids() -> None:
+    class Tokenizer:
+        def apply_chat_template(self, messages, **kwargs):
+            return {"input_ids": [[1, 2], [3, 4]]}
+
+    rows = [{"messages": [{"role": "user", "content": "x"}], "tools": []}]
+
+    with pytest.raises(ValueError, match="exactly one conversation"):
+        inspect_token_lengths(rows, Tokenizer(), 16)
+
+
+def test_training_template_is_patched_before_shared_preflight_inspection(
+    monkeypatch, tmp_path
+) -> None:
+    expected_template = "{% generation %}assistant{% endgeneration %}"
+
+    class Tokenizer:
+        chat_template = "original"
+        pad_token = "pad"
+        eos_token = "eos"
+
+        def apply_chat_template(self, messages, **kwargs):
+            assert self.chat_template == expected_template
+            return SimpleNamespace(input_ids=SimpleNamespace(tolist=lambda: [1, 2, 3]))
+
+    tokenizer = Tokenizer()
+    transformers = ModuleType("transformers")
+    transformers.AutoTokenizer = SimpleNamespace(
+        from_pretrained=lambda *args, **kwargs: tokenizer
+    )
+    trl = ModuleType("trl")
+    trl.__path__ = []
+    trl_chat_utils = ModuleType("trl.chat_template_utils")
+    trl_chat_utils.get_training_chat_template = lambda processing_class: expected_template
+    monkeypatch.setitem(sys.modules, "transformers", transformers)
+    monkeypatch.setitem(sys.modules, "trl", trl)
+    monkeypatch.setitem(sys.modules, "trl.chat_template_utils", trl_chat_utils)
+    monkeypatch.setattr(
+        training_module,
+        "load_qwen_export",
+        lambda path: [{"messages": [{"role": "user", "content": "x"}], "tools": []}],
+    )
+
+    config = TrainingConfig(
+        model_name="local-model",
+        train_file=tmp_path / "train.jsonl",
+        validation_file=tmp_path / "validation.jsonl",
+    )
+
+    prepared_tokenizer, _, _, lengths = _load_data_and_tokenizer(config)
+
+    assert prepared_tokenizer is tokenizer
+    assert tokenizer.chat_template == expected_template
+    assert lengths["train"]["max"] == 3
+    assert lengths["validation"]["max"] == 3
+
+
+@pytest.mark.parametrize(
+    "template",
+    [
+        "plain template without training markers",
+        "{% generation %}missing closing marker",
+        "missing opening marker{% endgeneration %}",
+    ],
+)
+def test_training_template_requires_both_assistant_generation_markers(
+    monkeypatch, template
+) -> None:
+    trl = ModuleType("trl")
+    trl.__path__ = []
+    trl_chat_utils = ModuleType("trl.chat_template_utils")
+    trl_chat_utils.get_training_chat_template = lambda processing_class: template
+    monkeypatch.setitem(sys.modules, "trl", trl)
+    monkeypatch.setitem(sys.modules, "trl.chat_template_utils", trl_chat_utils)
+
+    with pytest.raises(ValueError, match="generation markers"):
+        _prepare_training_chat_template(SimpleNamespace(chat_template="original"))
+
+
+def test_warmup_steps_use_ceiling_optimizer_step_count() -> None:
+    assert calculate_warmup_steps(
+        train_examples=961,
+        per_device_batch_size=1,
+        gradient_accumulation_steps=8,
+        num_train_epochs=3,
+        warmup_ratio=0.05,
+    ) == 19
+    assert calculate_warmup_steps(
+        train_examples=9,
+        per_device_batch_size=2,
+        gradient_accumulation_steps=4,
+        num_train_epochs=3,
+        warmup_ratio=0.05,
+    ) == 1
 
 
 def test_assistant_mask_rejects_tool_results_in_supervised_tokens() -> None:

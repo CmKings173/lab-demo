@@ -3,7 +3,9 @@
 import argparse
 import hashlib
 import json
+import math
 import re
+from collections.abc import Mapping, Sequence
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -35,11 +37,10 @@ def inspect_token_lengths(
     lengths = []
     oversized = []
     for index, row in enumerate(rows, 1):
-        token_ids = tokenizer.apply_chat_template(
+        encoded = tokenizer.apply_chat_template(
             row["messages"], tools=row["tools"], tokenize=True, add_generation_prompt=False
         )
-        if isinstance(token_ids, dict):
-            token_ids = token_ids["input_ids"]
+        token_ids = _extract_input_ids(encoded)
         count = len(token_ids)
         lengths.append(count)
         if count > max_seq_length:
@@ -56,6 +57,86 @@ def inspect_token_lengths(
         "p95": ordered[int(0.95 * (len(ordered) - 1))],
         "max": ordered[-1],
     }
+
+
+def _as_list(value: Any) -> Any:
+    tolist = getattr(value, "tolist", None)
+    return tolist() if callable(tolist) else value
+
+
+def _extract_input_ids(encoded: Any) -> Sequence[Any]:
+    """Extract one conversation's token sequence from tokenizer output shapes."""
+    if isinstance(encoded, Mapping):
+        if "input_ids" not in encoded:
+            raise ValueError("Tokenizer output is missing input_ids")
+        token_ids = encoded["input_ids"]
+    elif hasattr(encoded, "input_ids"):
+        token_ids = encoded.input_ids
+    else:
+        token_ids = encoded
+
+    token_ids = _as_list(token_ids)
+    if not isinstance(token_ids, Sequence) or isinstance(token_ids, (str, bytes)):
+        raise ValueError("Tokenizer input_ids must be a token sequence")
+
+    if token_ids and isinstance(_as_list(token_ids[0]), Sequence):
+        if len(token_ids) != 1:
+            raise ValueError("Tokenizer must return exactly one conversation per row")
+        token_ids = _as_list(token_ids[0])
+        if not isinstance(token_ids, Sequence) or isinstance(token_ids, (str, bytes)):
+            raise ValueError("Tokenizer input_ids must be a token sequence")
+
+    if any(isinstance(_as_list(token), (Mapping, Sequence)) for token in token_ids):
+        raise ValueError("Tokenizer input_ids contains an unexpected nested sequence")
+    return token_ids
+
+
+def _prepare_training_chat_template(tokenizer: Any) -> None:
+    """Apply TRL's assistant-mask-capable template before both preflight and SFT."""
+    try:
+        from trl.chat_template_utils import get_training_chat_template
+    except ImportError as exc:
+        raise RuntimeError(
+            "Install the Lab 1 training dependencies before preparing the chat template"
+        ) from exc
+
+    training_template = get_training_chat_template(tokenizer)
+    if training_template is not None:
+        tokenizer.chat_template = training_template
+
+    chat_template = getattr(tokenizer, "chat_template", None)
+    if (
+        not isinstance(chat_template, str)
+        or "{% generation %}" not in chat_template
+        or "{% endgeneration %}" not in chat_template
+    ):
+        raise ValueError(
+            "Tokenizer training chat template must include both generation markers"
+        )
+
+
+def calculate_warmup_steps(
+    *,
+    train_examples: int,
+    per_device_batch_size: int,
+    gradient_accumulation_steps: int,
+    num_train_epochs: int,
+    warmup_ratio: float,
+) -> int:
+    """Convert a warmup ratio to deterministic optimizer steps using ceiling batches."""
+    if train_examples < 1:
+        raise ValueError("train_examples must be positive")
+    if per_device_batch_size < 1 or gradient_accumulation_steps < 1:
+        raise ValueError("batch size and gradient accumulation steps must be positive")
+    if num_train_epochs < 1 or not 0 <= warmup_ratio < 1:
+        raise ValueError("epochs must be positive and warmup_ratio must be in [0, 1)")
+
+    micro_batches_per_epoch = math.ceil(train_examples / per_device_batch_size)
+    optimizer_steps_per_epoch = math.ceil(
+        micro_batches_per_epoch / gradient_accumulation_steps
+    )
+    total_optimizer_steps = optimizer_steps_per_epoch * num_train_epochs
+    return math.ceil(total_optimizer_steps * warmup_ratio)
 
 
 def _check_assistant_mask(tokenizer: Any, rows: list[dict[str, Any]]) -> None:
@@ -114,6 +195,7 @@ def _load_data_and_tokenizer(config: TrainingConfig) -> tuple[Any, list, list, d
     tokenizer = AutoTokenizer.from_pretrained(config.model_name, **model_kwargs)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    _prepare_training_chat_template(tokenizer)
     lengths = {
         "train": inspect_token_lengths(train_rows, tokenizer, config.max_seq_length),
         "validation": inspect_token_lengths(validation_rows, tokenizer, config.max_seq_length),
@@ -153,6 +235,13 @@ def train(config: TrainingConfig) -> Path:
         raise RuntimeError("The CUDA GPU does not support BF16")
 
     tokenizer, train_rows, validation_rows, lengths = _load_data_and_tokenizer(config)
+    warmup_steps = calculate_warmup_steps(
+        train_examples=len(train_rows),
+        per_device_batch_size=config.per_device_batch_size,
+        gradient_accumulation_steps=config.gradient_accumulation_steps,
+        num_train_epochs=config.num_train_epochs,
+        warmup_ratio=config.warmup_ratio,
+    )
     model_kwargs: dict[str, Any] = {
         "local_files_only": config.local_files_only,
         "dtype": torch.bfloat16 if config.bf16 else torch.float32,
@@ -181,7 +270,7 @@ def train(config: TrainingConfig) -> Path:
         learning_rate=config.learning_rate,
         num_train_epochs=config.num_train_epochs,
         lr_scheduler_type=config.lr_scheduler_type,
-        warmup_ratio=config.warmup_ratio,
+        warmup_steps=warmup_steps,
         weight_decay=config.weight_decay,
         eval_strategy=config.eval_strategy,
         save_strategy=config.save_strategy,
