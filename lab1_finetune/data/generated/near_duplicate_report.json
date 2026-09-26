@@ -1,6 +1,6 @@
 {
   "threshold": 0.92,
-  "cluster_count": 128,
+  "cluster_count": 122,
   "max_cluster_size": 5,
   "top_clusters": [
     {
@@ -110,25 +110,6 @@
     {
       "size": 4,
       "example_ids": [
-        "exp-expanded_multi_tool-0003",
-        "exp-expanded_multi_tool-0010",
-        "exp-expanded_multi_tool-0045",
-        "exp-expanded_multi_tool-0073"
-      ],
-      "families": [
-        "expanded_multi_tool"
-      ],
-      "semantic_template_ids": [
-        "get_then_document_v3"
-      ],
-      "wording_recipe_ids": [
-        "goal_first"
-      ],
-      "normalized_representative": "mình muốn tách từng khoản chi phí. để xác minh ram tối đa của product_id, hãy lấy thông tin sản phẩm rồi tra tài liệu tương ứng."
-    },
-    {
-      "size": 4,
-      "example_ids": [
         "exp-expanded_solution_design-0052",
         "exp-expanded_solution_design-0059",
         "exp-expanded_solution_design-0073",
@@ -202,6 +183,24 @@
         "tradeoff_first"
       ],
       "normalized_representative": "phương án cần đủ cơ sở để benchmark lại. nêu ưu điểm và điểm đánh đổi giữa sản phẩm product_id và product_id theo ram, gpu và khả năng mở rộng."
+    },
+    {
+      "size": 3,
+      "example_ids": [
+        "exp-expanded_comparison-0017",
+        "exp-expanded_comparison-0059",
+        "exp-expanded_comparison-0087"
+      ],
+      "families": [
+        "expanded_comparison"
+      ],
+      "semantic_template_ids": [
+        "compare_saved_configs_v3"
+      ],
+      "wording_recipe_ids": [
+        "criteria_first"
+      ],
+      "normalized_representative": "bên mình chạy nội bộ nên quan tâm độ ổn định. theo các tiêu chí ram, gpu và dữ liệu giá, hãy đối chiếu cấu hình configuration_id và configuration_id."
     }
   ]
 }

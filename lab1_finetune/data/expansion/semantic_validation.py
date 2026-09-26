@@ -148,11 +148,13 @@ def _validate_multi_tool(
     labels = _labels_for(example)
     expected_scenarios = {
         "estimate_then_search_v3": ScenarioType.SOLUTION_COMPLETE,
+        "search_then_get_then_document_v3": ScenarioType.SEARCH_WORKSTATION_BY_RAM,
         "search_then_get_v3": ScenarioType.SEARCH_WORKSTATION_BY_RAM,
         "get_then_document_v3": ScenarioType.TECHNICAL_MAX_RAM,
     }
     expected_intents = {
         "estimate_then_search_v3": Intent.SOLUTION_DESIGN,
+        "search_then_get_then_document_v3": Intent.PRODUCT_SEARCH,
         "search_then_get_v3": Intent.PRODUCT_SEARCH,
         "get_then_document_v3": Intent.TECHNICAL_QUESTION,
     }
@@ -161,6 +163,9 @@ def _validate_multi_tool(
     example_id = _example_id(example)
     expected = {
         "estimate_then_search_v3": ["estimate_ai_requirements", "search_products"],
+        "search_then_get_then_document_v3": [
+            "search_products", "get_product", "search_product_documents"
+        ],
         "search_then_get_v3": ["search_products", "get_product"],
         "get_then_document_v3": ["get_product", "search_product_documents"],
     }
@@ -306,6 +311,84 @@ def _validate_multi_tool(
             or (get_result.get("data") or {}).get("id") != result_id
         ):
             errors.append(f"{example_id}:multi-tool get target is not sourced from search result")
+    elif template_id == "search_then_get_then_document_v3":
+        search_arguments, search_result = record_by_name.get("search_products", ({}, {}))
+        get_arguments, get_result = record_by_name.get("get_product", ({}, {}))
+        document_arguments, document_result = record_by_name.get(
+            "search_product_documents", ({}, {})
+        )
+        filters = search_arguments.get("filters", {})
+        products = (search_result.get("data") or {}).get("products", [])
+        product = products[0] if products else {}
+        product_id = product.get("id")
+        requested_ram = filters.get("min_ram_gb")
+        product_ram = product.get("max_ram_gb")
+        user_provenance = _user_conversation_text(example).casefold()
+        final = _final_text(example).casefold()
+
+        if (
+            not any(term in user for term in ("tìm", "lọc"))
+            or not all(term in user for term in ("chi tiết", "tài liệu", "ram"))
+        ):
+            errors.append(
+                f"{example_id}:multi-tool wording does not describe search, get, then document"
+            )
+        if (
+            search_result.get("ok") is not True
+            or not products
+            or search_arguments.get("filters", {}).get("product_type") != "ai_workstation"
+            or requested_ram is None
+            or str(requested_ram) not in user
+            or product_ram is None
+            or product_ram < requested_ram
+        ):
+            errors.append(
+                f"{example_id}:multi-tool search result is missing or does not satisfy its filter"
+            )
+        if (
+            not product_id
+            or str(product_id).casefold() in user_provenance
+            or get_arguments.get("product_id") != product_id
+            or get_result.get("ok") is not True
+            or (get_result.get("data") or {}).get("id") != product_id
+            or (get_result.get("data") or {}).get("max_ram_gb") != product_ram
+        ):
+            errors.append(
+                f"{example_id}:multi-tool get target is not sourced from search result"
+            )
+        if (
+            document_arguments.get("product_id") != product_id
+            or "ram" not in document_arguments.get("query", "").casefold()
+            or document_result.get("ok") is not True
+        ):
+            errors.append(
+                f"{example_id}:multi-tool document target does not match searched product"
+            )
+        hits = (document_result.get("data") or {}).get("hits", [])
+        final_capacities = {
+            int(value) for value in re.findall(r"\b(\d+)\s*gb\b", final)
+        }
+        supported_capacities = {
+            value for value in (product_ram, requested_ram) if value is not None
+        }
+        if (
+            product_ram is None
+            or not hits
+            or any(
+                hit.get("chunk", {}).get("product_id") != product_id
+                or hit.get("chunk", {}).get("metadata", {}).get("field_name") != "max_ram_gb"
+                or hit.get("chunk", {}).get("metadata", {}).get("value") != str(product_ram)
+                or f"max_ram_gb = {product_ram}" not in hit.get("chunk", {}).get("text", "")
+                for hit in hits
+            )
+            or str(product_ram) not in final
+            or str(product_id).casefold() not in final
+            or "ram" not in final
+            or not final_capacities.issubset(supported_capacities)
+        ):
+            errors.append(
+                f"{example_id}:multi-tool final claim is not supported by document evidence"
+            )
     else:
         get_arguments, get_result = record_by_name.get("get_product", ({}, {}))
         document_arguments, document_result = record_by_name.get(

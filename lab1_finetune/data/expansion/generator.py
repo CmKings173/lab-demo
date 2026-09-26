@@ -16,6 +16,7 @@ from lab1_finetune.data.expansion.scenarios import (
     context_for_scenario,
 )
 from lab1_finetune.data.expansion.semantic_specs import (
+    MULTI_TOOL_FLOW_SCHEDULE,
     ComparisonSpec,
     ContradictionSpec,
     MultiToolFlow,
@@ -714,6 +715,21 @@ def _multi_tool_steps(
                 "error": None,
             },
         ]
+    if spec.flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT:
+        if spec.filters is None or spec.document_field is None:
+            raise ValueError("Search-then-get-then-document requires filters and a document field")
+        value = product[spec.document_field]
+        return [
+            _search_step(product, spec.filters),
+            {
+                "name": "get_product",
+                "arguments": {"product_id": product["id"]},
+                "ok": True,
+                "data": product,
+                "error": None,
+            },
+            _document_step(product["id"], spec.document_field, value),
+        ]
     if spec.document_field is None:
         raise ValueError("Get-then-document requires a document field")
     value = product[spec.document_field]
@@ -738,15 +754,16 @@ def _build_multi_tool(
     *,
     multi_turn: bool,
 ) -> BuiltExample:
-    flows = tuple(MultiToolFlow)
-    flow = flows[variant_index(ordinal, family.family_id, index, len(flows))]
+    flow = MULTI_TOOL_FLOW_SCHEDULE[index % len(MULTI_TOOL_FLOW_SCHEDULE)]
     scenario_type = {
         MultiToolFlow.ESTIMATE_THEN_SEARCH: ScenarioType.SOLUTION_COMPLETE,
+        MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT: ScenarioType.SEARCH_WORKSTATION_BY_RAM,
         MultiToolFlow.SEARCH_THEN_GET: ScenarioType.SEARCH_WORKSTATION_BY_RAM,
         MultiToolFlow.GET_THEN_DOCUMENT: ScenarioType.TECHNICAL_MAX_RAM,
     }[flow]
     intent = {
         MultiToolFlow.ESTIMATE_THEN_SEARCH: Intent.SOLUTION_DESIGN,
+        MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT: Intent.PRODUCT_SEARCH,
         MultiToolFlow.SEARCH_THEN_GET: Intent.PRODUCT_SEARCH,
         MultiToolFlow.GET_THEN_DOCUMENT: Intent.TECHNICAL_QUESTION,
     }[flow]
@@ -772,13 +789,20 @@ def _build_multi_tool(
             max_base_price_vnd=context.budget_vnd,
         )
         document_field = None
-    elif flow == MultiToolFlow.SEARCH_THEN_GET:
+    elif flow in {
+        MultiToolFlow.SEARCH_THEN_GET,
+        MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT,
+    }:
         product = _product(ordinal, context.product_type, ram=512 + ordinal % 4 * 256)
         filters = ProductFilter(
             product_type=context.product_type,
             min_ram_gb=product["max_ram_gb"] - 128,
         )
-        document_field = None
+        document_field = (
+            "max_ram_gb"
+            if flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT
+            else None
+        )
     else:
         product = _product(ordinal, context.product_type, ram=512 + ordinal % 4 * 256)
         filters = None
@@ -804,6 +828,12 @@ def _build_multi_tool(
             f"Danh mục trả về {product['id']}, hỗ trợ tối đa {product['max_ram_gb']}GB RAM; "
             f"giá máy cơ bản {listed_price} VND nằm trong ngân sách tối đa "
             f"{budget} VND; đây chưa phải giá cấu hình hoàn chỉnh."
+        )
+    elif flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT:
+        final = (
+            f"Tài liệu của {product['id']} xác nhận RAM tối đa là "
+            f"{product['max_ram_gb']}GB; mức RAM này vượt yêu cầu tối thiểu "
+            f"{filters.min_ram_gb}GB trong kết quả danh mục."
         )
     elif flow == MultiToolFlow.SEARCH_THEN_GET:
         final = (

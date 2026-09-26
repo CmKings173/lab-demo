@@ -371,6 +371,49 @@ def _tool_calls(item):
     ]
 
 
+def _mutate_tool_call(item, call_index, *, name=None, arguments=None):
+    messages = list(item.example.messages)
+    remaining = call_index
+    for message_index, message in enumerate(messages):
+        if not message.tool_calls:
+            continue
+        if remaining >= len(message.tool_calls):
+            remaining -= len(message.tool_calls)
+            continue
+        calls = list(message.tool_calls)
+        call = calls[remaining]
+        calls[remaining] = call.model_copy(
+            update={
+                "name": name if name is not None else call.name,
+                "arguments": arguments if arguments is not None else call.arguments,
+            }
+        )
+        messages[message_index] = message.model_copy(update={"tool_calls": calls})
+        return replace(item, example=item.example.model_copy(update={"messages": messages}))
+    raise IndexError(f"No tool call at index {call_index}")
+
+
+def _mutate_tool_result(item, tool_name, mutation):
+    messages = list(item.example.messages)
+    calls_by_id = {
+        call.id: call
+        for message in messages
+        for call in message.tool_calls
+    }
+    for index, message in enumerate(messages):
+        if message.role != "tool" or not message.tool_call_id:
+            continue
+        if calls_by_id[message.tool_call_id].name != tool_name:
+            continue
+        result = json.loads(message.content or "{}")
+        mutation(result)
+        messages[index] = message.model_copy(
+            update={"content": json.dumps(result, ensure_ascii=False)}
+        )
+        return replace(item, example=item.example.model_copy(update={"messages": messages}))
+    raise AssertionError(f"No result for tool {tool_name}")
+
+
 def test_generated_prompts_have_no_python_repr_or_fake_zero_price() -> None:
     for item in build_expanded_examples(seed=20260922):
         for message in item.example.messages:
@@ -989,9 +1032,26 @@ def test_multi_tool_flow_controls_wording_order_ids_and_constraints() -> None:
         "estimate_then_search_v3": ["estimate_ai_requirements", "search_products"],
         "search_then_get_v3": ["search_products", "get_product"],
         "get_then_document_v3": ["get_product", "search_product_documents"],
+        "search_then_get_then_document_v3": [
+            "search_products", "get_product", "search_product_documents"
+        ],
     }
     rows = [item for item in build_expanded_examples() if item.family_id == "expanded_multi_tool"]
     assert rows and validate_generated_semantics(rows) == []
+    assert len(rows) == 110
+    assert Counter(item.semantic_template_id for item in rows) == Counter(
+        {
+            "estimate_then_search_v3": 37,
+            "search_then_get_then_document_v3": 37,
+            "search_then_get_v3": 18,
+            "get_then_document_v3": 18,
+        }
+    )
+    assert {
+        item.wording_recipe_id
+        for item in rows
+        if item.semantic_template_id == "search_then_get_then_document_v3"
+    } == {"flow_first", "goal_first", "evidence_first", "decision_first"}
     assert {item.example.labels.scenario_type.value for item in rows} == {
         "solution_complete",
         "search_workstation_by_ram",
@@ -1001,6 +1061,7 @@ def test_multi_tool_flow_controls_wording_order_ids_and_constraints() -> None:
         "estimate_then_search_v3": Intent.SOLUTION_DESIGN,
         "search_then_get_v3": Intent.PRODUCT_SEARCH,
         "get_then_document_v3": Intent.TECHNICAL_QUESTION,
+        "search_then_get_then_document_v3": Intent.PRODUCT_SEARCH,
     }
     for item in rows:
         assert item.example.labels.intent == expected_intents[item.semantic_template_id]
@@ -1021,10 +1082,104 @@ def test_multi_tool_flow_controls_wording_order_ids_and_constraints() -> None:
             assert product["max_ram_gb"] >= minimum_ram
             final = next(m.content or "" for m in reversed(item.example.messages) if m.role == "assistant" and m.content)
             assert str(minimum_ram) in final and str(product["max_ram_gb"]) in final
+        elif item.semantic_template_id == "search_then_get_then_document_v3":
+            product = payloads[0]["data"]["products"][0]
+            product_id = product["id"]
+            minimum_ram = calls[0].arguments["filters"]["min_ram_gb"]
+            assert product_id not in user
+            assert product["max_ram_gb"] >= minimum_ram
+            assert calls[1].arguments["product_id"] == product_id
+            assert calls[2].arguments["product_id"] == product_id
+            assert payloads[1]["data"]["id"] == product_id
+            hit = payloads[2]["data"]["hits"][0]["chunk"]
+            assert hit["product_id"] == product_id
+            assert hit["metadata"]["field_name"] == "max_ram_gb"
+            final = next(m.content or "" for m in reversed(item.example.messages) if m.role == "assistant" and m.content)
+            assert str(product["max_ram_gb"]) in final and product_id in final
+            assert item.wording_recipe_id in {
+                "flow_first", "goal_first", "evidence_first", "decision_first"
+            }
         else:
             product_id = calls[0].arguments["product_id"]
             assert product_id in user and "tài liệu" in user.casefold()
             assert calls[1].arguments["product_id"] == product_id
+
+
+def test_three_step_multi_tool_semantic_gate_rejects_bad_trajectories() -> None:
+    row = next(
+        item for item in build_expanded_examples(seed=20260922)
+        if item.semantic_template_id == "search_then_get_then_document_v3"
+    )
+    product = _tool_payloads(row)[0]["data"]["products"][0]
+    product_id = product["id"]
+
+    reordered = _mutate_tool_call(
+        row, 0, name="get_product", arguments={"product_id": product_id}
+    )
+    reordered = _mutate_tool_call(
+        reordered, 1, name="search_products", arguments=_tool_calls(row)[0].arguments
+    )
+    assert any("tool-call flow" in error for error in validate_generated_semantics([reordered]))
+
+    messages = list(row.example.messages)
+    tool_message = next(message for message in messages if message.tool_calls)
+    extra_call = _tool_calls(row)[0].model_copy(
+        update={"id": "unexpected-extra-call", "name": "get_product"}
+    )
+    messages.append(tool_message.model_copy(update={"tool_calls": [extra_call]}))
+    extra_tool = replace(
+        row,
+        example=row.example.model_copy(update={"messages": messages}),
+    )
+    assert any("tool-call flow" in error for error in validate_generated_semantics([extra_tool]))
+
+    wrong_target = _mutate_tool_call(
+        row, 1, arguments={"product_id": "SYN-WS-UNRELATED"}
+    )
+    assert any(
+        "get target is not sourced from search result" in error
+        for error in validate_generated_semantics([wrong_target])
+    )
+
+    failed_filter = _mutate_tool_call(
+        row,
+        0,
+        arguments={
+            **_tool_calls(row)[0].arguments,
+            "filters": {
+                **_tool_calls(row)[0].arguments["filters"],
+                "min_ram_gb": product["max_ram_gb"] + 1,
+            },
+        },
+    )
+    assert any("RAM filter/result mismatch" in error for error in validate_generated_semantics([failed_filter]))
+
+    missing_product = _mutate_tool_result(
+        row,
+        "search_products",
+        lambda result: result["data"].update({"products": [], "total": 0}),
+    )
+    assert any("search result" in error for error in validate_generated_semantics([missing_product]))
+
+    unsupported_final = row.example.model_copy(deep=True)
+    final_index = max(
+        index for index, message in enumerate(unsupported_final.messages)
+        if message.role == "assistant" and message.content
+    )
+    final_message = unsupported_final.messages[final_index]
+    evidence_value = _tool_payloads(row)[2]["data"]["hits"][0]["chunk"]["metadata"]["value"]
+    unsupported_messages = list(unsupported_final.messages)
+    unsupported_messages[final_index] = final_message.model_copy(
+        update={"content": (final_message.content or "").replace(evidence_value, "999999", 1)}
+    )
+    unsupported_claim = replace(
+        row,
+        example=unsupported_final.model_copy(update={"messages": unsupported_messages}),
+    )
+    assert any(
+        "document evidence" in error
+        for error in validate_generated_semantics([unsupported_claim])
+    )
 
 
 def test_estimate_contract_keeps_context_and_concurrency_optional() -> None:
@@ -1106,7 +1261,7 @@ def test_estimate_then_search_rows_ground_all_multi_number_arguments() -> None:
         row for row in build_expanded_examples(seed=20260922)
         if row.semantic_template_id == "estimate_then_search_v3"
     ]
-    assert len(rows) == 33
+    assert len(rows) == 37
 
     for row in rows:
         calls, payloads = _tool_calls(row), _tool_payloads(row)

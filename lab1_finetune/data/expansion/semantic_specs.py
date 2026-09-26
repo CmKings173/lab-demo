@@ -24,8 +24,19 @@ class ComparisonSpec:
 
 class MultiToolFlow(StrEnum):
     ESTIMATE_THEN_SEARCH = "estimate_then_search"
+    SEARCH_THEN_GET_THEN_DOCUMENT = "search_then_get_then_document"
     SEARCH_THEN_GET = "search_then_get"
     GET_THEN_DOCUMENT = "get_then_document"
+
+
+MULTI_TOOL_FLOW_SCHEDULE = (
+    MultiToolFlow.ESTIMATE_THEN_SEARCH,
+    MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT,
+    MultiToolFlow.ESTIMATE_THEN_SEARCH,
+    MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT,
+    MultiToolFlow.SEARCH_THEN_GET,
+    MultiToolFlow.GET_THEN_DOCUMENT,
+)
 
 
 @dataclass(frozen=True)

@@ -632,6 +632,11 @@ def _multi_tool_flow_first(context: ScenarioContext, spec: MultiToolFlowSpec) ->
             f"{product_type_label(spec.product_type)} bằng mức RAM được đề xuất, "
             "trong giới hạn giá đã nêu."
         )
+    if spec.flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT:
+        return (
+            f"Tìm {_multi_tool_search_target(spec)} trước, mở chi tiết sản phẩm vừa tìm được, "
+            "rồi đối chiếu tài liệu để xác nhận RAM tối đa."
+        )
     if spec.flow == MultiToolFlow.SEARCH_THEN_GET:
         return f"Tìm {_multi_tool_search_target(spec)} trước, rồi lấy chi tiết của kết quả tìm được."
     return f"Kiểm tra {spec.product_id} trong danh mục trước, rồi đọc tài liệu xác minh {_multi_tool_field_label(spec)}."
@@ -644,6 +649,11 @@ def _multi_tool_goal_first(context: ScenarioContext, spec: MultiToolFlowSpec) ->
             f"Để triển khai {context.domain}, bên mình cần {details}; hãy ước tính trước, "
             f"sau đó dùng mức RAM được đề xuất để tìm {product_type_label(spec.product_type)} "
             "không vượt trần giá đã nêu."
+        )
+    if spec.flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT:
+        return (
+            f"Để chọn máy cho {context.domain}, hãy lọc {_multi_tool_search_target(spec)}; "
+            "sau đó lấy chi tiết của kết quả và dùng tài liệu kiểm chứng RAM tối đa."
         )
     if spec.flow == MultiToolFlow.SEARCH_THEN_GET:
         return f"Cho nhu cầu {context.domain}, tìm {_multi_tool_search_target(spec)} rồi mở chi tiết sản phẩm trong kết quả."
@@ -658,6 +668,11 @@ def _multi_tool_evidence_first(context: ScenarioContext, spec: MultiToolFlowSpec
             f"{product_type_label(spec.product_type)} theo mức RAM được đề xuất, "
             "trong phạm vi ngân sách đã nêu."
         )
+    if spec.flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT:
+        return (
+            f"Ưu tiên căn cứ nguồn: tìm {_multi_tool_search_target(spec)}, đọc chi tiết "
+            "bản ghi được chọn, rồi đối chiếu tài liệu sản phẩm về RAM tối đa."
+        )
     if spec.flow == MultiToolFlow.SEARCH_THEN_GET:
         return f"Tìm {_multi_tool_search_target(spec)} cho {context.domain}, rồi lấy thông tin chi tiết từ bản ghi danh mục."
     return f"Dùng tài liệu để xác minh {_multi_tool_field_label(spec)} của {spec.product_id}, sau khi kiểm tra bản ghi danh mục."
@@ -670,6 +685,11 @@ def _multi_tool_decision_first(context: ScenarioContext, spec: MultiToolFlowSpec
             f"Trước khi chọn máy cho {context.domain}, hãy ước tính {details}; sau đó tìm "
             f"{product_type_label(spec.product_type)} theo mức RAM được đề xuất, "
             "không vượt trần giá đã nêu."
+        )
+    if spec.flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT:
+        return (
+            f"Trước khi quyết định cho {context.domain}, tìm {_multi_tool_search_target(spec)}, "
+            "mở chi tiết sản phẩm tìm được và kiểm tra RAM tối đa trong tài liệu."
         )
     if spec.flow == MultiToolFlow.SEARCH_THEN_GET:
         return f"Để xem lựa chọn cho {context.domain}, hãy tìm {_multi_tool_search_target(spec)} rồi lấy chi tiết kết quả."
