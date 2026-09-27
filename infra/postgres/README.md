@@ -16,9 +16,10 @@ Local development (from the repository root):
    `python -m pip install -e ".[postgres]"`.
 3. Start the database with
    `docker compose --env-file .env -f infra/postgres/docker-compose.yml up -d`.
-4. The first database initialization applies both numbered SQL migrations.
-   For an existing volume, apply `002_listed_price_and_base_defaults.sql` explicitly
-   with `psql`; Compose init scripts do not rerun on an existing volume.
+4. The first database initialization applies all numbered SQL migrations.
+   For an existing volume, apply any unapplied migrations explicitly with `psql`;
+   Compose init scripts do not rerun on an existing volume. The current mapping
+   migration is `003_create_product_documents.sql`.
 5. Run `python -m infra.postgres.seed`. It loads `LAB2_POSTGRES_DSN` from the
    repository-root `.env`, validates the JSON seed, and upserts by `id`.
 
@@ -54,3 +55,22 @@ The seed distinguishes three `ai_workstation` entries from seven `ai_pc` entries
 
 This catalog database is separate from any PostgreSQL instance WeKnora uses
 internally.
+
+## Product-document mapping
+
+`product_documents` records the Lab 2-owned relationship from a catalog
+`product_id` to the provider identity `(knowledge_base_id, knowledge_id)`. It
+does not store document bodies, chunks, or embeddings, and filenames are metadata
+only—not product identity. `source_url` is optional and should be supplied only
+when verified by the catalog/source system. `content_sha256` supports duplicate
+lookup/reconciliation; provider parse status is kept as bounded raw text until a
+provider adapter defines a mapping. On provider-identity upsert, omitted URL/hash
+values preserve existing provenance and checksum. The migration uses `ON DELETE RESTRICT` so a
+product with document mappings cannot be deleted and leave provider records untracked.
+
+The mapping contract and repository are Lab 2-local:
+`lab2_rag_agent.catalog.documents.ProductDocumentRepository` and
+`lab2_rag_agent.catalog.document_repository.PostgresProductDocumentRepository`.
+The repository lists mappings by product, resolves provider IDs by knowledge
+base, finds an existing checksum for reconciliation, upserts on provider identity,
+and updates parse status with parameterized SQL.
