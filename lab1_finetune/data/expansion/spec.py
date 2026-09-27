@@ -72,6 +72,7 @@ EXPANSION_FAMILY_SPECS = (
         (
             ScenarioType.SOLUTION_COMPLETE,
             ScenarioType.SEARCH_WORKSTATION_BY_RAM,
+            ScenarioType.SEARCH_SERVER_BY_RAM,
             ScenarioType.TECHNICAL_MAX_RAM,
         ),
         "Luồng nhiều bước kết hợp tính nhu cầu, tìm kiếm và đọc bằng chứng",

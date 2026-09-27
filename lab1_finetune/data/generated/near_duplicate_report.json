@@ -1,6 +1,6 @@
 {
   "threshold": 0.92,
-  "cluster_count": 122,
+  "cluster_count": 121,
   "max_cluster_size": 5,
   "top_clusters": [
     {
@@ -110,6 +110,25 @@
     {
       "size": 4,
       "example_ids": [
+        "exp-expanded_multi_tool-0039",
+        "exp-expanded_multi_tool-0067",
+        "exp-expanded_multi_tool-0081",
+        "exp-expanded_multi_tool-0109"
+      ],
+      "families": [
+        "expanded_multi_tool"
+      ],
+      "semantic_template_ids": [
+        "search_then_get_then_document_v3"
+      ],
+      "wording_recipe_ids": [
+        "evidence_first"
+      ],
+      "normalized_representative": "mình muốn tính cả khả năng mở rộng. ưu tiên căn cứ nguồn: tìm ai server hỗ trợ ít nhất numbergb ram, đọc chi tiết bản ghi được chọn, rồi đối chiếu tài liệu sản phẩm về ram tối đa."
+    },
+    {
+      "size": 4,
+      "example_ids": [
         "exp-expanded_solution_design-0052",
         "exp-expanded_solution_design-0059",
         "exp-expanded_solution_design-0073",
@@ -183,24 +202,6 @@
         "tradeoff_first"
       ],
       "normalized_representative": "phương án cần đủ cơ sở để benchmark lại. nêu ưu điểm và điểm đánh đổi giữa sản phẩm product_id và product_id theo ram, gpu và khả năng mở rộng."
-    },
-    {
-      "size": 3,
-      "example_ids": [
-        "exp-expanded_comparison-0017",
-        "exp-expanded_comparison-0059",
-        "exp-expanded_comparison-0087"
-      ],
-      "families": [
-        "expanded_comparison"
-      ],
-      "semantic_template_ids": [
-        "compare_saved_configs_v3"
-      ],
-      "wording_recipe_ids": [
-        "criteria_first"
-      ],
-      "normalized_representative": "bên mình chạy nội bộ nên quan tâm độ ổn định. theo các tiêu chí ram, gpu và dữ liệu giá, hãy đối chiếu cấu hình configuration_id và configuration_id."
     }
   ]
 }

@@ -583,7 +583,7 @@ def comparison_prompt(
     )
 
 
-MultiToolBodyRenderer = Callable[[ScenarioContext, MultiToolFlowSpec], str]
+MultiToolBodyRenderer = Callable[[ScenarioContext, MultiToolFlowSpec, int], str]
 
 
 def _multi_tool_filters(spec: MultiToolFlowSpec) -> ProductFilter:
@@ -602,31 +602,56 @@ def _multi_tool_search_target(spec: MultiToolFlowSpec) -> str:
     filters = _multi_tool_filters(spec)
     if filters.min_ram_gb is None:
         raise ValueError("Search-then-get requires a visible minimum-RAM constraint")
-    return (
+    target = (
         f"{product_type_label(spec.product_type)} hỗ trợ ít nhất "
         f"{filters.min_ram_gb}GB RAM"
     )
+    if spec.user_provided_product_id:
+        target += f", mã {spec.product_id}"
+    return target
 
 
 def _multi_tool_estimate_requirements(
     context: ScenarioContext,
     spec: MultiToolFlowSpec,
+    variant: int,
 ) -> str:
     filters = _multi_tool_filters(spec)
     if filters.max_base_price_vnd is None:
         raise ValueError("Estimate-then-search requires an explicit price constraint")
     budget_vnd = f"{filters.max_base_price_vnd:,}".replace(",", ".")
     usage = "chạy inference" if context.usage.value == "inference" else "fine-tune bằng LoRA"
+    context_length = context.context_length
+    concurrent_users = context.concurrent_users
+    context_phrases = (
+        f"context {context_length} token",
+        f"context window {context_length} tokens",
+        f"cửa sổ ngữ cảnh {context_length} token",
+        f"cửa sổ ngữ cảnh {context_length} token",
+    )
+    concurrency_phrases = (
+        f"{concurrent_users} người dùng đồng thời",
+        f"concurrency {concurrent_users}",
+        f"concurrency {concurrent_users}",
+        f"{concurrent_users} người dùng đồng thời",
+    )
+    context_phrase = context_phrases[variant % len(context_phrases)]
+    concurrency_phrase = concurrency_phrases[variant % len(concurrency_phrases)]
+    if variant % 4 in {0, 2}:
+        numeric_requirements = f"{context_phrase}, {concurrency_phrase}"
+    else:
+        numeric_requirements = f"{concurrency_phrase}, {context_phrase}"
     return (
-        f"{context.model_name} để {usage}, context {context.context_length} token, "
-        f"{context.concurrent_users} người dùng đồng thời, ngân sách tối đa "
+        f"{context.model_name} để {usage}, {numeric_requirements}, ngân sách tối đa "
         f"{budget_vnd} VND"
     )
 
 
-def _multi_tool_flow_first(context: ScenarioContext, spec: MultiToolFlowSpec) -> str:
+def _multi_tool_flow_first(
+    context: ScenarioContext, spec: MultiToolFlowSpec, variant: int
+) -> str:
     if spec.flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
-        details = _multi_tool_estimate_requirements(context, spec)
+        details = _multi_tool_estimate_requirements(context, spec, variant)
         return (
             f"Ước tính tài nguyên cho {details} trước, rồi tìm "
             f"{product_type_label(spec.product_type)} bằng mức RAM được đề xuất, "
@@ -642,9 +667,11 @@ def _multi_tool_flow_first(context: ScenarioContext, spec: MultiToolFlowSpec) ->
     return f"Kiểm tra {spec.product_id} trong danh mục trước, rồi đọc tài liệu xác minh {_multi_tool_field_label(spec)}."
 
 
-def _multi_tool_goal_first(context: ScenarioContext, spec: MultiToolFlowSpec) -> str:
+def _multi_tool_goal_first(
+    context: ScenarioContext, spec: MultiToolFlowSpec, variant: int
+) -> str:
     if spec.flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
-        details = _multi_tool_estimate_requirements(context, spec)
+        details = _multi_tool_estimate_requirements(context, spec, variant)
         return (
             f"Để triển khai {context.domain}, bên mình cần {details}; hãy ước tính trước, "
             f"sau đó dùng mức RAM được đề xuất để tìm {product_type_label(spec.product_type)} "
@@ -660,9 +687,11 @@ def _multi_tool_goal_first(context: ScenarioContext, spec: MultiToolFlowSpec) ->
     return f"Để xác minh {_multi_tool_field_label(spec)} của {spec.product_id}, hãy lấy thông tin sản phẩm rồi tra tài liệu tương ứng."
 
 
-def _multi_tool_evidence_first(context: ScenarioContext, spec: MultiToolFlowSpec) -> str:
+def _multi_tool_evidence_first(
+    context: ScenarioContext, spec: MultiToolFlowSpec, variant: int
+) -> str:
     if spec.flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
-        details = _multi_tool_estimate_requirements(context, spec)
+        details = _multi_tool_estimate_requirements(context, spec, variant)
         return (
             f"Dựa trên nhu cầu {details}, hãy ước tính tài nguyên rồi tìm và chỉ lấy "
             f"{product_type_label(spec.product_type)} theo mức RAM được đề xuất, "
@@ -678,9 +707,11 @@ def _multi_tool_evidence_first(context: ScenarioContext, spec: MultiToolFlowSpec
     return f"Dùng tài liệu để xác minh {_multi_tool_field_label(spec)} của {spec.product_id}, sau khi kiểm tra bản ghi danh mục."
 
 
-def _multi_tool_decision_first(context: ScenarioContext, spec: MultiToolFlowSpec) -> str:
+def _multi_tool_decision_first(
+    context: ScenarioContext, spec: MultiToolFlowSpec, variant: int
+) -> str:
     if spec.flow == MultiToolFlow.ESTIMATE_THEN_SEARCH:
-        details = _multi_tool_estimate_requirements(context, spec)
+        details = _multi_tool_estimate_requirements(context, spec, variant)
         return (
             f"Trước khi chọn máy cho {context.domain}, hãy ước tính {details}; sau đó tìm "
             f"{product_type_label(spec.product_type)} theo mức RAM được đề xuất, "
@@ -712,7 +743,7 @@ def multi_tool_prompt(
 ) -> RenderedPrompt:
     recipe_id, render_body = _MULTI_TOOL_RECIPES[variant % len(_MULTI_TOOL_RECIPES)]
     return RenderedPrompt(
-        _compose_persona_prompt(profile, variant, render_body(context, spec)),
+        _compose_persona_prompt(profile, variant, render_body(context, spec, variant)),
         recipe_id,
     )
 

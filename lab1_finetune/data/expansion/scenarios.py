@@ -119,6 +119,8 @@ def context_for_scenario(
         )
     if scenario_type == ScenarioType.SEARCH_WORKSTATION_BY_RAM:
         return ScenarioContext(**{**base.__dict__, "product_type": ProductType.AI_WORKSTATION})
+    if scenario_type == ScenarioType.SEARCH_SERVER_BY_RAM:
+        return ScenarioContext(**{**base.__dict__, "product_type": ProductType.AI_SERVER})
     if scenario_type == ScenarioType.SEARCH_SERVER_BY_GPU_SLOTS:
         return ScenarioContext(**{**base.__dict__, "product_type": ProductType.AI_SERVER})
     if scenario_type == ScenarioType.CONTRADICTORY_REQUIREMENT:

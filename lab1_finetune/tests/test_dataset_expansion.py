@@ -979,6 +979,37 @@ def _mutate_current_user(item, content: str):
     return replace(item, example=item.example.model_copy(update={"messages": messages}))
 
 
+def _rewrite_estimate_field_phrases(
+    user: str,
+    *,
+    context_phrase: str,
+    concurrency_phrase: str,
+    context_first: bool,
+) -> str:
+    context_match = re.search(
+        r"\bcontext(?:\s+window)?\s+\d+\s+tokens?\b|"
+        r"cửa sổ ngữ cảnh\s+\d+\s+tokens?\b",
+        user,
+        re.IGNORECASE,
+    )
+    concurrency_match = re.search(
+        r"\b\d+\s+người dùng đồng thời\b|\bconcurrency\s+\d+\b",
+        user,
+        re.IGNORECASE,
+    )
+    assert context_match is not None
+    assert concurrency_match is not None
+
+    start = min(context_match.start(), concurrency_match.start())
+    end = max(context_match.end(), concurrency_match.end())
+    clauses = (
+        f"{context_phrase}, {concurrency_phrase}"
+        if context_first
+        else f"{concurrency_phrase}, {context_phrase}"
+    )
+    return f"{user[:start]}{clauses}{user[end:]}"
+
+
 def test_comparison_uses_the_same_visible_ids_as_tool_result_and_final() -> None:
     rows = [item for item in build_expanded_examples() if item.family_id == "expanded_comparison"]
     assert rows and validate_generated_semantics(rows) == []
@@ -1055,6 +1086,7 @@ def test_multi_tool_flow_controls_wording_order_ids_and_constraints() -> None:
     assert {item.example.labels.scenario_type.value for item in rows} == {
         "solution_complete",
         "search_workstation_by_ram",
+        "search_server_by_ram",
         "technical_max_ram",
     }
     expected_intents = {
@@ -1086,8 +1118,19 @@ def test_multi_tool_flow_controls_wording_order_ids_and_constraints() -> None:
             product = payloads[0]["data"]["products"][0]
             product_id = product["id"]
             minimum_ram = calls[0].arguments["filters"]["min_ram_gb"]
-            assert product_id not in user
+            visible_id = product_id in user
             assert product["max_ram_gb"] >= minimum_ram
+            expected_product_type = {
+                ScenarioType.SEARCH_WORKSTATION_BY_RAM: "ai_workstation",
+                ScenarioType.SEARCH_SERVER_BY_RAM: "ai_server",
+            }[item.example.labels.scenario_type]
+            assert calls[0].arguments["filters"]["product_type"] == expected_product_type
+            assert product["product_type"] == expected_product_type
+            assert ("ai server" in user.casefold()) == (expected_product_type == "ai_server")
+            assert ("ai workstation" in user.casefold()) == (
+                expected_product_type == "ai_workstation"
+            )
+            assert visible_id == ("mã " in user.casefold())
             assert calls[1].arguments["product_id"] == product_id
             assert calls[2].arguments["product_id"] == product_id
             assert payloads[1]["data"]["id"] == product_id
@@ -1103,6 +1146,53 @@ def test_multi_tool_flow_controls_wording_order_ids_and_constraints() -> None:
             product_id = calls[0].arguments["product_id"]
             assert product_id in user and "tài liệu" in user.casefold()
             assert calls[1].arguments["product_id"] == product_id
+
+    three_step = [
+        item for item in rows
+        if item.semantic_template_id == "search_then_get_then_document_v3"
+    ]
+    explicit_id_count = sum(
+        _tool_payloads(item)[0]["data"]["products"][0]["id"]
+        in next(message.content or "" for message in reversed(item.example.messages) if message.role == "user")
+        for item in three_step
+    )
+    assert explicit_id_count > 0
+    assert explicit_id_count < len(three_step)
+    assert {
+        item.example.labels.scenario_type for item in three_step
+    } == {
+        ScenarioType.SEARCH_WORKSTATION_BY_RAM,
+        ScenarioType.SEARCH_SERVER_BY_RAM,
+    }
+
+
+def test_explicit_product_id_still_requires_three_step_search_flow() -> None:
+    row = next(
+        item for item in build_expanded_examples(seed=20260922)
+        if item.semantic_template_id == "search_then_get_then_document_v3"
+        and _tool_payloads(item)[0]["data"]["products"][0]["id"]
+        in next(message.content or "" for message in reversed(item.example.messages) if message.role == "user")
+    )
+    assert validate_generated_semantics([row]) == []
+    search_call = next(call for call in _tool_calls(row) if call.name == "search_products")
+    messages = []
+    for message in row.example.messages:
+        if message.tool_calls and any(call.id == search_call.id for call in message.tool_calls):
+            remaining = [call for call in message.tool_calls if call.id != search_call.id]
+            if remaining:
+                messages.append(message.model_copy(update={"tool_calls": remaining}))
+            continue
+        if message.role == "tool" and message.tool_call_id == search_call.id:
+            continue
+        messages.append(message)
+    skipped_search = replace(
+        row,
+        example=row.example.model_copy(update={"messages": messages}),
+    )
+    assert any(
+        "tool-call flow" in error
+        for error in validate_generated_semantics([skipped_search])
+    )
 
 
 def test_three_step_multi_tool_semantic_gate_rejects_bad_trajectories() -> None:
@@ -1139,6 +1229,71 @@ def test_three_step_multi_tool_semantic_gate_rejects_bad_trajectories() -> None:
     assert any(
         "get target is not sourced from search result" in error
         for error in validate_generated_semantics([wrong_target])
+    )
+
+    wrong_document_target = _mutate_tool_call(
+        row,
+        2,
+        arguments={"product_id": "SYN-UNRELATED", "query": "RAM tối đa"},
+    )
+    assert any(
+        "document target" in error
+        for error in validate_generated_semantics([wrong_document_target])
+    )
+
+    wrong_search_identity = _mutate_tool_result(
+        row,
+        "search_products",
+        lambda result: result["data"]["products"][0].update({"id": "SYN-UNRELATED"}),
+    )
+    assert validate_generated_semantics([wrong_search_identity])
+
+    explicit_row = next(
+        item for item in build_expanded_examples(seed=20260922)
+        if item.semantic_template_id == "search_then_get_then_document_v3"
+        and _tool_payloads(item)[0]["data"]["products"][0]["id"]
+        in next(message.content or "" for message in reversed(item.example.messages) if message.role == "user")
+    )
+    user = next(
+        message.content or ""
+        for message in reversed(explicit_row.example.messages)
+        if message.role == "user"
+    )
+    product_id = _tool_payloads(explicit_row)[0]["data"]["products"][0]["id"]
+    wrong_user_identity = _mutate_current_user(
+        explicit_row,
+        user.replace(product_id, "SYN-UNRELATED", 1),
+    )
+    assert validate_generated_semantics([wrong_user_identity])
+
+    wrong_search_ram = _mutate_tool_result(
+        row,
+        "search_products",
+        lambda result: result["data"]["products"][0].update(
+            {"max_ram_gb": _tool_calls(row)[0].arguments["filters"]["min_ram_gb"] - 1}
+        ),
+    )
+    assert any(
+        "RAM filter/result mismatch" in error
+        for error in validate_generated_semantics([wrong_search_ram])
+    )
+
+    wrong_search_type = _mutate_tool_result(
+        row,
+        "search_products",
+        lambda result: result["data"]["products"][0].update(
+            {
+                "product_type": (
+                    "ai_server"
+                    if product["product_type"] == "ai_workstation"
+                    else "ai_workstation"
+                )
+            }
+        ),
+    )
+    assert any(
+        "product_type filter/result mismatch" in error
+        for error in validate_generated_semantics([wrong_search_type])
     )
 
     failed_filter = _mutate_tool_call(
@@ -1239,7 +1394,8 @@ def test_generated_estimates_copy_context_and_concurrency_from_visible_text() ->
             value = labels.context_length
             seen_context_lengths.add(value)
             assert re.search(
-                rf"\b(?:context|ngữ cảnh)(?:\s+(?:length|dài))?\s*(?::|là)?\s*{value}\s+tokens?\b",
+                rf"\b(?:context(?:\s+(?:window|length))?|ngữ cảnh|cửa sổ ngữ cảnh)"
+                rf"(?:\s+dài)?\s*(?::|là)?\s*{value}\s+tokens?\b",
                 visible,
             )
         if labels.concurrent_users is not None:
@@ -1247,8 +1403,9 @@ def test_generated_estimates_copy_context_and_concurrency_from_visible_text() ->
             seen_concurrent_users.add(value)
             patterns = (
                 rf"\b{value}\s+(?:người dùng(?: đồng thời)?|người|concurrent users?)\b",
-                rf"\b(?:người dùng đồng thời|số người dùng đồng thời|peak concurrency|concurrent users?)\b"
-                rf"[^.!?]{{0,40}}\b{value}\b",
+                rf"\bconcurrency\s+{value}\b",
+                rf"\b(?:người dùng đồng thời|số người dùng đồng thời|peak concurrency|"
+                rf"concurrent users?)\b[^.!?]{{0,40}}\b{value}\b",
             )
             assert any(re.search(pattern, visible) for pattern in patterns)
 
@@ -1281,10 +1438,25 @@ def test_estimate_then_search_rows_ground_all_multi_number_arguments() -> None:
         assert requirement.concurrent_users is not None
         assert estimate_args["model_parameters_b"] == requirement.model_size_b
         assert estimate_args["usage"] == requirement.usage.value
+        expected_training_method = (
+            "LoRA" if requirement.usage.value == "fine_tune" else None
+        )
+        assert estimate_args.get("training_method") == expected_training_method
+        assert requirement.training_method == expected_training_method
         assert requirement.budget_vnd is not None
         assert filters["max_base_price_vnd"] == requirement.budget_vnd
-        assert f"context {estimate_args['context_length']} token" in user
-        assert f"{estimate_args['concurrent_users']} người dùng đồng thời" in user
+        assert re.search(
+            rf"\bcontext(?:\s+window)?\s+{estimate_args['context_length']}\s+tokens?\b|"
+            rf"cửa sổ ngữ cảnh\s+{estimate_args['context_length']}\s+tokens?\b",
+            user,
+            re.IGNORECASE,
+        )
+        assert re.search(
+            rf"\b{estimate_args['concurrent_users']}\s+người dùng đồng thời\b|"
+            rf"\bconcurrency\s+{estimate_args['concurrent_users']}\b",
+            user,
+            re.IGNORECASE,
+        )
         assert f"{int(requirement.model_size_b)}B" in user
         assert f"{requirement.budget_vnd:,}".replace(",", ".") in user
         assert not re.search(
@@ -1295,6 +1467,120 @@ def test_estimate_then_search_rows_ground_all_multi_number_arguments() -> None:
         assert product["max_ram_gb"] >= filters["min_ram_gb"]
         assert product["base_price_vnd"] <= filters["max_base_price_vnd"]
         assert payloads[0]["data"]["recommended_storage_gb"] is None
+
+
+def test_estimate_prompt_variants_preserve_exact_context_and_concurrency_values() -> None:
+    rows = [
+        row for row in build_expanded_examples(seed=20260922)
+        if row.semantic_template_id == "estimate_then_search_v3"
+    ]
+    context_styles = set()
+    concurrency_styles = set()
+    clause_orders = set()
+
+    for row in rows:
+        user = next(
+            message.content or ""
+            for message in reversed(row.example.messages)
+            if message.role == "user"
+        ).casefold()
+        args = next(
+            call.arguments for call in _tool_calls(row)
+            if call.name == "estimate_ai_requirements"
+        )
+        context_value = args["context_length"]
+        concurrency_value = args["concurrent_users"]
+
+        context_matches = {
+            "context": re.search(rf"\bcontext\s+{context_value}\s+tokens?\b", user),
+            "context_window": re.search(
+                rf"\bcontext window\s+{context_value}\s+tokens?\b", user
+            ),
+            "vietnamese_context": re.search(
+                rf"cửa sổ ngữ cảnh\s+{context_value}\s+tokens?\b", user
+            ),
+        }
+        concurrency_matches = {
+            "parallel_users": re.search(
+                rf"\b{concurrency_value}\s+người dùng đồng thời\b", user
+            ),
+            "concurrency": re.search(
+                rf"\bconcurrency\s+{concurrency_value}\b", user
+            ),
+        }
+        assert sum(bool(match) for match in context_matches.values()) == 1
+        assert sum(bool(match) for match in concurrency_matches.values()) == 1
+        context_match = next(match for match in context_matches.values() if match)
+        concurrency_match = next(match for match in concurrency_matches.values() if match)
+        context_styles.add(next(name for name, match in context_matches.items() if match))
+        concurrency_styles.add(
+            next(name for name, match in concurrency_matches.items() if match)
+        )
+        clause_orders.add(
+            "context_first"
+            if context_match.start() < concurrency_match.start()
+            else "concurrency_first"
+        )
+
+    assert context_styles == {"context", "context_window", "vietnamese_context"}
+    assert concurrency_styles == {"parallel_users", "concurrency"}
+    assert clause_orders == {"context_first", "concurrency_first"}
+
+
+def test_estimate_validator_accepts_supported_field_wording_and_rejects_value_drift() -> None:
+    row = next(
+        item for item in build_expanded_examples(seed=20260922)
+        if item.semantic_template_id == "estimate_then_search_v3"
+    )
+    requirement = row.example.labels.extracted_requirement
+    base_user = next(
+        message.content or ""
+        for message in reversed(row.example.messages)
+        if message.role == "user"
+    )
+    contexts = (
+        f"context {requirement.context_length} token",
+        f"context window {requirement.context_length} tokens",
+        f"cửa sổ ngữ cảnh {requirement.context_length} token",
+    )
+    concurrency = (
+        f"{requirement.concurrent_users} người dùng đồng thời",
+        f"concurrency {requirement.concurrent_users}",
+    )
+    for context_phrase in contexts:
+        for concurrency_phrase in concurrency:
+            for context_first in (True, False):
+                rewritten = _rewrite_estimate_field_phrases(
+                    base_user,
+                    context_phrase=context_phrase,
+                    concurrency_phrase=concurrency_phrase,
+                    context_first=context_first,
+                )
+                assert validate_generated_semantics([_mutate_current_user(row, rewritten)]) == []
+
+    context_drift = _rewrite_estimate_field_phrases(
+        base_user,
+        context_phrase=f"context {requirement.context_length + 1} token",
+        concurrency_phrase=f"{requirement.concurrent_users} người dùng đồng thời",
+        context_first=True,
+    )
+    assert any(
+        "context length is absent or differs" in error
+        for error in validate_generated_semantics([_mutate_current_user(row, context_drift)])
+    )
+
+    concurrency_drift = _rewrite_estimate_field_phrases(
+        base_user,
+        context_phrase=f"context {requirement.context_length} token",
+        concurrency_phrase=f"concurrency {requirement.concurrent_users + 1}",
+        context_first=False,
+    )
+    assert any(
+        "concurrency is absent or differs" in error
+        for error in validate_generated_semantics(
+            [_mutate_current_user(row, concurrency_drift)]
+        )
+    )
 
 
 def test_estimate_then_search_semantic_gate_rejects_mismatched_numeric_target() -> None:

@@ -46,6 +46,7 @@ class MultiToolFlowSpec:
     product_type: ProductType
     filters: ProductFilter | None = None
     document_field: Literal["max_ram_gb", "max_gpu_slots"] | None = None
+    user_provided_product_id: bool = False
 
 
 @dataclass(frozen=True)

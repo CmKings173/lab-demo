@@ -25,7 +25,11 @@ def test_gold_seed_has_exactly_25_families_and_at_least_50_vietnamese_examples()
     assert len(examples) >= 50
     assert {example.language for example in examples} == {"vi"}
     assert {example.labels.intent for example in examples} <= set(Intent)
-    assert {example.labels.scenario_type for example in examples} == set(ScenarioType)
+    # SEARCH_SERVER_BY_RAM is an expansion-only scenario; the curated gold seed
+    # intentionally remains unchanged and does not need synthetic-only coverage.
+    assert {example.labels.scenario_type for example in examples} == (
+        set(ScenarioType) - {ScenarioType.SEARCH_SERVER_BY_RAM}
+    )
     assert DatasetValidator().validate(examples).valid is True
 
 

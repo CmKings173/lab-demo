@@ -761,6 +761,11 @@ def _build_multi_tool(
         MultiToolFlow.SEARCH_THEN_GET: ScenarioType.SEARCH_WORKSTATION_BY_RAM,
         MultiToolFlow.GET_THEN_DOCUMENT: ScenarioType.TECHNICAL_MAX_RAM,
     }[flow]
+    if (
+        flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT
+        and index % len(MULTI_TOOL_FLOW_SCHEDULE) == 3
+    ):
+        scenario_type = ScenarioType.SEARCH_SERVER_BY_RAM
     intent = {
         MultiToolFlow.ESTIMATE_THEN_SEARCH: Intent.SOLUTION_DESIGN,
         MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT: Intent.PRODUCT_SEARCH,
@@ -814,6 +819,10 @@ def _build_multi_tool(
         product_type=context.product_type,
         filters=filters,
         document_field=document_field,
+        user_provided_product_id=(
+            flow == MultiToolFlow.SEARCH_THEN_GET_THEN_DOCUMENT
+            and (index // len(MULTI_TOOL_FLOW_SCHEDULE)) % 2 == 1
+        ),
     )
     steps = _multi_tool_steps(context, flow_spec, product, estimate_step)
     prompt_variant = variant_index(ordinal, family.family_id, index, 4)
@@ -861,6 +870,7 @@ def _build_multi_tool(
             usage=context.usage,
             budget_vnd=context.budget_vnd,
             concurrent_users=context.concurrent_users,
+            training_method="LoRA" if context.usage == UsageType.FINE_TUNE else None,
             context_length=(
                 context.context_length
                 if flow == MultiToolFlow.ESTIMATE_THEN_SEARCH

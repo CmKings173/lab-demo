@@ -78,6 +78,27 @@ def _user_conversation_text(example: Any) -> str:
     )
 
 
+def _contains_context_length(text: str, value: int | None) -> bool:
+    if value is None:
+        return False
+    patterns = (
+        rf"\bcontext\s+{value}\s+tokens?\b",
+        rf"\bcontext window\s+{value}\s+tokens?\b",
+        rf"cửa sổ ngữ cảnh\s+{value}\s+tokens?\b",
+    )
+    return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
+
+
+def _contains_concurrent_users(text: str, value: int | None) -> bool:
+    if value is None:
+        return False
+    patterns = (
+        rf"\b{value}\s+người dùng đồng thời\b",
+        rf"\bconcurrency\s+{value}\b",
+    )
+    return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
+
+
 def _final_text(example: Any) -> str:
     return next(
         (
@@ -147,10 +168,13 @@ def _validate_multi_tool(
 ) -> list[str]:
     labels = _labels_for(example)
     expected_scenarios = {
-        "estimate_then_search_v3": ScenarioType.SOLUTION_COMPLETE,
-        "search_then_get_then_document_v3": ScenarioType.SEARCH_WORKSTATION_BY_RAM,
-        "search_then_get_v3": ScenarioType.SEARCH_WORKSTATION_BY_RAM,
-        "get_then_document_v3": ScenarioType.TECHNICAL_MAX_RAM,
+        "estimate_then_search_v3": {ScenarioType.SOLUTION_COMPLETE},
+        "search_then_get_then_document_v3": {
+            ScenarioType.SEARCH_WORKSTATION_BY_RAM,
+            ScenarioType.SEARCH_SERVER_BY_RAM,
+        },
+        "search_then_get_v3": {ScenarioType.SEARCH_WORKSTATION_BY_RAM},
+        "get_then_document_v3": {ScenarioType.TECHNICAL_MAX_RAM},
     }
     expected_intents = {
         "estimate_then_search_v3": Intent.SOLUTION_DESIGN,
@@ -170,7 +194,7 @@ def _validate_multi_tool(
         "get_then_document_v3": ["get_product", "search_product_documents"],
     }
     errors: list[str] = []
-    if labels is None or labels.scenario_type != expected_scenarios[template_id]:
+    if labels is None or labels.scenario_type not in expected_scenarios[template_id]:
         errors.append(f"{example_id}:multi-tool semantic template has the wrong intent label")
     elif labels.intent != expected_intents[template_id]:
         errors.append(f"{example_id}:multi-tool semantic template has the wrong intent category")
@@ -209,20 +233,13 @@ def _validate_multi_tool(
                         "disagrees with requirement labels"
                     )
             context_value = requirement.context_length
-            context_pattern = (
-                rf"\b(?:context|ngữ cảnh)(?:\s+(?:length|dài))?"
-                rf"\s*(?::|là)?\s*{context_value}\s+tokens?\b"
-            )
-            if context_value is None or not re.search(context_pattern, user_provided_text):
+            if not _contains_context_length(user_provided_text, context_value):
                 errors.append(
                     f"{example_id}:multi-tool context length is absent or differs "
                     "across user/labels/tool"
                 )
             concurrency_value = requirement.concurrent_users
-            if concurrency_value is None or not re.search(
-                rf"\b{concurrency_value}\s+(?:người dùng đồng thời|concurrent users?)\b",
-                user_provided_text,
-            ):
+            if not _contains_concurrent_users(user_provided_text, concurrency_value):
                 errors.append(
                     f"{example_id}:multi-tool concurrency is absent or differs "
                     "across user/labels/tool"
@@ -236,11 +253,32 @@ def _validate_multi_tool(
                 if requirement.usage is not None and requirement.usage.value == "inference"
                 else "fine-tune bằng lora"
             )
+            expected_training_method = (
+                "LoRA"
+                if requirement.usage is not None and requirement.usage.value == "fine_tune"
+                else None
+            )
             if (
                 requirement.usage is not None
                 and expected_usage_phrase not in user_provided_text
             ):
                 errors.append(f"{example_id}:multi-tool usage is not visible in the request")
+            if (
+                requirement.training_method != expected_training_method
+                or estimate_arguments.get("training_method") != expected_training_method
+            ):
+                errors.append(
+                    f"{example_id}:multi-tool training method disagrees with usage labels/tool"
+                )
+            product_type = filters.get("product_type")
+            product_type_phrase = {
+                "ai_server": "ai server",
+                "ai_workstation": "ai workstation",
+            }.get(product_type)
+            if product_type_phrase is None or product_type_phrase not in user_provided_text:
+                errors.append(
+                    f"{example_id}:multi-tool product type is absent or differs from search filter"
+                )
             if (
                 requirement.budget_vnd is None
                 or filters.get("max_base_price_vnd") != requirement.budget_vnd
@@ -319,11 +357,21 @@ def _validate_multi_tool(
         )
         filters = search_arguments.get("filters", {})
         products = (search_result.get("data") or {}).get("products", [])
-        product = products[0] if products else {}
+        user_provenance = _user_conversation_text(example).casefold()
+        products_by_id = {
+            str(candidate.get("id")).upper(): candidate
+            for candidate in products
+            if candidate.get("id")
+        }
+        mentioned_ids = re.findall(
+            r"\bSYN-[A-Z0-9][A-Z0-9-]*\b", user_provenance, re.IGNORECASE
+        )
+        get_target_id = get_arguments.get("product_id")
+        target_id = mentioned_ids[0].upper() if mentioned_ids else get_target_id
+        product = products_by_id.get(str(target_id).upper(), {})
         product_id = product.get("id")
         requested_ram = filters.get("min_ram_gb")
         product_ram = product.get("max_ram_gb")
-        user_provenance = _user_conversation_text(example).casefold()
         final = _final_text(example).casefold()
 
         if (
@@ -336,9 +384,27 @@ def _validate_multi_tool(
         if (
             search_result.get("ok") is not True
             or not products
-            or search_arguments.get("filters", {}).get("product_type") != "ai_workstation"
+            or len(set(value.upper() for value in mentioned_ids)) > 1
+            or any(value.upper() != str(target_id).upper() for value in mentioned_ids)
+            or str(get_target_id).upper() != str(target_id).upper()
+            or str(target_id).upper() not in products_by_id
+            or search_arguments.get("filters", {}).get("product_type")
+            != {
+                ScenarioType.SEARCH_WORKSTATION_BY_RAM: "ai_workstation",
+                ScenarioType.SEARCH_SERVER_BY_RAM: "ai_server",
+            }.get(labels.scenario_type if labels is not None else None)
             or requested_ram is None
-            or str(requested_ram) not in user
+            or not re.search(
+                rf"(?:ít nhất|tối thiểu)\s*{requested_ram}\s*gb\s*ram",
+                user,
+                re.IGNORECASE,
+            )
+            or any(
+                candidate.get("product_type") != filters.get("product_type")
+                or candidate.get("max_ram_gb") is None
+                or candidate["max_ram_gb"] < requested_ram
+                for candidate in products
+            )
             or product_ram is None
             or product_ram < requested_ram
         ):
@@ -347,7 +413,6 @@ def _validate_multi_tool(
             )
         if (
             not product_id
-            or str(product_id).casefold() in user_provenance
             or get_arguments.get("product_id") != product_id
             or get_result.get("ok") is not True
             or (get_result.get("data") or {}).get("id") != product_id
