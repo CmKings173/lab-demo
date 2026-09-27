@@ -1,0 +1,20 @@
+services:
+  catalog-postgres:
+    image: postgres:16.10
+    environment:
+      POSTGRES_DB: lab2_catalog
+      POSTGRES_USER: lab2
+      POSTGRES_PASSWORD: ${LAB2_POSTGRES_PASSWORD:?Set LAB2_POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - lab2_catalog_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab2 -d lab2_catalog"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  lab2_catalog_data:

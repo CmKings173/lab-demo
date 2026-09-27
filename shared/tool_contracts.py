@@ -3,7 +3,9 @@ from shared.tool_args import TOOL_ARG_MODELS
 
 DESCRIPTIONS = {
     "search_products": (
-        "Tìm AI Server và AI Workstation trong danh mục sản phẩm theo bộ lọc có cấu trúc."
+        "Tìm sản phẩm theo bộ lọc có cấu trúc. Dùng max_listed_price_vnd cho ngân sách "
+        "cấu hình niêm yết; max_base_price_vnd chỉ là giá máy cơ bản. Giá NULL là chưa biết: "
+        "sản phẩm vẫn là ứng viên, không được khẳng định nằm trong ngân sách."
     ),
     "get_product": "Lấy thông tin một nền tảng sản phẩm theo mã sản phẩm.",
     "search_product_documents": (
