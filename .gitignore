@@ -18,5 +18,8 @@ build/
 .idea/
 .vscode/
 .worktrees/
-references/
+references/*
+!references/weknora/
+references/weknora/*
+!references/weknora/SOURCE.md
 *.log

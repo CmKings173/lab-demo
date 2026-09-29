@@ -7,7 +7,7 @@
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Foundation](https://img.shields.io/badge/stage-foundation-6C5CE7)
 ![Offline first](https://img.shields.io/badge/runtime-offline--first-00A896)
-![Tests](https://img.shields.io/badge/tests-103%20passed-2EA44F)
+![Tests](https://img.shields.io/badge/tests-locally%20verified-2EA44F)
 
 ## 1. Dự án này làm gì?
 
@@ -62,9 +62,9 @@ Lab 2 có hai mặt phẳng dữ liệu:
 | Exact catalog | product, GPU, RAM, storage, price, availability, numeric filter | authoritative cho fact có cấu trúc |
 | Document/RAG | chunk, dense+sparse retrieval, rerank, document evidence | authoritative cho thông tin trong tài liệu |
 
-RAG không được tự ghi đè exact catalog fact. Khi chạy foundation, adapter là
-fake/in-memory và deterministic; PostgreSQL, Qdrant, Docling, BGE-M3, reranker,
-vLLM và OpenClaw runtime thật vẫn là các adapter tương lai.
+RAG không được tự ghi đè exact catalog fact. Phase 2.5 hiện đã có các adapter
+PostgreSQL/WeKnora và plugin OpenClaw trong source; kết nối dịch vụ thật và
+E2E với GB300 vẫn chưa được xác minh.
 
 ### Lab 3 — biến nhu cầu thành cấu hình có thể kiểm chứng
 
@@ -229,6 +229,14 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
+Để chạy CLI ingestion từ một checkout sạch, cài chính xác extra runtime của Lab 2
+(extra `dev` không chứa PostgreSQL driver):
+
+```powershell
+python -m pip install -e ".[lab2-runtime]"
+python -m lab2_rag_agent.ingestion --product-id <catalog-product-id> --file <local-file-path>
+```
+
 Nếu PowerShell chặn activation, có thể gọi trực tiếp:
 
 ```powershell
@@ -287,11 +295,13 @@ git status
 - Vietnamese gold dataset 60 mẫu / 25 family;
 - evaluator tính metric từ prediction thật;
 - test suite và Ruff gate.
+- backend Phase 2.5 trong source: PostgreSQL mapping, WeKnora retrieval/ingestion
+  service và CLI vận hành, cùng plugin OpenClaw giữ đúng sáu domain tools.
 
-Chưa có:
+Chưa xác minh hoặc chưa triển khai:
 
 - model training/merge/benchmark thực tế;
-- PostgreSQL, Qdrant, Docling, BGE-M3, reranker, vLLM hay OpenClaw runtime thật;
+- kết nối PostgreSQL/WeKnora đang chạy và live E2E từ OpenClaw tới GB300;
 - catalog/pricing production;
 - UI production, MCP production hay cloud deployment;
 - dataset production khoảng 3.000 mẫu.

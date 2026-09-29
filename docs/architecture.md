@@ -1,5 +1,11 @@
 # Kiến trúc
 
+> **Current Lab2 decision (ADR 011):** PostgreSQL owns structured product/catalog
+> facts; WeKnora v0.8.0 owns document ingestion and retrieval; OpenClaw sees only
+> allow-listed Lab domain tools. The earlier Qdrant/custom-RAG plan is superseded
+> for Lab2 by ADR 011. Existing shared contracts remain
+> the integration boundary; no WeKnora-specific types belong in `shared`.
+
 ```mermaid
 flowchart LR
   U[Customer requirement] --> L3[Lab 3 workflow]
@@ -27,14 +33,17 @@ authoritative vẫn là quyết định mở trong `docs/open-decisions.md`.
 ## Ranh giới sở hữu
 
 - `lab1_finetune`: dataset, training entry points và behavior evaluation.
-- `lab2_rag_agent`: exact catalog, document retrieval/reranking, RAG và OpenClaw tools.
+- `lab2_rag_agent`: PostgreSQL catalog adapter, WeKnora document-search boundary, and allow-listed agent tools.
 - `lab3_workflow`: requirement, sizing, concrete configuration, validation, comparison,
   proposal, evidence và workflow state machine.
 - `shared`: contracts/interfaces ổn định; không chứa business flow của riêng một lab.
 - `adapters/fake` và `adapters/real`: điểm thay thế hạ tầng, không đổi domain API.
 
-PostgreSQL là nguồn authoritative cho fact có cấu trúc và numeric filter. Qdrant
-chỉ phục vụ document retrieval; semantic hit không được ghi đè exact catalog fact.
+PostgreSQL is authoritative for structured catalog facts and numeric filters.
+WeKnora owns document ingestion and retrieval; a document hit is evidence, not an
+automatic overwrite of an exact catalog fact. Unknown structured values remain
+eligible for later evidence resolution, matching the current in-memory repository
+semantics and the required future PostgreSQL parity.
 OpenClaw chỉ gọi domain tools, không nhận quyền SQL hay shell tùy ý.
 
 ## Luồng phụ thuộc

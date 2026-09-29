@@ -1,6 +1,13 @@
 # Trạng thái hiện tại
 
-Phiên bản: foundation hardening v4 contract correctness.
+> **Lab2 backend/runtime update (2026-09-29):** source now includes the PostgreSQL
+> catalog and product-document repositories, WeKnora v0.8.0 search and single-file
+> operator ingestion, the six-tool FastAPI boundary, and the OpenClaw plugin/runtime
+> composition. This records source implementation only; it does not claim that live
+> PostgreSQL integration or the GB300/OpenClaw end-to-end path was verified.
+
+Foundation baseline: hardening v4 contract correctness. The Lab2 status below is
+updated for Phase 2.5; foundation notes are retained as historical project context.
 
 Đã có:
 
@@ -21,8 +28,20 @@ Phiên bản: foundation hardening v4 contract correctness.
 Chưa có:
 
 - Download/train/merge model thực tế hoặc benchmark base-vs-adapter.
-- PostgreSQL, Qdrant, Docling, BGE-M3, reranker, vLLM hay OpenClaw runtime thật.
-- Catalog/pricing production, UI, MCP hoặc cloud deployment.
+- Catalog/pricing production, Lab2 UI, MCP hoặc cloud deployment.
 - Dataset production quy mô khoảng 3.000 mẫu; Iteration 4 không train hoặc scale.
+
+Lab2 implementation in source:
+
+- PostgreSQL migrations, curated seed, catalog repository, and product-document mapping.
+- WeKnora search adapter and operator-only one-file ingestion CLI/service.
+- Lab2 runtime composition, FastAPI Tool API, TypeScript OpenClaw plugin, and an
+  explicit six-tool agent allowlist.
+- Product comparison returns catalog facts; configuration comparison reports
+  `configuration_repository_not_configured` until a repository is supplied.
+
+Not yet verified live: PostgreSQL integration unless its dedicated test DSN is set;
+OpenClaw Gateway loading on GB300; Qwen3-14B tool calls; and the complete
+OpenClaw → `127.0.0.1:8090` → PostgreSQL/WeKnora/model response path.
 
 Các lựa chọn chưa khóa nằm tại `docs/open-decisions.md`.
