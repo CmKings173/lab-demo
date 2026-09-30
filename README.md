@@ -47,7 +47,8 @@ python -m lab2_rag_agent.ingestion --product-id <catalog-product-id> --file <loc
 ```
 
 See [Lab 2 overview](docs/lab2/overview.md), [ingestion](docs/lab2/ingestion.md),
-the [OpenClaw plugin runbook](lab2_rag_agent/openclaw/plugin/README.md), and
+the [OpenClaw plugin runbook](lab2_rag_agent/openclaw/plugin/README.md),
+[release packaging](docs/lab2/release-packaging.md), and
 `.env.example` for safe configuration placeholders.
 
 Xem [trạng thái hiện tại](docs/current-state.md),

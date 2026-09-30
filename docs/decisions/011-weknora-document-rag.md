@@ -28,9 +28,11 @@ document-ingestion and knowledge-search service with a file-ID-scoped search API
    `WeKnoraDocumentSearch` adapter translates provider HTTP payloads;
    WeKnora-specific types must not leak into shared/domain contracts.
 5. Keep `product_id -> product_documents -> WeKnora knowledge_ids` resolution in
-   Lab2. Product-scoped retrieval sends both the configured knowledge-base ID and the
-   mapped knowledge IDs to `/api/v1/knowledge-search`. An empty mapping is no evidence,
-   not a provider outage.
+   Lab2. Product-scoped retrieval sends the configured knowledge-base ID and only
+   completed mappings for that product to `/api/v1/knowledge-search`. Unscoped
+   retrieval also sends only completed mapped knowledge IDs in the configured KB;
+   it never searches the whole KB. An empty eligible set is no evidence, not a
+   provider outage. Provider hits outside the allowlist fail closed.
 6. OpenClaw sees only allow-listed Lab domain tools. PostgreSQL remains behind the
    repository and WeKnora behind `DocumentSearch`; the agent gets no raw SQL, shell,
    direct vector-store access or web-search tool.
@@ -54,7 +56,8 @@ Implemented in source as of 2026-09-29:
 - PostgreSQL catalog repository and schema;
 - the `product_documents` mapping between catalog products and WeKnora knowledge IDs;
 - `WeKnoraDocumentSearch`, with local result truncation because the pinned provider
-  request has no `top_k` and no corpus-wide total-count response field;
+  request has no `top_k` and no corpus-wide total-count response field, and with
+  completed-mapping allowlisting for scoped and unscoped retrieval;
 - a one-file WeKnora ingestion service and operator CLI with explicit `product_id`,
   byte-level SHA-256 reuse, safe duplicate reconciliation and bounded polling;
 - actual product comparison values in `compare_products()`;

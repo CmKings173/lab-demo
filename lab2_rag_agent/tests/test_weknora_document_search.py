@@ -48,6 +48,9 @@ class MappingRepository:
     def list_by_product_id(self, product_id: str):
         return [item for item in self.mappings if item.product_id == product_id]
 
+    def list_by_knowledge_base_id(self, knowledge_base_id: str):
+        return [item for item in self.mappings if item.knowledge_base_id == knowledge_base_id]
+
     def get_by_knowledge_id(self, knowledge_base_id: str, knowledge_id: str):
         self.lookups.append((knowledge_base_id, knowledge_id))
         return next(
@@ -170,11 +173,17 @@ def test_product_without_eligible_mapping_returns_empty_without_http_call(
     assert requests == []
 
 
-def test_unscoped_search_uses_only_configured_kb_and_verified_mapping(
+def test_unscoped_search_allowlists_only_completed_mappings_in_configured_kb(
     client_factory,
 ) -> None:
     repository = MappingRepository([
         mapping("knowledge-1", product_id="verified-product"),
+        mapping("knowledge-2", product_id="another-product", source_url=None),
+        mapping("processing", provider_parse_status="processing"),
+        mapping("finalizing", provider_parse_status="finalizing"),
+        mapping("failed", provider_parse_status="failed"),
+        mapping("cancelled", provider_parse_status="cancelled"),
+        mapping("wrong-kb", knowledge_base_id="another-kb"),
     ])
     request_bodies = []
 
@@ -186,28 +195,39 @@ def test_unscoped_search_uses_only_configured_kb_and_verified_mapping(
         DocumentSearchRequest(query="datasheet query", product_id=None, top_k=5)
     )
 
-    assert request_bodies == [{"query": "datasheet query", "knowledge_base_id": KB_ID}]
-    assert "knowledge_ids" not in request_bodies[0]
+    assert request_bodies == [{
+        "query": "datasheet query", "knowledge_base_id": KB_ID,
+        "knowledge_ids": ["knowledge-1", "knowledge-2"],
+    }]
     assert result.hits[0].chunk.product_id == "verified-product"
     assert result.hits[0].chunk.source_url == "https://example.test/datasheet.pdf"
 
 
-def test_unscoped_result_without_mapping_has_no_guessed_product_or_source(
-    client_factory,
+@pytest.mark.parametrize("status", ["processing", "finalizing", "failed", "cancelled"])
+def test_unscoped_without_eligible_mapping_returns_empty_without_http_call(
+    status, client_factory,
 ) -> None:
-    repository = MappingRepository()
-    result = make_adapter(
-        repository,
-        client_factory(
-            lambda _request: httpx.Response(
-                200, json={"success": True, "data": [provider_hit()]}
-            )
-        ),
-    ).search(DocumentSearchRequest(query="datasheet"))
+    requests = []
+    repository = MappingRepository([
+        mapping("not-ready", provider_parse_status=status),
+        mapping("wrong-kb", knowledge_base_id="another-kb"),
+    ])
+    client = client_factory(lambda request: requests.append(request) or httpx.Response(500))
 
-    assert result.hits[0].chunk.product_id is None
-    assert result.hits[0].chunk.source_url is None
-    assert repository.lookups == [(KB_ID, "knowledge-1")]
+    result = make_adapter(repository, client).search(DocumentSearchRequest(query="datasheet"))
+
+    assert result.model_dump() == {"hits": [], "total": 0}
+    assert requests == []
+
+
+def test_unscoped_without_any_mapping_returns_empty_without_http_call(client_factory) -> None:
+    requests = []
+    client = client_factory(lambda request: requests.append(request) or httpx.Response(500))
+
+    result = make_adapter(MappingRepository(), client).search(DocumentSearchRequest(query="GPU"))
+
+    assert result.model_dump() == {"hits": [], "total": 0}
+    assert requests == []
 
 
 def test_product_hit_maps_evidence_conservatively_and_truncates_locally(
@@ -265,7 +285,7 @@ def test_hit_rank_uses_provider_sequence_without_reordering(
         lambda _request: httpx.Response(200, json={"success": True, "data": hits})
     )
 
-    result = make_adapter(MappingRepository(), client).search(
+    result = make_adapter(MappingRepository([mapping("knowledge-1")]), client).search(
         DocumentSearchRequest(query="RAM", top_k=2)
     )
 
@@ -283,7 +303,7 @@ def test_hit_without_provider_sequence_uses_one_based_response_order(client_fact
         )
     )
 
-    result = make_adapter(MappingRepository(), client).search(
+    result = make_adapter(MappingRepository([mapping("knowledge-1")]), client).search(
         DocumentSearchRequest(query="RAM", top_k=2)
     )
 
@@ -292,7 +312,7 @@ def test_hit_without_provider_sequence_uses_one_based_response_order(client_fact
 
 
 def test_metadata_entry_with_api_key_in_key_is_dropped(client_factory) -> None:
-    repository = MappingRepository()
+    repository = MappingRepository([mapping("knowledge-1")])
     hit = provider_hit(metadata={f"credential-{API_KEY}-echo": "provider-value"})
     client = client_factory(
         lambda _request: httpx.Response(
@@ -323,7 +343,7 @@ def test_missing_verified_source_url_stays_none(client_factory) -> None:
     assert result.hits[0].chunk.source_url is None
 
 
-def test_unscoped_search_only_resolves_mapping_for_returned_hits(client_factory) -> None:
+def test_unscoped_search_truncates_locally_and_preserves_product_mapping(client_factory) -> None:
     repository = MappingRepository([
         mapping("knowledge-1", product_id="product-1"),
         mapping("knowledge-2", product_id="product-2"),
@@ -344,7 +364,8 @@ def test_unscoped_search_only_resolves_mapping_for_returned_hits(client_factory)
 
     assert result.total == 3
     assert len(result.hits) == 1
-    assert repository.lookups == [(KB_ID, "knowledge-1")]
+    assert result.hits[0].chunk.product_id == "product-1"
+    assert repository.lookups == []
 
 
 @pytest.mark.parametrize("status_code", [401, 404, 500])
@@ -352,7 +373,7 @@ def test_http_error_is_surfaced_without_secret(status_code, client_factory) -> N
     client = client_factory(lambda _request: httpx.Response(status_code))
 
     with pytest.raises(WeKnoraDocumentSearchError) as error:
-        make_adapter(MappingRepository(), client).search(
+        make_adapter(MappingRepository([mapping("knowledge-1")]), client).search(
             DocumentSearchRequest(query="query")
         )
 
@@ -366,7 +387,7 @@ def test_connection_and_timeout_errors_are_surfaced(exception_type, client_facto
         raise exception_type("network unavailable", request=request)
 
     with pytest.raises(WeKnoraDocumentSearchError, match="request failed") as error:
-        make_adapter(MappingRepository(), client_factory(fail)).search(
+        make_adapter(MappingRepository([mapping("knowledge-1")]), client_factory(fail)).search(
             DocumentSearchRequest(query="query")
         )
     assert API_KEY not in str(error.value)
@@ -378,7 +399,7 @@ def test_malformed_json_is_surfaced(client_factory) -> None:
     )
 
     with pytest.raises(WeKnoraDocumentSearchError, match="valid JSON"):
-        make_adapter(MappingRepository(), client).search(
+        make_adapter(MappingRepository([mapping("knowledge-1")]), client).search(
             DocumentSearchRequest(query="query")
         )
 
@@ -397,7 +418,7 @@ def test_malformed_provider_responses_are_rejected(body, message, client_factory
     client = client_factory(lambda _request: httpx.Response(200, json=body))
 
     with pytest.raises(WeKnoraDocumentSearchError, match=message):
-        make_adapter(MappingRepository(), client).search(
+        make_adapter(MappingRepository([mapping("knowledge-1")]), client).search(
             DocumentSearchRequest(query="query")
         )
 
@@ -414,6 +435,25 @@ def test_product_scoped_result_rejects_unmapped_provider_document(client_factory
         make_adapter(MappingRepository([mapping("knowledge-1")]), client).search(
             DocumentSearchRequest(query="query", product_id="product-a")
         )
+
+
+@pytest.mark.parametrize("returned_id", ["unmapped", "processing", "wrong-kb"])
+def test_unscoped_result_rejects_provider_document_outside_allowlist(
+    returned_id, client_factory,
+) -> None:
+    repository = MappingRepository([
+        mapping("knowledge-1"),
+        mapping("processing", provider_parse_status="processing"),
+        mapping("wrong-kb", knowledge_base_id="another-kb"),
+    ])
+    client = client_factory(
+        lambda _request: httpx.Response(
+            200, json={"success": True, "data": [provider_hit(knowledge_id=returned_id)]}
+        )
+    )
+
+    with pytest.raises(WeKnoraDocumentSearchError, match="unmapped knowledge id"):
+        make_adapter(repository, client).search(DocumentSearchRequest(query="query"))
 
 
 @pytest.mark.parametrize(
@@ -436,7 +476,7 @@ def test_malformed_provider_hit_fields_are_rejected(bad_hit, client_factory) -> 
     )
 
     with pytest.raises(WeKnoraDocumentSearchError):
-        make_adapter(MappingRepository(), client).search(
+        make_adapter(MappingRepository([mapping("knowledge-1")]), client).search(
             DocumentSearchRequest(query="query")
         )
 

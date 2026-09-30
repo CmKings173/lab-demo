@@ -31,6 +31,12 @@ In the actual Lab 2 chat/session, `/tools verbose` shows the tools available to 
 
 The package pins the tested OpenClaw host and plugin SDK surface to `2026.9.6`, with TypeBox `1.1.38`. OpenClaw plugin APIs are experimental; upgrade the host pin only after running the build, plugin validation, and tests.
 
+The npm package contains the compiled plugin, its manifest, and
+`examples/lab2-agent.json`. It is built and packed separately from the Python wheel;
+`node_modules/`, source tests, and generated caches are not release payloads.
+See [release packaging](../../../docs/lab2/release-packaging.md) for artifact
+contents and the external migration/seed assets needed at deployment.
+
 ## GB300 local demo
 
 On the GB300, first use the existing Phase 2.1 PostgreSQL migration and seed procedure. Then install the Lab 2 runtime extra and provide the four secrets/configuration values to the Python process (for example through a permission-restricted `.env` file or the service manager's environment):

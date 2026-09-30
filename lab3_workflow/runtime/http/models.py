@@ -5,6 +5,7 @@ from datetime import datetime
 from shared.contracts import Proposal, WorkflowContext, WorkflowState
 from shared.contracts.models import ContractModel
 
+from ...errors import normalize_public_error, result_error_codes
 from ..runs.models import RunRecord, RunStatus
 
 
@@ -70,7 +71,7 @@ class RunResultSummary(ContractModel):
                 if context.proposal is not None
                 else None
             ),
-            errors=list(context.errors),
+            errors=result_error_codes(context),
         )
 
 
@@ -99,6 +100,10 @@ class RunSnapshot(ContractModel):
                 if record.result is not None
                 else None
             ),
-            error=record.error,
+            error=(
+                normalize_public_error(record.error)
+                if record.error is not None
+                else None
+            ),
             event_count=len(record.events),
         )

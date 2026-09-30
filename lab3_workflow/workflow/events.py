@@ -5,6 +5,11 @@ from datetime import datetime, timezone
 from time import perf_counter
 from uuid import uuid4
 
+from lab3_workflow.errors import (
+    WORKFLOW_EXECUTION_FAILED,
+    WORKFLOW_TOOL_FAILED,
+    state_failure_code,
+)
 from shared.contracts import (
     DocumentHit,
     ProposalVerificationResult,
@@ -15,10 +20,6 @@ from shared.contracts import (
     WorkflowState,
 )
 from shared.interfaces import WorkflowEventSink
-
-
-def _safe_error(error: Exception | str) -> str:
-    return str(error)[:500]
 
 
 class NoOpWorkflowEventSink:
@@ -101,10 +102,11 @@ class WorkflowEventEmitter:
     def workflow_failed(
         self, state: WorkflowState | None, error: Exception | str
     ) -> WorkflowEvent:
+        del error
         return self._emit(
             WorkflowEventType.WORKFLOW_FAILED,
             state=state,
-            payload={"error": _safe_error(error)},
+            payload={"error": WORKFLOW_EXECUTION_FAILED},
             duration_ms=self._duration_ms(self._run_started_at),
         )
 
@@ -131,10 +133,11 @@ class WorkflowEventEmitter:
     def state_failed(
         self, state: WorkflowState, error: Exception | str
     ) -> WorkflowEvent:
+        del error
         event = self._emit(
             WorkflowEventType.STATE_FAILED,
             state=state,
-            payload={"error": _safe_error(error)},
+            payload={"error": state_failure_code(state)},
             duration_ms=self._duration_ms(self._state_started_at),
         )
         self._active_state = None
@@ -169,9 +172,10 @@ class WorkflowEventEmitter:
         started_at: float,
         error: Exception | str,
     ) -> WorkflowEvent:
+        del error
         return self._emit(
             WorkflowEventType.TOOL_FAILED,
-            payload={"tool": name, "error": _safe_error(error)},
+            payload={"tool": name, "error": WORKFLOW_TOOL_FAILED},
             duration_ms=self._duration_ms(started_at),
         )
 

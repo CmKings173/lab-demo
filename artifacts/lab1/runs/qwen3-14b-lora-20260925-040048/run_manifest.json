@@ -1,0 +1,62 @@
+{
+  "config": {
+    "model_name": "Qwen/Qwen3-14B",
+    "model_revision": "40c069824f4251a91eefaf281ebe4c544efd3e18",
+    "local_files_only": true,
+    "train_file": "lab1_finetune/data/generated/exports/train_qwen.jsonl",
+    "validation_file": "lab1_finetune/data/generated/exports/validation_qwen.jsonl",
+    "output_dir": "artifacts/lab1/runs/qwen3-14b-lora-20260925-040048",
+    "max_seq_length": 4096,
+    "learning_rate": 0.0002,
+    "num_train_epochs": 3,
+    "per_device_batch_size": 1,
+    "per_device_eval_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "lora_target_modules": "all-linear",
+    "task_type": "CAUSAL_LM",
+    "use_lora": true,
+    "bf16": true,
+    "use_qlora": false,
+    "gradient_checkpointing": true,
+    "lr_scheduler_type": "cosine",
+    "warmup_ratio": 0.05,
+    "weight_decay": 0.01,
+    "eval_strategy": "epoch",
+    "save_strategy": "epoch",
+    "save_total_limit": 2,
+    "seed": 42
+  },
+  "train_sha256": "5e64cefdad2a6363a57ffe4ddd1a7a359caf951a1e2f0af4cbaf45b781a45b6c",
+  "validation_sha256": "591cec499297c889f9a19d49edf36f854ee19e6319c90fdd9825ea5e1200c838",
+  "token_lengths": {
+    "train": {
+      "count": 961,
+      "p95": 2,
+      "max": 2
+    },
+    "validation": {
+      "count": 239,
+      "p95": 2,
+      "max": 2
+    }
+  },
+  "versions": {
+    "torch": "2.14.0a0+4fdf77b940.nv26.8.63802676",
+    "transformers": "5.17.0",
+    "trl": "1.13.0",
+    "peft": "0.21.0",
+    "datasets": "5.0.1",
+    "accelerate": "1.15.0"
+  },
+  "train_metrics": {
+    "train_runtime": 1373.2968,
+    "train_samples_per_second": 2.099,
+    "train_steps_per_second": 0.264,
+    "total_flos": 2.5981800899152896e+17,
+    "train_loss": 0.1054260273099705,
+    "epoch": 3.0
+  }
+}

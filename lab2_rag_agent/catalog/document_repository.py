@@ -40,6 +40,16 @@ class PostgresProductDocumentRepository:
             rows = cursor.fetchall()
         return [self._mapping(row) for row in rows]
 
+    def list_by_knowledge_base_id(self, knowledge_base_id: str) -> list[ProductDocumentMapping]:
+        with self._connect(self._dsn) as connection, connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM product_documents "
+                "WHERE knowledge_base_id = %s ORDER BY id ASC",
+                (knowledge_base_id,),
+            )
+            rows = cursor.fetchall()
+        return [self._mapping(row) for row in rows]
+
     def get_by_knowledge_id(
         self, knowledge_base_id: str, knowledge_id: str
     ) -> ProductDocumentMapping | None:

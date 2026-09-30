@@ -4,8 +4,15 @@ from datetime import datetime, timezone
 from threading import RLock
 from typing import Protocol
 
-from shared.contracts import WorkflowContext, WorkflowEvent, WorkflowEventType, WorkflowState
+from shared.contracts import (
+    CustomerRequirement,
+    WorkflowContext,
+    WorkflowEvent,
+    WorkflowEventType,
+    WorkflowState,
+)
 
+from ...errors import normalize_public_error, sanitize_failure_event
 from .models import RunRecord, RunStatus
 
 
@@ -26,7 +33,13 @@ class EventSequenceError(RunStoreError):
 
 
 class RunStore(Protocol):
-    def create_run(self, run_id: str, *, created_at: datetime | None = None) -> RunRecord: ...
+    def create_run(
+        self,
+        run_id: str,
+        *,
+        requirement: CustomerRequirement | None = None,
+        created_at: datetime | None = None,
+    ) -> RunRecord: ...
 
     def get(self, run_id: str) -> RunRecord | None: ...
 
@@ -41,7 +54,7 @@ class RunStore(Protocol):
         run_id: str,
         *,
         final_state: WorkflowState,
-        result: WorkflowContext | None = None,
+        result: WorkflowContext,
         completed_at: datetime | None = None,
     ) -> RunRecord: ...
 
@@ -57,8 +70,18 @@ class InMemoryRunStore:
         self._runs: dict[str, RunRecord] = {}
         self._lock = RLock()
 
-    def create_run(self, run_id: str, *, created_at: datetime | None = None) -> RunRecord:
-        record = RunRecord(run_id=run_id, created_at=created_at or datetime.now(timezone.utc))
+    def create_run(
+        self,
+        run_id: str,
+        *,
+        requirement: CustomerRequirement | None = None,
+        created_at: datetime | None = None,
+    ) -> RunRecord:
+        record = RunRecord(
+            run_id=run_id,
+            requirement=requirement,
+            created_at=created_at or datetime.now(timezone.utc),
+        )
         with self._lock:
             if run_id in self._runs:
                 raise RunAlreadyExistsError(f"run already exists: {run_id}")
@@ -75,11 +98,17 @@ class InMemoryRunStore:
             record = self._require_run(event.run_id)
             if record.status in {RunStatus.COMPLETED, RunStatus.FAILED}:
                 raise RunStoreError("terminal run cannot receive additional events")
+            if record.events and record.events[-1].type in {
+                WorkflowEventType.WORKFLOW_COMPLETED,
+                WorkflowEventType.WORKFLOW_FAILED,
+            }:
+                raise RunStoreError("terminal workflow event cannot receive additional events")
             expected_sequence = record.events[-1].sequence + 1 if record.events else 1
             if event.sequence != expected_sequence:
                 raise EventSequenceError(
                     f"expected event sequence {expected_sequence}, got {event.sequence}"
                 )
+            event = sanitize_failure_event(event)
             self._apply_lifecycle_event(record, event)
             record.events.append(event.model_copy(deep=True))
 
@@ -102,19 +131,28 @@ class InMemoryRunStore:
         run_id: str,
         *,
         final_state: WorkflowState,
-        result: WorkflowContext | None = None,
+        result: WorkflowContext,
         completed_at: datetime | None = None,
     ) -> RunRecord:
         with self._lock:
             record = self._require_run(run_id)
             if record.status == RunStatus.FAILED:
                 raise RunStoreError("failed run cannot be marked completed")
+            if result is None:
+                raise RunStoreError("completed run requires a result")
+            if result.state != final_state:
+                raise RunStoreError("completed run result must match its final state")
+            if not record.events or record.events[-1].type != WorkflowEventType.WORKFLOW_COMPLETED:
+                raise RunStoreError("workflow.completed event is required before completion")
+            completion_event = record.events[-1]
+            if completion_event.state != final_state:
+                raise RunStoreError("completed run final state must match workflow.completed")
             if record.final_state is not None and record.final_state != final_state:
                 raise RunStoreError("completed run final state cannot be changed")
-            record.status = RunStatus.COMPLETED
             record.final_state = final_state
-            record.result = result.model_copy(deep=True) if result is not None else None
-            record.completed_at = completed_at or record.completed_at or datetime.now(timezone.utc)
+            record.result = result.model_copy(deep=True)
+            record.completed_at = completed_at or record.completed_at or completion_event.timestamp
+            record.status = RunStatus.COMPLETED
             return self._copy_record(record)
 
     def mark_failed(
@@ -127,7 +165,7 @@ class InMemoryRunStore:
             if record.status == RunStatus.COMPLETED:
                 raise RunStoreError("completed run cannot be marked failed")
             record.status = RunStatus.FAILED
-            record.error = error
+            record.error = normalize_public_error(error)
             record.completed_at = completed_at or record.completed_at or datetime.now(timezone.utc)
             return self._copy_record(record)
 
@@ -152,13 +190,10 @@ class InMemoryRunStore:
         elif event.type == WorkflowEventType.WORKFLOW_COMPLETED:
             if record.status == RunStatus.FAILED:
                 raise RunStoreError("failed run cannot receive workflow.completed")
-            record.status = RunStatus.COMPLETED
-            record.final_state = event.state
-            record.completed_at = event.timestamp
         elif event.type == WorkflowEventType.WORKFLOW_FAILED:
             if record.status == RunStatus.COMPLETED:
                 raise RunStoreError("completed run cannot receive workflow.failed")
             record.status = RunStatus.FAILED
             record.completed_at = event.timestamp
             error = event.payload.get("error")
-            record.error = str(error) if error is not None else "workflow failed"
+            record.error = normalize_public_error(error)

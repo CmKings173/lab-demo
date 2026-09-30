@@ -65,28 +65,28 @@ class WeKnoraDocumentSearch:
             "knowledge_base_id": self._knowledge_base_id,
         }
 
-        if request.product_id is not None:
-            mappings_by_id = {
-                mapping.knowledge_id: mapping
-                for mapping in self._documents.list_by_product_id(request.product_id)
-                if mapping.product_id == request.product_id
-                and mapping.knowledge_base_id == self._knowledge_base_id
-                and mapping.provider_parse_status == "completed"
-            }
-            if not mappings_by_id:
-                return DocumentSearchResult(hits=[], total=0)
-            payload["knowledge_ids"] = list(mappings_by_id)
+        candidates = (
+            self._documents.list_by_product_id(request.product_id)
+            if request.product_id is not None
+            else self._documents.list_by_knowledge_base_id(self._knowledge_base_id)
+        )
+        mappings_by_id = {
+            mapping.knowledge_id: mapping
+            for mapping in candidates
+            if (request.product_id is None or mapping.product_id == request.product_id)
+            and mapping.knowledge_base_id == self._knowledge_base_id
+            and mapping.provider_parse_status == "completed"
+        }
+        if not mappings_by_id:
+            return DocumentSearchResult(hits=[], total=0)
+        payload["knowledge_ids"] = list(mappings_by_id)
 
         provider_data = self._request(payload)
-        verified_mappings = dict(mappings_by_id)
-        unscoped_mapping_cache: dict[str, ProductDocumentMapping | None] = {}
         hits = [
             self._map_hit(
                 item,
                 index=index,
-                request=request,
-                mappings_by_id=verified_mappings,
-                unscoped_mapping_cache=unscoped_mapping_cache,
+                mappings_by_id=mappings_by_id,
             )
             for index, item in enumerate(provider_data, start=1)
         ]
@@ -133,9 +133,7 @@ class WeKnoraDocumentSearch:
         provider_hit: dict[str, Any],
         *,
         index: int,
-        request: DocumentSearchRequest,
         mappings_by_id: dict[str, ProductDocumentMapping],
-        unscoped_mapping_cache: dict[str, ProductDocumentMapping | None],
     ) -> DocumentHit:
         chunk_id = self._required_text(provider_hit, "id", index)
         text = self._required_text(provider_hit, "content", index)
@@ -177,29 +175,16 @@ class WeKnoraDocumentSearch:
             self._add_safe_metadata(metadata, "provider_score", str(score))
 
         mapping = mappings_by_id.get(knowledge_id)
-        if request.product_id is not None and mapping is None:
+        if mapping is None:
             raise WeKnoraDocumentSearchError(
-                f"WeKnora returned unmapped knowledge id for product-scoped search (hit {index})"
+                f"WeKnora returned unmapped knowledge id for search (hit {index})"
             )
-        if request.product_id is None and index <= request.top_k:
-            if knowledge_id not in unscoped_mapping_cache:
-                unscoped_mapping_cache[knowledge_id] = self._documents.get_by_knowledge_id(
-                    self._knowledge_base_id, knowledge_id
-                )
-            mapping = unscoped_mapping_cache[knowledge_id]
-            if mapping is not None and (
-                mapping.knowledge_base_id != self._knowledge_base_id
-                or mapping.knowledge_id != knowledge_id
-            ):
-                mapping = None
 
         chunk = DocumentChunk(
             id=chunk_id,
             text=text,
-            product_id=request.product_id if request.product_id is not None else (
-                mapping.product_id if mapping is not None else None
-            ),
-            source_url=mapping.source_url if mapping is not None else None,
+            product_id=mapping.product_id,
+            source_url=mapping.source_url,
             page=None,
             metadata=metadata,
         )

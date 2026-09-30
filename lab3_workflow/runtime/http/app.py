@@ -1,19 +1,32 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, Query, Request
+from fastapi import FastAPI, Header, Query, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from shared.contracts import CustomerRequirement, WorkflowEvent, WorkflowTopology
+from shared.contracts import ChatMessage, CustomerRequirement, WorkflowEvent, WorkflowTopology
 
 from ...workflow.orchestrator import DeterministicWorkflow
+from ..conversation import (
+    ConversationService,
+    ConversationServiceError,
+    missing_information_question,
+)
 from ..demo import create_demo_workflow
 from ..runs.models import RunStatus
 from ..runs.store import InMemoryRunStore
+from .conversation_models import (
+    ConversationRunRequest,
+    ConversationRunResponse,
+    ConversationRunSubmittedResponse,
+    NeedsInformationResponse,
+    RunExplanationResponse,
+)
 from .models import APIErrorDetail, APIErrorResponse, CreateRunResponse, RunSnapshot
 from .runs import WorkflowFactory, WorkflowRunService
 
@@ -72,14 +85,35 @@ def create_app(
     *,
     workflow_factory: WorkflowFactory | None = None,
     store: InMemoryRunStore | None = None,
+    shutdown_callback: Callable[[], None] | None = None,
+    conversation_service: ConversationService | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="Lab demo workflow API", version="0.1.0")
     service = WorkflowRunService(workflow_factory=workflow_factory, store=store)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        try:
+            yield
+        finally:
+            try:
+                service.shutdown()
+            finally:
+                if shutdown_callback is not None:
+                    shutdown_callback()
+
+    app = FastAPI(title="Lab demo workflow API", version="0.1.0", lifespan=lifespan)
     app.state.run_service = service
+    app.state.conversation_service = conversation_service
 
     @app.exception_handler(APIError)
     async def handle_api_error(_: Request, error: APIError) -> JSONResponse:
         return _error_response(error)
+
+    @app.exception_handler(ConversationServiceError)
+    async def handle_conversation_error(
+        _: Request, error: ConversationServiceError
+    ) -> JSONResponse:
+        return _error_response(APIError(error.status_code, error.code, error.message))
 
     @app.exception_handler(RequestValidationError)
     async def handle_request_validation(_: Request, error: RequestValidationError) -> JSONResponse:
@@ -92,6 +126,11 @@ def create_app(
             )
         )
 
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        """Report only that the Lab 3 HTTP process can serve requests."""
+        return {"status": "ok"}
+
     @app.post(
         "/runs",
         response_model=CreateRunResponse,
@@ -103,6 +142,65 @@ def create_app(
             raise APIError(503, "WORKFLOW_NOT_CONFIGURED", "Workflow execution is not configured.")
         record = service.submit(requirement)
         return CreateRunResponse(run_id=record.run_id, status=record.status)
+
+    @app.post("/conversation/runs", response_model=ConversationRunResponse)
+    def create_conversation_run(
+        request: ConversationRunRequest,
+        response: Response,
+    ) -> ConversationRunResponse:
+        if conversation_service is None:
+            raise APIError(
+                503,
+                "CONVERSATION_NOT_CONFIGURED",
+                "Natural-language conversation is not configured.",
+            )
+        if service.workflow_factory is None:
+            raise APIError(503, "WORKFLOW_NOT_CONFIGURED", "Workflow execution is not configured.")
+        requirement = conversation_service.extract_requirement(
+            [
+                ChatMessage(role=message.role, content=message.content)
+                for message in request.messages
+            ]
+        )
+        missing_fields = requirement.missing_required_fields()
+        if missing_fields:
+            return NeedsInformationResponse(
+                status="needs_information",
+                requirement=requirement,
+                missing_fields=missing_fields,
+                question=missing_information_question(missing_fields),
+            )
+        record = service.submit(requirement)
+        response.status_code = 202
+        return ConversationRunSubmittedResponse(
+            status="submitted",
+            run_id=record.run_id,
+            run_status=record.status,
+            requirement=requirement,
+        )
+
+    @app.post(
+        "/runs/{run_id}/explanation",
+        response_model=RunExplanationResponse,
+        responses={404: {"model": APIErrorResponse}, 409: {"model": APIErrorResponse}},
+    )
+    def explain_run(run_id: str) -> RunExplanationResponse:
+        if conversation_service is None:
+            raise APIError(
+                503,
+                "CONVERSATION_NOT_CONFIGURED",
+                "Natural-language conversation is not configured.",
+            )
+        record = service.store.get(run_id)
+        if record is None:
+            raise APIError(404, "RUN_NOT_FOUND", "Run was not found.")
+        explanation = conversation_service.explain(record)
+        return RunExplanationResponse(
+            run_id=record.run_id,
+            status=record.status,
+            final_state=record.final_state,
+            explanation=explanation,
+        )
 
     @app.get(
         "/runs/{run_id}",

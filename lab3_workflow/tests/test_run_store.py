@@ -19,6 +19,7 @@ from lab3_workflow.tests.test_workflow import build_workflow, make_compatible_pr
 from shared.contracts import (
     CustomerRequirement,
     UsageType,
+    WorkflowContext,
     WorkflowEvent,
     WorkflowEventType,
     WorkflowState,
@@ -32,6 +33,14 @@ def complete_requirement() -> CustomerRequirement:
         concurrent_users=2,
         budget_vnd=300_000_000,
         storage_requirement_gb=1000,
+    )
+
+
+def workflow_context(final_state: WorkflowState) -> WorkflowContext:
+    return WorkflowContext(
+        requirement=complete_requirement(),
+        state=final_state,
+        history=[WorkflowState.RECEIVED, final_state],
     )
 
 
@@ -95,8 +104,37 @@ def test_event_append_is_ordered_and_events_after_replays_cursor() -> None:
     assert [event.sequence for event in record.events] == [1, 2]
     assert [event.sequence for event in store.events_after("run-1", 0)] == [1, 2]
     assert [event.sequence for event in store.events_after("run-1", 1)] == [2]
-    assert record.status == RunStatus.COMPLETED
-    assert record.final_state == WorkflowState.COMPLETE
+    assert record.status == RunStatus.RUNNING
+    assert record.final_state is None
+    assert record.result is None
+
+
+def test_completed_event_is_not_published_as_completed_until_result_is_ready() -> None:
+    store = InMemoryRunStore()
+    store.create_run("run-atomic")
+    store.append_event(make_event("run-atomic", 1, WorkflowEventType.WORKFLOW_STARTED))
+    store.append_event(
+        make_event(
+            "run-atomic",
+            2,
+            WorkflowEventType.WORKFLOW_COMPLETED,
+            state=WorkflowState.COMPLETE,
+            payload={"final_state": WorkflowState.COMPLETE.value},
+        )
+    )
+
+    during_publication = store.get("run-atomic")
+    if during_publication is None:
+        raise AssertionError("run disappeared during result publication")
+    if during_publication.status != RunStatus.RUNNING or during_publication.result is not None:
+        raise AssertionError("completed status was visible before the result")
+
+    result = workflow_context(WorkflowState.COMPLETE)
+    completed = store.mark_completed(
+        "run-atomic", final_state=WorkflowState.COMPLETE, result=result
+    )
+    if completed.status != RunStatus.COMPLETED or completed.result is None:
+        raise AssertionError("completed status and result were not published together")
 
 
 @pytest.mark.parametrize("sequence", [1, 3])
@@ -142,9 +180,14 @@ def test_business_terminal_outcome_is_completed_run() -> None:
         )
     )
 
-    record = store.mark_completed("run-1", final_state=WorkflowState.PROPOSAL_FAILED)
+    record = store.mark_completed(
+        "run-1",
+        final_state=WorkflowState.PROPOSAL_FAILED,
+        result=workflow_context(WorkflowState.PROPOSAL_FAILED),
+    )
     assert record.status == RunStatus.COMPLETED
     assert record.final_state == WorkflowState.PROPOSAL_FAILED
+    assert record.result is not None
 
 
 def test_technical_failure_is_failed_run() -> None:
@@ -163,9 +206,14 @@ def test_technical_failure_is_failed_run() -> None:
     record = store.get("run-1")
     assert record is not None
     assert record.status == RunStatus.FAILED
-    assert record.error == "catalog unavailable"
+    if record.error != "WORKFLOW_EXECUTION_FAILED":
+        raise AssertionError("run store exposed the technical exception text")
     with pytest.raises(RunStoreError):
-        store.mark_completed("run-1", final_state=WorkflowState.COMPLETE)
+        store.mark_completed(
+            "run-1",
+            final_state=WorkflowState.COMPLETE,
+            result=workflow_context(WorkflowState.COMPLETE),
+        )
 
 
 def test_conflicting_terminal_event_does_not_corrupt_history() -> None:
@@ -188,7 +236,8 @@ def test_conflicting_terminal_event_does_not_corrupt_history() -> None:
 
     record = store.get("run-1")
     assert record is not None
-    assert record.status == RunStatus.COMPLETED
+    assert record.status == RunStatus.RUNNING
+    assert record.result is None
     assert [event.sequence for event in record.events] == [1, 2]
 
 
@@ -205,6 +254,10 @@ def test_completed_run_rejects_events_after_terminal_event(
     store.append_event(
         make_event("run-1", 2, WorkflowEventType.WORKFLOW_COMPLETED, state=WorkflowState.COMPLETE)
     )
+    store.mark_completed(
+        "run-1", final_state=WorkflowState.COMPLETE,
+        result=workflow_context(WorkflowState.COMPLETE),
+    )
 
     with pytest.raises(RunStoreError):
         store.append_event(make_event("run-1", 3, event_type))
@@ -212,6 +265,7 @@ def test_completed_run_rejects_events_after_terminal_event(
     record = store.get("run-1")
     assert record is not None
     assert record.status == RunStatus.COMPLETED
+    assert record.result is not None
     assert [event.sequence for event in record.events] == [1, 2]
 
 
@@ -242,6 +296,17 @@ def test_run_record_rejects_failed_state_without_error() -> None:
 
     with pytest.raises(ValidationError):
         RunRecord(run_id="run-1", status=RunStatus.FAILED)
+
+
+def test_run_record_rejects_completed_status_without_result() -> None:
+    from lab3_workflow.runtime.runs.models import RunRecord
+
+    with pytest.raises(ValidationError):
+        RunRecord(
+            run_id="run-completed-without-result",
+            status=RunStatus.COMPLETED,
+            final_state=WorkflowState.COMPLETE,
+        )
 
 
 def test_workflow_events_can_be_stored_and_completed_with_result() -> None:

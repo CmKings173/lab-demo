@@ -4,12 +4,17 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 
+from lab3_workflow.errors import (
+    PROPOSAL_GENERATION_FAILED,
+    SIZING_FAILED,
+)
 from lab3_workflow.evidence import DeterministicProductFactResolver
 from lab3_workflow.requirement import RequirementAnalyzer
 from lab3_workflow.workflow.events import NoOpWorkflowEventSink, WorkflowEventEmitter
 from shared.contracts import (
     CustomerRequirement,
     DocumentSearchRequest,
+    DocumentSearchResult,
     ProductCandidate,
     ProductFilter,
     ProductSearchRequest,
@@ -41,7 +46,6 @@ class WorkflowTransitionError(ValueError):
 _ACTIVE_EVENT_EMITTER: ContextVar[WorkflowEventEmitter | None] = ContextVar(
     "active_workflow_event_emitter", default=None
 )
-
 
 @contextmanager
 def _observed_tool(
@@ -184,7 +188,7 @@ class DeterministicWorkflow:
                 )
             )
         except Exception as exc:
-            context.errors.append(str(exc))
+            context.errors.append(SIZING_FAILED)
             emitter = _ACTIVE_EVENT_EMITTER.get()
             if emitter is not None:
                 emitter.state_failed(WorkflowState.SIZE, exc)
@@ -236,18 +240,38 @@ class DeterministicWorkflow:
             validation = context.validation_results[configuration.configuration_id]
             if validation.status == ValidationStatus.FAIL:
                 continue
-            resolvable = [field for field in validation.unknown_fields
-                          if field in {"max_ram_gb", "max_gpu_slots", "max_storage_gb"}]
-            query_fields = resolvable + ["memory_gb", "capacity_gb", "max_gpu_slots", "max_ram_gb"]
-            document_request = DocumentSearchRequest(
-                query=" ".join(query_fields),
-                product_id=configuration.product.id,
-            )
-            with _observed_tool(
-                "DocumentSearch.search",
-                {"product_id": document_request.product_id},
-            ):
-                result = self.document_search.search(document_request)
+            resolvable = [
+                field
+                for field in validation.unknown_fields
+                if field in {"max_ram_gb", "max_gpu_slots", "max_storage_gb"}
+            ]
+            result = DocumentSearchResult()
+            real_search_terms = getattr(self.fact_resolver, "document_search_terms", None)
+            if real_search_terms is None:
+                # Preserve the offline fixture/demo retrieval behavior. Real Lab3
+                # composition supplies field-specific human-readable terms below.
+                query_fields = resolvable + [
+                    "memory_gb",
+                    "capacity_gb",
+                    "max_gpu_slots",
+                    "max_ram_gb",
+                ]
+            else:
+                query_fields = [
+                    real_search_terms[field]
+                    for field in sorted(resolvable)
+                    if field in real_search_terms
+                ]
+            if query_fields:
+                document_request = DocumentSearchRequest(
+                    query=" ".join(query_fields),
+                    product_id=configuration.product.id,
+                )
+                with _observed_tool(
+                    "DocumentSearch.search",
+                    {"product_id": document_request.product_id},
+                ):
+                    result = self.document_search.search(document_request)
             context.document_hits.extend(result.hits)
             emitter = _ACTIVE_EVENT_EMITTER.get()
             if emitter is not None:
@@ -315,7 +339,7 @@ class DeterministicWorkflow:
                 context.document_hits,
             )
         except Exception as exc:
-            context.errors.append(str(exc))
+            context.errors.append(PROPOSAL_GENERATION_FAILED)
             emitter = _ACTIVE_EVENT_EMITTER.get()
             if emitter is not None:
                 emitter.state_failed(WorkflowState.GENERATE_PROPOSAL, exc)

@@ -1,0 +1,58 @@
+{
+  "benchmark_hash": "ae8de7a6850f5aa46020f67024cbbb83ccfbc7da85d4f438e2541a8124aba9ed",
+  "base_model": "Qwen/Qwen3-14B",
+  "candidate_model": "qwen3-14b-lora",
+  "base_failed_cases": 0,
+  "candidate_failed_cases": 0,
+  "metrics": {
+    "abstention_accuracy": {
+      "base": 0.6666666666666666,
+      "candidate": 0.7416666666666667,
+      "delta": 0.075,
+      "base_count": 120,
+      "candidate_count": 120
+    },
+    "missing_tool_call_rate": {
+      "base": 0.1,
+      "candidate": 0.016666666666666666,
+      "delta": -0.083333,
+      "base_count": 120,
+      "candidate_count": 120
+    },
+    "tool_argument_accuracy": {
+      "base": 0.17142857142857143,
+      "candidate": 0.17142857142857143,
+      "delta": 0.0,
+      "base_count": 70,
+      "candidate_count": 70
+    },
+    "tool_call_required_accuracy": {
+      "base": 0.95,
+      "candidate": 0.9666666666666667,
+      "delta": 0.016667,
+      "base_count": 120,
+      "candidate_count": 120
+    },
+    "tool_call_sequence_accuracy": {
+      "base": 0.0,
+      "candidate": 0.8,
+      "delta": 0.8,
+      "base_count": 10,
+      "candidate_count": 10
+    },
+    "tool_name_accuracy": {
+      "base": 0.7714285714285715,
+      "candidate": 0.9142857142857143,
+      "delta": 0.142857,
+      "base_count": 70,
+      "candidate_count": 70
+    },
+    "unexpected_tool_call_rate": {
+      "base": 0.09166666666666666,
+      "candidate": 0.05,
+      "delta": -0.041667,
+      "base_count": 120,
+      "candidate_count": 120
+    }
+  }
+}

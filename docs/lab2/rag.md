@@ -5,8 +5,12 @@
 The real document backend selected for Lab2 is WeKnora v0.8.0, called through
 `POST /api/v1/knowledge-search`; it returns evidence chunks rather than an agent
 answer. For a product-scoped query, resolve the product's mapped WeKnora knowledge
-IDs and send them together with the configured knowledge-base ID. If the mapping is
-empty, return no evidence instead of broadening the request. The older dense/sparse/
+IDs and send them together with the configured knowledge-base ID. For an unscoped
+query, resolve all completed product-document mappings in that configured knowledge
+base and send only their knowledge IDs. Pending, failed, unmapped, and other-KB
+documents are never eligible. If the eligible mapping set is empty, return no
+evidence without calling WeKnora; a provider hit outside the sent allowlist fails
+closed. Neither query mode broadens to a whole-knowledge-base search. The older dense/sparse/
 hybrid evaluation notes below are historical and do not authorize a Lab-owned
 embedding, vector-store or reranking implementation.
 

@@ -6,6 +6,7 @@
   "files": [
     "dist",
     "openclaw.plugin.json",
+    "examples/lab2-agent.json",
     "README.md"
   ],
   "scripts": {

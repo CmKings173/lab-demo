@@ -85,6 +85,10 @@ class ProductDocumentMapping(ProductDocumentUpsert):
 class ProductDocumentRepository(Protocol):
     def list_by_product_id(self, product_id: str) -> Sequence[ProductDocumentMapping]: ...
 
+    def list_by_knowledge_base_id(
+        self, knowledge_base_id: str
+    ) -> Sequence[ProductDocumentMapping]: ...
+
     def get_by_knowledge_id(
         self, knowledge_base_id: str, knowledge_id: str
     ) -> ProductDocumentMapping | None: ...

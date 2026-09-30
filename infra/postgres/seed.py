@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -16,6 +18,36 @@ from shared.contracts import Product, ProductType
 DEFAULT_SEED = (
     Path(__file__).resolve().parents[2] / "lab2_rag_agent/data/catalog/products.demo.json"
 )
+
+DEMO_CONFIGURATION_OPTIONS = [
+    {
+        "option_id": "demo-gpu-rtxpro6000-96",
+        "option_type": "gpu",
+        "name": "RTX PRO 6000 Blackwell Max-Q 96GB (DEMO option)",
+        "memory_gb": 96,
+        "source_urls": [
+            "https://cnttshop.vn/workstation-ai-2-gpu-nvidia-rtx-pro-max-q-192gb-vram"
+        ],
+        "supported_product_ids": ["cntt-ws-rtxpro6000-maxq"],
+    },
+    {
+        "option_id": "demo-ram-512gb",
+        "option_type": "ram",
+        "capacity_gb": 512,
+        "price_vnd": 160_000_000,
+        "source_urls": ["https://example.invalid/lab3-demo/ram-512gb"],
+        "supported_product_ids": ["cntt-ws-rtxpro6000-maxq"],
+    },
+    {
+        "option_id": "demo-storage-nvme-2048gb",
+        "option_type": "storage",
+        "capacity_gb": 2048,
+        "storage_type": "NVMe SSD (DEMO)",
+        "price_vnd": 20_000_000,
+        "source_urls": ["https://example.invalid/lab3-demo/storage-nvme-2tb"],
+        "supported_product_ids": ["cntt-ws-rtxpro6000-maxq"],
+    },
+]
 
 
 class SeedProduct(BaseModel):
@@ -84,6 +116,58 @@ class SeedProduct(BaseModel):
         return self
 
 
+class ConfigurationOptionSeed(BaseModel):
+    """Typed curated option row and explicit product compatibility links."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    option_id: str = Field(min_length=1, max_length=100)
+    option_type: Literal["gpu", "ram", "storage"]
+    name: str | None = None
+    memory_gb: int | None = Field(default=None, gt=0)
+    capacity_gb: int | None = Field(default=None, gt=0)
+    storage_type: str | None = None
+    price_vnd: int | None = Field(default=None, ge=0)
+    source_urls: list[str] = Field(min_length=1)
+    supported_product_ids: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_typed_option(self) -> "ConfigurationOptionSeed":
+        if not self.option_id.strip():
+            raise ValueError("option_id must not be blank")
+        if any(not url.startswith(("https://", "http://")) for url in self.source_urls):
+            raise ValueError("source_urls must contain HTTP URLs")
+        if any(not product_id.strip() for product_id in self.supported_product_ids):
+            raise ValueError("supported_product_ids must not contain blank IDs")
+        if len(self.supported_product_ids) != len(set(self.supported_product_ids)):
+            raise ValueError("supported_product_ids must be unique")
+        if self.option_type == "gpu":
+            valid_shape = (
+                self.name is not None
+                and bool(self.name.strip())
+                and self.memory_gb is not None
+                and self.capacity_gb is None
+                and self.storage_type is None
+            )
+        elif self.option_type == "ram":
+            valid_shape = (
+                self.name is None
+                and self.memory_gb is None
+                and self.capacity_gb is not None
+                and self.storage_type is None
+            )
+        else:
+            valid_shape = (
+                self.name is None
+                and self.memory_gb is None
+                and self.capacity_gb is not None
+                and (self.storage_type is None or bool(self.storage_type.strip()))
+            )
+        if not valid_shape:
+            raise ValueError("option fields do not match option_type")
+        return self
+
+
 def load_seed(path: Path = DEFAULT_SEED) -> list[SeedProduct]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
@@ -93,6 +177,24 @@ def load_seed(path: Path = DEFAULT_SEED) -> list[SeedProduct]:
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate product id in seed")
     return products
+
+
+def load_configuration_option_seed(
+    products: Sequence[SeedProduct] | None = None,
+) -> list[ConfigurationOptionSeed]:
+    catalog = list(products) if products is not None else load_seed()
+    product_ids = {product.id for product in catalog}
+    options = [
+        ConfigurationOptionSeed.model_validate(item) for item in DEMO_CONFIGURATION_OPTIONS
+    ]
+    option_ids = [option.option_id for option in options]
+    if len(option_ids) != len(set(option_ids)):
+        raise ValueError("duplicate configuration option id in seed")
+    for option in options:
+        unknown_ids = set(option.supported_product_ids) - product_ids
+        if unknown_ids:
+            raise ValueError("configuration option references a product missing from seed")
+    return options
 
 
 def upsert_products(connection, products: list[SeedProduct]) -> int:
@@ -117,20 +219,70 @@ def upsert_products(connection, products: list[SeedProduct]) -> int:
     return len(products)
 
 
+def upsert_configuration_options(
+    connection, options: list[ConfigurationOptionSeed]
+) -> int:
+    from psycopg.types.json import Jsonb
+
+    statement = (
+        "INSERT INTO configuration_options "
+        "(option_id, option_type, name, memory_gb, capacity_gb, storage_type, "
+        "price_vnd, source_urls) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+        "ON CONFLICT (option_id) DO UPDATE SET "
+        "option_type = EXCLUDED.option_type, name = EXCLUDED.name, "
+        "memory_gb = EXCLUDED.memory_gb, capacity_gb = EXCLUDED.capacity_gb, "
+        "storage_type = EXCLUDED.storage_type, price_vnd = EXCLUDED.price_vnd, "
+        "source_urls = EXCLUDED.source_urls"
+    )
+    link_statement = (
+        "INSERT INTO configuration_option_products (option_id, product_id) "
+        "VALUES (%s, %s) ON CONFLICT (option_id, product_id) DO NOTHING"
+    )
+    stale_link_statement = (
+        "DELETE FROM configuration_option_products "
+        "WHERE option_id = %s AND product_id <> ALL(%s)"
+    )
+    with connection.cursor() as cursor:
+        for option in options:
+            cursor.execute(
+                statement,
+                (
+                    option.option_id,
+                    option.option_type,
+                    option.name,
+                    option.memory_gb,
+                    option.capacity_gb,
+                    option.storage_type,
+                    option.price_vnd,
+                    Jsonb(option.source_urls),
+                ),
+            )
+            supported_product_ids = sorted(option.supported_product_ids)
+            cursor.execute(
+                stale_link_statement,
+                (option.option_id, supported_product_ids),
+            )
+            for product_id in supported_product_ids:
+                cursor.execute(link_statement, (option.option_id, product_id))
+    return len(options)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=Path, default=DEFAULT_SEED)
     args = parser.parse_args()
     load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
     products = load_seed(args.seed)
+    options = load_configuration_option_seed(products)
     dsn = os.environ.get("LAB2_POSTGRES_DSN")
     if not dsn:
         raise SystemExit("LAB2_POSTGRES_DSN is required")
     import psycopg
 
     with psycopg.connect(dsn) as connection:
-        count = upsert_products(connection, products)
-    print(f"Upserted {count} products")
+        product_count = upsert_products(connection, products)
+        option_count = upsert_configuration_options(connection, options)
+    print(f"Upserted {product_count} products and {option_count} DEMO configuration options")
 
 
 if __name__ == "__main__":
