@@ -9,6 +9,7 @@ class UsageType(StrEnum):
 class ProductType(StrEnum):
     AI_SERVER = "ai_server"
     AI_WORKSTATION = "ai_workstation"
+    AI_PC = "ai_pc"
 
 
 class ValidationStatus(StrEnum):

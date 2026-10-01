@@ -1,8 +1,12 @@
 from pydantic import Field
 
+from lab1_finetune.data.frozen_contracts import (
+    ChatMessage,
+    ContractModel,
+    ToolCall,
+    ToolDefinition,
+)
 from lab1_finetune.data.schema import DatasetLabels
-from shared.contracts import ChatMessage, ToolCall, ToolDefinition
-from shared.contracts.models import ContractModel
 
 
 class EvaluationCase(ContractModel):

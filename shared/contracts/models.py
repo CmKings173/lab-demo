@@ -65,24 +65,37 @@ class ModelResponse(ContractModel):
 
 class Product(ContractModel):
     id: str
-    sku: str
+    sku: str | None = None
     name: str
-    manufacturer: str
+    manufacturer: str | None = None
     product_type: ProductType
     platform: str | None = None
+    cpu_model: str | None = None
     cpu_options: list[str] = Field(default_factory=list)
+    gpu_vendor: str | None = None
+    gpu_model: str | None = None
+    gpu_count: int | None = Field(default=None, gt=0)
+    gpu_vram_per_gpu_gb: float | None = Field(default=None, gt=0)
+    total_gpu_vram_gb: float | None = Field(default=None, gt=0)
     max_ram_gb: int | None = Field(default=None, ge=0)
+    installed_ram_gb: int | None = Field(default=None, gt=0)
     max_gpu_slots: int | None = Field(default=None, ge=0)
     max_storage_gb: int | None = Field(default=None, ge=0)
+    installed_storage_gb: int | None = Field(default=None, gt=0)
     storage_slots: int | None = Field(default=None, ge=0)
     power_w: int | None = Field(default=None, ge=0)
     form_factor: str | None = None
     base_price_vnd: int | None = Field(default=None, ge=0)
+    # Seller's price for the listed configuration, not Lab 3's chassis base price.
+    listed_price_vnd: int | None = Field(default=None, ge=0)
     base_price_includes: set[Literal["chassis", "cpu", "ram", "storage"]] = Field(
         default_factory=lambda: {"chassis"}
     )
     availability: str | None = None
+    source_url: str | None = None
     source_urls: list[str] = Field(default_factory=list)
+    source_retrieved_at: datetime | None = None
+    specs: dict[str, Any] = Field(default_factory=dict)
     updated_at: datetime | None = None
 
 
@@ -273,8 +286,17 @@ class ProductConfiguration(ContractModel):
 class ProductFilter(ContractModel):
     min_ram_gb: int | None = Field(default=None, ge=0)
     min_gpu_count: int | None = Field(default=None, ge=0)
-    max_base_price_vnd: int | None = Field(default=None, ge=0)
+    max_base_price_vnd: int | None = Field(
+        default=None, ge=0, description="Giới hạn giá máy cơ bản, chưa gồm cấu hình đầy đủ."
+    )
+    max_listed_price_vnd: int | None = Field(
+        default=None, ge=0, description="Giới hạn giá niêm yết của cấu hình trên trang nguồn."
+    )
     product_type: ProductType | None = None
+    min_total_gpu_vram_gb: float | None = Field(default=None, ge=0)
+    min_installed_ram_gb: int | None = Field(default=None, ge=0)
+    gpu_vendor: str | None = None
+    availability: str | None = None
 
 
 class ProductSearchRequest(ContractModel):
@@ -392,10 +414,18 @@ class ConfigurationComparison(ContractModel):
     unknown_facts: list[str] = Field(default_factory=list)
 
 
+class ProductComparison(ContractModel):
+    """Actual catalog facts for one product, preserving unavailable values as null."""
+
+    product: Product
+    unknown_facts: list[str] = Field(default_factory=list)
+
+
 class ComparisonResult(ContractModel):
     product_ids: list[str]
     configuration_ids: list[str] = Field(default_factory=list)
     configurations: list[ConfigurationComparison] = Field(default_factory=list)
+    products: list[ProductComparison] = Field(default_factory=list)
     dimensions: list[str] = Field(default_factory=list)
     summary: str
 

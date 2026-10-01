@@ -1,0 +1,43 @@
+{
+  "total": 84,
+  "family_counts": {
+    "expanded_comparison": 7,
+    "expanded_contradictory": 7,
+    "expanded_failure_abstention": 7,
+    "expanded_lora_inference": 7,
+    "expanded_missing_information": 7,
+    "expanded_multi_tool": 7,
+    "expanded_novice_users": 7,
+    "expanded_out_of_scope": 7,
+    "expanded_product_search": 7,
+    "expanded_requirement_change": 7,
+    "expanded_solution_design": 7,
+    "expanded_technical_questions": 7
+  },
+  "persona_counts": {
+    "DEVELOPER": 12,
+    "IT_GENERALIST": 12,
+    "MANAGER": 12,
+    "ML_ENGINEER": 12,
+    "NON_TECHNICAL_USER": 12,
+    "PURCHASING": 12,
+    "SOLUTION_ARCHITECT": 12
+  },
+  "difficulty_counts": {
+    "medium": 24,
+    "hard": 20,
+    "easy": 40
+  },
+  "turn_counts": {
+    "multi_turn": 30,
+    "single_turn": 54
+  },
+  "tool_pattern_counts": {
+    "single_tool": 40,
+    "no_tool": 33,
+    "failure": 4,
+    "multi_tool": 7
+  },
+  "abstention_count": 32,
+  "failure_count": 4
+}

@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+/pytest-*/
 .ruff_cache/
 .mypy_cache/
 .coverage
@@ -18,5 +19,8 @@ build/
 .idea/
 .vscode/
 .worktrees/
-references/
+references/*
+!references/weknora/
+references/weknora/*
+!references/weknora/SOURCE.md
 *.log

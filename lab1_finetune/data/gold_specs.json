@@ -4,7 +4,7 @@
     "family": "01_solution_complete",
     "scenario": "solution_complete",
     "intent": "solution_design",
-    "user": "Bên mình đang dựng chatbot nội bộ bằng Qwen 32B. Chỉ chạy inference, khoảng 5 người dùng cùng lúc, ngân sách tối đa 300 triệu. Tư vấn giúp một cấu hình phù hợp.",
+    "user": "Bên mình muốn dựng chatbot nội bộ bằng Qwen 32B, khoảng 5 người dùng cùng lúc. Ngân sách tối đa 300 triệu, tư vấn giúp cấu hình phù hợp.",
     "requirement": {
       "model_size_b": 32,
       "usage": "inference",
@@ -12,7 +12,7 @@
       "budget_vnd": 300000000
     },
     "missing": [],
-    "final": "Kết quả ước lượng cần khoảng 96GB tổng VRAM và 336GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "final": "Với nhu cầu này, ước tính ban đầu cần khoảng 96GB VRAM và 336GB RAM hệ thống. Mình chưa có đủ giá linh kiện để khẳng định cấu hình nào nằm trong mức 300 triệu.",
     "should_abstain": false,
     "steps": [
       {
@@ -29,7 +29,7 @@
           "recommended_system_ram_gb": 336,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -44,7 +44,7 @@
     "family": "01_solution_complete",
     "scenario": "solution_complete",
     "intent": "solution_design",
-    "user": "Team R&D cần chạy model 14B local, tầm 8 đến 10 user truy cập đồng thời, không fine-tune. Budget khoảng 220 triệu, ưu tiên workstation nếu đủ.",
+    "user": "Bên mình có khoảng 8–10 người dùng AI nội bộ, model tầm 14B. Chỉ cần chạy để sử dụng, không huấn luyện thêm. Tầm tiền 220 triệu, nếu workstation đáp ứng được thì ưu tiên.",
     "requirement": {
       "model_size_b": 14,
       "usage": "inference",
@@ -52,7 +52,7 @@
       "budget_vnd": 220000000
     },
     "missing": [],
-    "final": "Kết quả ước lượng cần khoảng 42GB tổng VRAM và 272GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "final": "Ước tính ban đầu cho nhu cầu này là khoảng 42GB VRAM và 272GB RAM hệ thống. Hiện chưa có đủ giá của toàn bộ cấu hình nên mình chưa thể chốt phương án nào nằm trong 220 triệu.",
     "should_abstain": false,
     "steps": [
       {
@@ -69,7 +69,7 @@
           "recommended_system_ram_gb": 272,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -84,7 +84,7 @@
     "family": "02_missing_budget",
     "scenario": "missing_budget",
     "intent": "solution_design",
-    "user": "Bên anh cần máy chạy Qwen 32B local, chủ yếu inference, khoảng 5 user. Cấu hình thế nào ổn?",
+    "user": "Bên anh muốn chạy Qwen 32B trong công ty, khoảng 5 người dùng cùng lúc. Tư vấn máy giúp anh.",
     "requirement": {
       "model_size_b": 32,
       "usage": "inference",
@@ -93,7 +93,7 @@
     "missing": [
       "budget_vnd"
     ],
-    "final": "Bạn dự kiến ngân sách tối đa cho hệ thống là bao nhiêu?",
+    "final": "Anh dự kiến chi tối đa khoảng bao nhiêu cho hệ thống này?",
     "should_abstain": false,
     "steps": []
   },
@@ -102,7 +102,7 @@
     "family": "02_missing_budget",
     "scenario": "missing_budget",
     "intent": "solution_design",
-    "user": "Mình cần workstation cho model 14B, chỉ chạy nội bộ thôi, không train.",
+    "user": "Mình cần workstation để chạy model 14B nội bộ, không cần huấn luyện lại.",
     "requirement": {
       "model_size_b": 14,
       "usage": "inference"
@@ -110,7 +110,7 @@
     "missing": [
       "budget_vnd"
     ],
-    "final": "Bạn dự kiến ngân sách tối đa cho hệ thống là bao nhiêu?",
+    "final": "Mình cần thêm khoảng ngân sách bạn dự kiến để lọc cấu hình phù hợp. Bạn muốn chi tối đa khoảng bao nhiêu?",
     "should_abstain": false,
     "steps": []
   },
@@ -119,7 +119,7 @@
     "family": "03_missing_usage",
     "scenario": "missing_usage",
     "intent": "solution_design",
-    "user": "Bên mình đã chốt ngân sách 350 triệu, model cỡ 32B. Nhờ tư vấn cấu hình.",
+    "user": "Bên mình có khoảng 350 triệu và đang tính dùng model cỡ 32B. Nhờ tư vấn cấu hình.",
     "requirement": {
       "model_size_b": 32,
       "budget_vnd": 350000000
@@ -127,7 +127,7 @@
     "missing": [
       "usage"
     ],
-    "final": "Bạn cần hệ thống để chạy inference hay fine-tune model?",
+    "final": "Bên mình chỉ cần dùng model để hỏi đáp/chạy dịch vụ, hay còn muốn huấn luyện hoặc tinh chỉnh model nữa?",
     "should_abstain": false,
     "steps": []
   },
@@ -136,7 +136,7 @@
     "family": "03_missing_usage",
     "scenario": "missing_usage",
     "intent": "solution_design",
-    "user": "Đang tính server cho model 70B, budget tối đa 800 triệu. Có phương án nào không?",
+    "user": "Mình đang cân nhắc server cho model 70B, ngân sách tối đa khoảng 800 triệu. Có phương án nào không?",
     "requirement": {
       "model_size_b": 70,
       "budget_vnd": 800000000
@@ -144,7 +144,7 @@
     "missing": [
       "usage"
     ],
-    "final": "Bạn cần hệ thống để chạy inference hay fine-tune model?",
+    "final": "Mình cần biết thêm cách dùng: chỉ chạy model để phục vụ người dùng, hay còn cần huấn luyện/tinh chỉnh model?",
     "should_abstain": false,
     "steps": []
   },
@@ -153,7 +153,7 @@
     "family": "04_missing_model_size",
     "scenario": "missing_model_size",
     "intent": "solution_design",
-    "user": "Công ty cần workstation chạy AI nội bộ, chủ yếu inference, ngân sách 250 triệu.",
+    "user": "Công ty cần workstation chạy AI nội bộ, chủ yếu để mọi người sử dụng hằng ngày, ngân sách khoảng 250 triệu.",
     "requirement": {
       "usage": "inference",
       "budget_vnd": 250000000
@@ -161,7 +161,7 @@
     "missing": [
       "model_size_b"
     ],
-    "final": "Bạn dự kiến chạy model nào hoặc model có khoảng bao nhiêu tỷ tham số?",
+    "final": "Bên mình đã chọn model cụ thể chưa? Nếu có, cho mình tên model hoặc quy mô khoảng bao nhiêu tỷ tham số để tính cấu hình.",
     "should_abstain": false,
     "steps": []
   },
@@ -170,7 +170,7 @@
     "family": "04_missing_model_size",
     "scenario": "missing_model_size",
     "intent": "solution_design",
-    "user": "Bên mình muốn triển khai LLM local cho bộ phận pháp chế, chỉ dùng hỏi đáp, budget khoảng 600 triệu.",
+    "user": "Bên mình muốn làm hệ thống hỏi đáp tài liệu cho bộ phận pháp chế, dữ liệu chạy nội bộ, ngân sách khoảng 600 triệu.",
     "requirement": {
       "usage": "inference",
       "budget_vnd": 600000000
@@ -178,7 +178,7 @@
     "missing": [
       "model_size_b"
     ],
-    "final": "Bạn dự kiến chạy model nào hoặc model có khoảng bao nhiêu tỷ tham số?",
+    "final": "Bạn đã chọn model để chạy chưa? Nếu chưa chốt tên model thì cho mình biết dự kiến dùng model cỡ bao nhiêu tỷ tham số.",
     "should_abstain": false,
     "steps": []
   },
@@ -187,14 +187,14 @@
     "family": "05_missing_multiple_fields",
     "scenario": "missing_multiple_fields",
     "intent": "solution_design",
-    "user": "Bên em cần một máy AI cho team kỹ thuật, tư vấn giúp.",
+    "user": "Công ty mình muốn có một máy AI dùng nội bộ cho team kỹ thuật nhưng mình không rành phần này. Tư vấn giúp cần bắt đầu từ đâu.",
     "requirement": {},
     "missing": [
       "model_size_b",
       "usage",
       "budget_vnd"
     ],
-    "final": "Bạn cho biết model hoặc quy mô model, mục đích inference hay fine-tune và ngân sách tối đa nhé.",
+    "final": "Được. Trước tiên mình cần ba thông tin: bên bạn định dùng AI để làm gì, đã chọn model nào chưa, và khoảng ngân sách dự kiến là bao nhiêu.",
     "should_abstain": false,
     "steps": []
   },
@@ -203,14 +203,14 @@
     "family": "05_missing_multiple_fields",
     "scenario": "missing_multiple_fields",
     "intent": "solution_design",
-    "user": "Sếp giao lên cấu hình hệ thống chạy LLM nội bộ, hiện mới có nhu cầu chung thôi.",
+    "user": "Sếp giao mình tìm phương án làm AI nội bộ nhưng hiện mới biết là muốn chạy tại công ty, chưa chốt model hay loại máy.",
     "requirement": {},
     "missing": [
       "model_size_b",
       "usage",
       "budget_vnd"
     ],
-    "final": "Bạn cho biết model hoặc quy mô model, mục đích inference hay fine-tune và ngân sách tối đa nhé.",
+    "final": "Mình cần hỏi thêm một chút: hệ thống sẽ chỉ dùng để hỏi đáp/chạy ứng dụng hay có huấn luyện thêm model, dự kiến dùng model nào, và mức chi tối đa khoảng bao nhiêu?",
     "should_abstain": false,
     "steps": []
   },
@@ -219,14 +219,14 @@
     "family": "06_ambiguous_solution",
     "scenario": "ambiguous_solution",
     "intent": "solution_design",
-    "user": "Có con máy AI nào mạnh nhất bên mình đang có không?",
+    "user": "Có mẫu máy AI nào mạnh nhất bên bạn không? Mình chưa biết nên chọn loại nào.",
     "requirement": {},
     "missing": [
       "model_size_b",
       "usage",
       "budget_vnd"
     ],
-    "final": "Tôi cần biết workload, quy mô model, mục đích sử dụng và ngân sách trước khi cấu hình.",
+    "final": "Máy mạnh nhất chưa chắc là phương án phù hợp nhất. Bạn cho mình biết AI sẽ dùng vào việc gì, dự kiến chạy model nào và khoảng ngân sách để mình tư vấn đúng hơn.",
     "should_abstain": false,
     "steps": []
   },
@@ -235,14 +235,14 @@
     "family": "06_ambiguous_solution",
     "scenario": "ambiguous_solution",
     "intent": "solution_design",
-    "user": "Lên cho anh một cấu hình thật mạnh, sau này khỏi nâng cấp nhiều.",
+    "user": "Lên giúp anh một con máy mạnh một chút, dùng lâu dài để đỡ phải nâng cấp.",
     "requirement": {},
     "missing": [
       "model_size_b",
       "usage",
       "budget_vnd"
     ],
-    "final": "Tôi cần biết workload, quy mô model, mục đích sử dụng và ngân sách trước khi cấu hình.",
+    "final": "Được, nhưng để tránh chọn máy quá thừa hoặc không đủ, anh cho mình biết nhu cầu sử dụng, model dự kiến và khoảng tiền muốn đầu tư.",
     "should_abstain": false,
     "steps": []
   },
@@ -251,7 +251,7 @@
     "family": "07_contradictory_requirement",
     "scenario": "contradictory_requirement",
     "intent": "solution_design",
-    "user": "Muốn fine-tune 70B bằng LoRA nhưng chỉ dùng 1 GPU 24GB, budget 100tr, có cách nào không?",
+    "user": "Mình muốn fine-tune model 70B bằng LoRA nhưng chỉ được dùng 1 GPU 24GB, ngân sách khoảng 100 triệu. Có cách nào đáp ứng không?",
     "requirement": {
       "model_size_b": 70,
       "usage": "fine_tune",
@@ -259,7 +259,7 @@
       "training_method": "LoRA"
     },
     "missing": [],
-    "final": "Các ràng buộc hiện tại mâu thuẫn với nhu cầu tài nguyên; tôi chưa thể khẳng định có cấu hình phù hợp.",
+    "final": "Với giới hạn chỉ 1 GPU 24GB, nhu cầu fine-tune model 70B bằng LoRA đang vượt khả năng phần cứng đã nêu. Mình chưa thể khẳng định có cấu hình phù hợp trong mức 100 triệu.",
     "should_abstain": true,
     "steps": []
   },
@@ -268,7 +268,7 @@
     "family": "07_contradictory_requirement",
     "scenario": "contradictory_requirement",
     "intent": "solution_design",
-    "user": "Bên mình bắt buộc chạy 70B full precision nhưng máy chỉ được một GPU 16GB. Cấu hình giúp.",
+    "user": "Bên mình bắt buộc chạy model 70B full precision nhưng máy chỉ được dùng một GPU 16GB. Có cấu hình nào làm được không?",
     "requirement": {
       "model_size_b": 70,
       "usage": "inference"
@@ -276,7 +276,7 @@
     "missing": [
       "budget_vnd"
     ],
-    "final": "Các ràng buộc hiện tại mâu thuẫn với nhu cầu tài nguyên; tôi chưa thể khẳng định có cấu hình phù hợp.",
+    "final": "Nếu bắt buộc chạy 70B full precision trên đúng một GPU 16GB thì giới hạn phần cứng hiện tại không đáp ứng nhu cầu. Mình chưa thể đề xuất một cấu hình hợp lệ từ các ràng buộc này.",
     "should_abstain": true,
     "steps": []
   },
@@ -285,10 +285,10 @@
     "family": "08_search_workstation_by_ram",
     "scenario": "search_workstation_by_ram",
     "intent": "product_search",
-    "user": "Có workstation nào hỗ trợ tối thiểu 512GB RAM không? Gửi mình mấy mẫu đang có trong catalog.",
+    "user": "Có workstation nào nâng được RAM ít nhất 512GB không? Cho mình xem mẫu đang có.",
     "requirement": {},
     "missing": [],
-    "final": "Danh mục giả lập trả về DEMO-WS-101: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "final": "DEMO-WS-101 đáp ứng yêu cầu: hỗ trợ tối đa 1024GB RAM và 8 khe GPU. Giá máy cơ bản đang là 80 triệu, chưa phải giá cấu hình hoàn chỉnh sau khi chọn đủ GPU, RAM và lưu trữ.",
     "should_abstain": false,
     "steps": [
       {
@@ -324,10 +324,10 @@
     "family": "08_search_workstation_by_ram",
     "scenario": "search_workstation_by_ram",
     "intent": "product_search",
-    "user": "Tìm giúp workstation có đường nâng RAM lên 1TB, chưa cần tư vấn model.",
+    "user": "Mình cần workstation sau này có thể nâng RAM lên 1TB. Tìm giúp mẫu nào phù hợp.",
     "requirement": {},
     "missing": [],
-    "final": "Danh mục giả lập trả về DEMO-WS-101: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "final": "DEMO-WS-101 hỗ trợ RAM tối đa 1024GB nên đáp ứng yêu cầu nâng lên 1TB. Máy có 8 khe GPU; giá máy cơ bản là 80 triệu và chưa bao gồm đầy đủ các linh kiện của cấu hình cuối.",
     "should_abstain": false,
     "steps": [
       {
@@ -363,10 +363,10 @@
     "family": "09_search_server_by_gpu_slots",
     "scenario": "search_server_by_gpu_slots",
     "intent": "product_search",
-    "user": "Bên mình cần shortlist server lắp được ít nhất 4 GPU.",
+    "user": "Bên mình cần server lắp được ít nhất 4 GPU. Tìm giúp mẫu nào đáp ứng.",
     "requirement": {},
     "missing": [],
-    "final": "Danh mục giả lập trả về DEMO-SRV-201: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "final": "DEMO-SRV-201 đáp ứng yêu cầu vì hỗ trợ tối đa 8 GPU và 1024GB RAM. Giá máy cơ bản hiện là 80 triệu, chưa phải tổng giá sau khi lắp đủ linh kiện.",
     "should_abstain": false,
     "steps": [
       {
@@ -402,10 +402,10 @@
     "family": "09_search_server_by_gpu_slots",
     "scenario": "search_server_by_gpu_slots",
     "intent": "product_search",
-    "user": "Trong catalog có mẫu server nào hỗ trợ 8 GPU không?",
+    "user": "Có server nào hỗ trợ đủ 8 GPU không?",
     "requirement": {},
     "missing": [],
-    "final": "Danh mục giả lập trả về DEMO-SRV-201: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "final": "Có DEMO-SRV-201, hỗ trợ tối đa 8 GPU và 1024GB RAM. Giá máy cơ bản là 80 triệu; muốn biết tổng chi phí còn phải tính GPU, RAM, lưu trữ và các thành phần khác.",
     "should_abstain": false,
     "steps": [
       {
@@ -441,10 +441,10 @@
     "family": "10_search_product_by_budget",
     "scenario": "search_product_by_budget",
     "intent": "product_search",
-    "user": "Tìm giúp workstation có giá nền trong catalog không quá 200 triệu.",
+    "user": "Tìm giúp workstation có giá máy cơ bản không quá 200 triệu; phần GPU, RAM và ổ cứng có thể tính sau.",
     "requirement": {},
     "missing": [],
-    "final": "Danh mục giả lập trả về DEMO-WS-101: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "final": "DEMO-WS-101 phù hợp với điều kiện này: giá máy cơ bản 80 triệu, hỗ trợ tối đa 1024GB RAM và 8 GPU. Đây chưa phải tổng giá của một cấu hình hoàn chỉnh.",
     "should_abstain": false,
     "steps": [
       {
@@ -480,10 +480,10 @@
     "family": "10_search_product_by_budget",
     "scenario": "search_product_by_budget",
     "intent": "product_search",
-    "user": "Lọc giúp server AI có giá nền tối đa 500 triệu.",
+    "user": "Có server AI nào phần máy cơ bản dưới 500 triệu không? Chưa cần tính đủ GPU và RAM.",
     "requirement": {},
     "missing": [],
-    "final": "Danh mục giả lập trả về DEMO-SRV-201: tối đa 1024GB RAM, 8 khe GPU, giá nền 80 triệu đồng. Giá nền chưa phải giá cấu hình đầy đủ.",
+    "final": "DEMO-SRV-201 có giá máy cơ bản 80 triệu, nằm dưới mức 500 triệu và hỗ trợ tối đa 8 GPU, 1024GB RAM. Tổng giá cấu hình cuối vẫn cần tính thêm các linh kiện được chọn.",
     "should_abstain": false,
     "steps": [
       {
@@ -519,10 +519,10 @@
     "family": "11_no_product_found",
     "scenario": "no_product_found",
     "intent": "product_search",
-    "user": "Có server nào 8 GPU mà giá nền dưới 100 triệu không? Nếu không có thì nói thẳng giúp mình.",
+    "user": "Có server nào hỗ trợ 8 GPU mà phần máy cơ bản dưới 100 triệu không? Không có thì cứ nói thẳng giúp mình.",
     "requirement": {},
     "missing": [],
-    "final": "Hiện tôi chưa tìm thấy sản phẩm nào trong danh mục đáp ứng đồng thời các điều kiện trên.",
+    "final": "Mình chưa tìm thấy mẫu nào đang có đáp ứng đồng thời hai điều kiện: hỗ trợ 8 GPU và giá máy cơ bản dưới 100 triệu.",
     "should_abstain": true,
     "steps": [
       {
@@ -548,10 +548,10 @@
     "family": "11_no_product_found",
     "scenario": "no_product_found",
     "intent": "product_search",
-    "user": "Tìm workstation hỗ trợ 4 GPU, RAM tối đa ít nhất 2TB, giá nền dưới 150 triệu.",
+    "user": "Tìm giúp workstation hỗ trợ ít nhất 4 GPU, nâng được RAM tới 2TB và phần máy cơ bản dưới 150 triệu.",
     "requirement": {},
     "missing": [],
-    "final": "Hiện tôi chưa tìm thấy sản phẩm nào trong danh mục đáp ứng đồng thời các điều kiện trên.",
+    "final": "Hiện chưa có workstation nào trong dữ liệu đang có đáp ứng cùng lúc cả ba yêu cầu về 4 GPU, RAM 2TB và mức giá máy cơ bản dưới 150 triệu.",
     "should_abstain": true,
     "steps": [
       {
@@ -578,10 +578,10 @@
     "family": "12_compare_products",
     "scenario": "compare_products",
     "intent": "product_comparison",
-    "user": "So giúp DEMO-SRV-201 với DEMO-SRV-202, mình cần nhìn RAM tối đa, số GPU và giá nền.",
+    "user": "So giúp DEMO-SRV-201 với DEMO-SRV-202 về RAM tối đa, số GPU hỗ trợ và giá máy cơ bản.",
     "requirement": {},
     "missing": [],
-    "final": "Chưa đủ thông số xác minh để kết luận DEMO-SRV-201 và DEMO-SRV-202 mẫu nào phù hợp hơn.",
+    "final": "Dữ liệu hiện tại chưa đủ thông số đã xác minh để kết luận DEMO-SRV-201 hay DEMO-SRV-202 phù hợp hơn.",
     "should_abstain": false,
     "steps": [
       {
@@ -614,10 +614,10 @@
     "family": "12_compare_products",
     "scenario": "compare_products",
     "intent": "product_comparison",
-    "user": "DEMO-WS-101 và DEMO-WS-102 khác nhau chỗ nào? Chỉ lấy dữ liệu catalog nhé.",
+    "user": "DEMO-WS-101 với DEMO-WS-102 khác nhau chỗ nào? Chỉ dùng thông tin sản phẩm đang có, thiếu gì thì nói thiếu nhé.",
     "requirement": {},
     "missing": [],
-    "final": "Chưa đủ thông số xác minh để kết luận DEMO-WS-101 và DEMO-WS-102 mẫu nào phù hợp hơn.",
+    "final": "Thông tin hiện có chưa đủ để so đầy đủ hai mẫu và kết luận mẫu nào phù hợp hơn. Mình sẽ không tự điền các thông số còn thiếu.",
     "should_abstain": false,
     "steps": [
       {
@@ -650,10 +650,10 @@
     "family": "13_compare_configurations",
     "scenario": "compare_configurations",
     "intent": "product_comparison",
-    "user": "So hai phương án vừa tạo giúp mình. Một phương án 2 GPU 48GB, một phương án 1 GPU 96GB.",
+    "user": "So giúp hai phương án vừa rồi nhé: một phương án dùng 2 GPU 48GB, phương án kia dùng 1 GPU 96GB.",
     "requirement": {},
     "missing": [],
-    "final": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ.",
+    "final": "Cả hai phương án đều có tổng 96GB VRAM và 256GB RAM. Hiện chưa có đủ giá nên chưa thể so tổng chi phí.",
     "should_abstain": false,
     "steps": [
       {
@@ -707,11 +707,11 @@
     "history": [
       {
         "role": "user",
-        "content": "Các cấu hình đã tạo và lưu trước đó là cfg-a, cfg-b."
+        "content": "Hai phương án trước mình lưu là cfg-a và cfg-b nhé."
       },
       {
         "role": "assistant",
-        "content": "Tôi sẽ dùng đúng các mã cấu hình đã lưu để so sánh."
+        "content": "Được, mình sẽ dùng đúng hai phương án đó để so sánh."
       }
     ]
   },
@@ -720,10 +720,10 @@
     "family": "13_compare_configurations",
     "scenario": "compare_configurations",
     "intent": "product_comparison",
-    "user": "Giữa hai cấu hình vừa rồi, cho mình bảng so GPU, tổng VRAM, RAM và giá.",
+    "user": "Cho mình so hai cấu hình vừa chọn về GPU, tổng VRAM, RAM và giá.",
     "requirement": {},
     "missing": [],
-    "final": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ.",
+    "final": "Hai cấu hình đều đạt 96GB tổng VRAM và 256GB RAM. Phần giá hiện còn thiếu nên chưa thể kết luận phương án nào rẻ hơn.",
     "should_abstain": false,
     "steps": [
       {
@@ -777,11 +777,11 @@
     "history": [
       {
         "role": "user",
-        "content": "Các cấu hình đã tạo và lưu trước đó là cfg-c, cfg-d."
+        "content": "Mình đang xem hai cấu hình cfg-c và cfg-d."
       },
       {
         "role": "assistant",
-        "content": "Tôi sẽ dùng đúng các mã cấu hình đã lưu để so sánh."
+        "content": "Được, mình sẽ so đúng cfg-c với cfg-d."
       }
     ]
   },
@@ -790,10 +790,10 @@
     "family": "14_technical_max_ram",
     "scenario": "technical_max_ram",
     "intent": "technical_question",
-    "user": "DEMO-SRV-201 hỗ trợ RAM tối đa bao nhiêu? Có nguồn datasheet thì dẫn giúp.",
+    "user": "DEMO-SRV-201 hỗ trợ tối đa bao nhiêu RAM? Nếu có tài liệu kỹ thuật thì cho mình nguồn luôn.",
     "requirement": {},
     "missing": [],
-    "final": "Theo tài liệu giả lập https://example.invalid/DEMO-SRV-201/max_ram_gb, DEMO-SRV-201 hỗ trợ tối đa 1024GB RAM.",
+    "final": "Theo tài liệu của sản phẩm, DEMO-SRV-201 hỗ trợ tối đa 1024GB RAM. Nguồn: https://example.invalid/DEMO-SRV-201/max_ram_gb",
     "should_abstain": false,
     "steps": [
       {
@@ -832,10 +832,10 @@
     "family": "14_technical_max_ram",
     "scenario": "technical_max_ram",
     "intent": "technical_question",
-    "user": "Kiểm tra giúp DEMO-WS-101 nâng được tối đa bao nhiêu RAM, đừng đoán nếu tài liệu không ghi.",
+    "user": "Kiểm tra giúp DEMO-WS-101 nâng RAM tối đa được bao nhiêu. Nếu tài liệu không ghi thì đừng đoán.",
     "requirement": {},
     "missing": [],
-    "final": "Theo tài liệu giả lập https://example.invalid/DEMO-WS-101/max_ram_gb, DEMO-WS-101 hỗ trợ tối đa 1024GB RAM.",
+    "final": "Tài liệu hiện có ghi DEMO-WS-101 hỗ trợ tối đa 1024GB RAM. Nguồn: https://example.invalid/DEMO-WS-101/max_ram_gb",
     "should_abstain": false,
     "steps": [
       {
@@ -874,10 +874,10 @@
     "family": "15_technical_max_gpu",
     "scenario": "technical_max_gpu",
     "intent": "technical_question",
-    "user": "DEMO-SRV-202 lắp tối đa được mấy GPU?",
+    "user": "DEMO-SRV-202 lắp tối đa được bao nhiêu GPU?",
     "requirement": {},
     "missing": [],
-    "final": "Theo tài liệu giả lập https://example.invalid/DEMO-SRV-202/max_gpu_slots, DEMO-SRV-202 hỗ trợ tối đa 8 GPU.",
+    "final": "Theo tài liệu kỹ thuật hiện có, DEMO-SRV-202 hỗ trợ tối đa 8 GPU. Nguồn: https://example.invalid/DEMO-SRV-202/max_gpu_slots",
     "should_abstain": false,
     "steps": [
       {
@@ -916,10 +916,10 @@
     "family": "15_technical_max_gpu",
     "scenario": "technical_max_gpu",
     "intent": "technical_question",
-    "user": "DEMO-WS-102 có bao nhiêu khe GPU theo tài liệu kỹ thuật?",
+    "user": "Kiểm tra giúp DEMO-WS-102 có tối đa bao nhiêu khe GPU theo tài liệu kỹ thuật.",
     "requirement": {},
     "missing": [],
-    "final": "Theo tài liệu giả lập https://example.invalid/DEMO-WS-102/max_gpu_slots, DEMO-WS-102 hỗ trợ tối đa 8 GPU.",
+    "final": "Tài liệu hiện có cho biết DEMO-WS-102 hỗ trợ tối đa 8 GPU. Nguồn: https://example.invalid/DEMO-WS-102/max_gpu_slots",
     "should_abstain": false,
     "steps": [
       {
@@ -958,10 +958,10 @@
     "family": "16_unknown_product_spec",
     "scenario": "unknown_product_spec",
     "intent": "technical_question",
-    "user": "DEMO-SRV-203 tối đa mấy GPU? Mình cần con số có nguồn.",
+    "user": "DEMO-SRV-203 lắp tối đa được mấy GPU? Mình cần con số có nguồn, không có thì cứ nói chưa rõ.",
     "requirement": {},
     "missing": [],
-    "final": "Tài liệu hiện có chưa đủ để xác nhận số GPU tối đa của DEMO-SRV-203.",
+    "final": "Mình chưa tìm thấy nguồn đủ tin cậy để xác nhận DEMO-SRV-203 hỗ trợ tối đa bao nhiêu GPU, nên hiện chưa thể đưa ra con số.",
     "should_abstain": true,
     "steps": [
       {
@@ -984,10 +984,10 @@
     "family": "16_unknown_product_spec",
     "scenario": "unknown_product_spec",
     "intent": "technical_question",
-    "user": "DEMO-WS-104 max RAM bao nhiêu? Nếu catalog chưa có thì báo chưa đủ dữ liệu.",
+    "user": "DEMO-WS-104 nâng tối đa được bao nhiêu RAM? Nếu chưa có tài liệu thì cứ nói chưa xác định được.",
     "requirement": {},
     "missing": [],
-    "final": "Tài liệu hiện có chưa đủ để xác nhận dung lượng RAM tối đa của DEMO-WS-104.",
+    "final": "Hiện chưa có đủ tài liệu để xác nhận dung lượng RAM tối đa của DEMO-WS-104.",
     "should_abstain": true,
     "steps": [
       {
@@ -1010,10 +1010,10 @@
     "family": "17_tool_failure",
     "scenario": "tool_failure",
     "intent": "product_search",
-    "user": "Tìm giúp mình server AI hỗ trợ ít nhất 4 GPU.",
+    "user": "Bên mình đang tìm server AI lắp được ít nhất 4 GPU. Kiểm tra giúp có mẫu nào phù hợp không?",
     "requirement": {},
     "missing": [],
-    "final": "Hiện tôi chưa truy vấn được danh mục sản phẩm nên chưa thể xác nhận mẫu phù hợp.",
+    "final": "Hiện hệ thống chưa truy cập được danh sách sản phẩm nên mình chưa thể xác nhận mẫu nào phù hợp.",
     "should_abstain": true,
     "steps": [
       {
@@ -1035,10 +1035,10 @@
     "family": "17_tool_failure",
     "scenario": "tool_failure",
     "intent": "technical_question",
-    "user": "Kiểm tra giúp RAM tối đa của DEMO-SRV-205.",
+    "user": "Xem giúp DEMO-SRV-205 hỗ trợ tối đa bao nhiêu RAM.",
     "requirement": {},
     "missing": [],
-    "final": "Hiện tôi chưa truy cập được tài liệu kỹ thuật nên chưa thể xác nhận dung lượng RAM tối đa của DEMO-SRV-205.",
+    "final": "Hiện mình chưa truy cập được tài liệu kỹ thuật của sản phẩm nên chưa thể xác nhận RAM tối đa của DEMO-SRV-205.",
     "should_abstain": true,
     "steps": [
       {
@@ -1058,10 +1058,10 @@
     "family": "18_general_vram",
     "scenario": "general_vram",
     "intent": "general_ai_question",
-    "user": "VRAM với RAM hệ thống khác nhau thế nào khi chạy LLM?",
+    "user": "VRAM với RAM của máy khác nhau thế nào khi chạy AI?",
     "requirement": {},
     "missing": [],
-    "final": "VRAM lưu trọng số model và dữ liệu trung gian khi GPU tính toán; model và ngữ cảnh càng lớn thì nhu cầu VRAM thường càng cao.",
+    "final": "VRAM là bộ nhớ trên GPU, nơi model và dữ liệu phục vụ tính toán được giữ khi chạy. RAM là bộ nhớ chính của hệ thống, dùng cho hệ điều hành, dữ liệu và các tiến trình khác. Khi chạy LLM, cả hai đều quan trọng nhưng VRAM thường là giới hạn trực tiếp đối với model trên GPU.",
     "should_abstain": false,
     "steps": []
   },
@@ -1070,10 +1070,10 @@
     "family": "18_general_vram",
     "scenario": "general_vram",
     "intent": "general_ai_question",
-    "user": "Vì sao cùng một model mà tăng context lên thì thường lại tốn thêm VRAM?",
+    "user": "Cùng một model mà tăng độ dài câu hỏi với tài liệu đầu vào lên thì sao lại tốn thêm VRAM?",
     "requirement": {},
     "missing": [],
-    "final": "VRAM lưu trọng số model và dữ liệu trung gian khi GPU tính toán; model và ngữ cảnh càng lớn thì nhu cầu VRAM thường càng cao.",
+    "final": "Khi ngữ cảnh dài hơn, model phải giữ nhiều dữ liệu trung gian hơn trong lúc xử lý, đặc biệt phần KV cache khi sinh câu trả lời. Vì vậy cùng một model nhưng context dài hơn thường cần thêm VRAM.",
     "should_abstain": false,
     "steps": []
   },
@@ -1082,10 +1082,10 @@
     "family": "19_general_inference",
     "scenario": "general_inference",
     "intent": "general_ai_question",
-    "user": "Inference là gì? Bên mình chỉ chạy model chứ không train thì có tính là inference không?",
+    "user": "Inference là gì vậy? Bên mình chỉ dùng model để hỏi đáp, không train thêm thì có phải inference không?",
     "requirement": {},
     "missing": [],
-    "final": "Inference là giai đoạn dùng model đã huấn luyện để tạo dự đoán hoặc câu trả lời; training cập nhật trọng số còn inference thì không.",
+    "final": "Đúng. Inference là lúc dùng model đã được huấn luyện để tạo câu trả lời hoặc dự đoán. Nếu bên bạn chỉ chạy model để hỏi đáp mà không cập nhật trọng số thì đó là inference.",
     "should_abstain": false,
     "steps": []
   },
@@ -1094,10 +1094,10 @@
     "family": "19_general_inference",
     "scenario": "general_inference",
     "intent": "general_ai_question",
-    "user": "Training với inference khác nhau ở nhu cầu tài nguyên như thế nào?",
+    "user": "Train model với chỉ chạy model để sử dụng thì bên nào tốn tài nguyên hơn?",
     "requirement": {},
     "missing": [],
-    "final": "Inference là giai đoạn dùng model đã huấn luyện để tạo dự đoán hoặc câu trả lời; training cập nhật trọng số còn inference thì không.",
+    "final": "Training thường tốn tài nguyên hơn nhiều vì ngoài trọng số model còn phải giữ thêm activation, gradient và trạng thái phục vụ tối ưu. Inference không cập nhật trọng số nên thường nhẹ hơn, dù vẫn có thể tốn nhiều VRAM nếu context dài hoặc có nhiều người dùng cùng lúc.",
     "should_abstain": false,
     "steps": []
   },
@@ -1106,10 +1106,10 @@
     "family": "20_general_lora",
     "scenario": "general_lora",
     "intent": "general_ai_question",
-    "user": "LoRA là gì vậy? Có phải train lại toàn bộ model không?",
+    "user": "LoRA là gì vậy? Có phải huấn luyện lại toàn bộ model từ đầu không?",
     "requirement": {},
     "missing": [],
-    "final": "LoRA chỉ huấn luyện các ma trận hạng thấp bổ sung thay vì cập nhật toàn bộ trọng số, nên thường cần ít bộ nhớ và tính toán hơn.",
+    "final": "Không. Với LoRA, phần lớn trọng số của model được giữ nguyên và chỉ một lượng nhỏ tham số bổ sung được huấn luyện. Vì vậy nó thường nhẹ hơn nhiều so với fine-tune toàn bộ model.",
     "should_abstain": false,
     "steps": []
   },
@@ -1118,10 +1118,10 @@
     "family": "20_general_lora",
     "scenario": "general_lora",
     "intent": "general_ai_question",
-    "user": "Fine-tune bằng LoRA thường nhẹ hơn full fine-tune ở chỗ nào?",
+    "user": "Fine-tune bằng LoRA nhẹ hơn fine-tune toàn bộ model ở điểm nào?",
     "requirement": {},
     "missing": [],
-    "final": "LoRA chỉ huấn luyện các ma trận hạng thấp bổ sung thay vì cập nhật toàn bộ trọng số, nên thường cần ít bộ nhớ và tính toán hơn.",
+    "final": "LoRA chỉ cập nhật một phần tham số bổ sung thay vì toàn bộ trọng số model, nên thường giảm đáng kể nhu cầu VRAM, thời gian huấn luyện và dung lượng checkpoint.",
     "should_abstain": false,
     "steps": []
   },
@@ -1130,10 +1130,10 @@
     "family": "21_out_scope_laptop",
     "scenario": "out_scope_laptop",
     "intent": "out_of_scope",
-    "user": "Tầm 35 triệu có laptop nào chạy AI local ổn không?",
+    "user": "Tầm 35 triệu có laptop nào chạy AI ổn không?",
     "requirement": {},
     "missing": [],
-    "final": "Phạm vi hiện tại chỉ hỗ trợ AI Server và AI Workstation, chưa bao gồm laptop.",
+    "final": "Hiện hệ thống tư vấn này chỉ hỗ trợ AI server và workstation, chưa có dữ liệu để tư vấn laptop.",
     "should_abstain": true,
     "steps": []
   },
@@ -1142,10 +1142,10 @@
     "family": "21_out_scope_laptop",
     "scenario": "out_scope_laptop",
     "intent": "out_of_scope",
-    "user": "Tư vấn cho mình laptop có GPU mạnh để chạy LLM.",
+    "user": "Tư vấn giúp mình laptop có GPU mạnh để chạy LLM.",
     "requirement": {},
     "missing": [],
-    "final": "Phạm vi hiện tại chỉ hỗ trợ AI Server và AI Workstation, chưa bao gồm laptop.",
+    "final": "Phần tư vấn hiện tại chưa bao gồm laptop; mình chỉ có dữ liệu cho AI server và workstation.",
     "should_abstain": true,
     "steps": []
   },
@@ -1154,10 +1154,10 @@
     "family": "22_out_scope_network_switch",
     "scenario": "out_scope_network_switch",
     "intent": "out_of_scope",
-    "user": "Bên mình cần switch 48 port cho rack AI, tư vấn luôn được không?",
+    "user": "Bên mình cần switch 48 cổng cho rack AI, tư vấn luôn được không?",
     "requirement": {},
     "missing": [],
-    "final": "Yêu cầu này nằm ngoài phạm vi AI Server và AI Workstation hiện tại.",
+    "final": "Phần này nằm ngoài phạm vi dữ liệu hiện tại. Hệ thống đang tập trung vào AI server và workstation, chưa tư vấn thiết bị mạng.",
     "should_abstain": true,
     "steps": []
   },
@@ -1166,10 +1166,10 @@
     "family": "22_out_scope_network_switch",
     "scenario": "out_scope_network_switch",
     "intent": "out_of_scope",
-    "user": "Có firewall nào phù hợp cho văn phòng khoảng 100 người không?",
+    "user": "Văn phòng khoảng 100 người thì nên dùng firewall nào?",
     "requirement": {},
     "missing": [],
-    "final": "Yêu cầu này nằm ngoài phạm vi AI Server và AI Workstation hiện tại.",
+    "final": "Hiện hệ thống chưa có dữ liệu để tư vấn firewall; phạm vi đang tập trung vào AI server và workstation.",
     "should_abstain": true,
     "steps": []
   },
@@ -1178,7 +1178,7 @@
     "family": "23_finetune_32b_solution",
     "scenario": "finetune_32b_solution",
     "intent": "solution_design",
-    "user": "Team ML muốn fine-tune Qwen 32B bằng LoRA, budget khoảng 500tr. Chưa chốt batch size.",
+    "user": "Team ML muốn fine-tune Qwen 32B bằng LoRA, ngân sách khoảng 500 triệu. Batch size thì bên mình chưa chốt.",
     "requirement": {
       "model_size_b": 32,
       "usage": "fine_tune",
@@ -1186,7 +1186,7 @@
       "training_method": "LoRA"
     },
     "missing": [],
-    "final": "Kết quả ước lượng cần khoảng 144GB tổng VRAM và 272GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "final": "Với thông tin hiện có, ước tính ban đầu cần khoảng 144GB VRAM và 272GB RAM hệ thống. Đây vẫn là ước tính sơ bộ; cần benchmark theo batch size và chưa đủ dữ liệu giá để chốt cấu hình trong 500 triệu.",
     "should_abstain": false,
     "steps": [
       {
@@ -1203,7 +1203,7 @@
           "recommended_system_ram_gb": 272,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1218,7 +1218,7 @@
     "family": "23_finetune_32b_solution",
     "scenario": "finetune_32b_solution",
     "intent": "solution_design",
-    "user": "Bên em cần máy để LoRA model 32B, ngân sách khoảng 600 triệu. Context dự kiến 8K.",
+    "user": "Bên mình cần máy để fine-tune model 32B bằng LoRA, ngân sách khoảng 600 triệu, context dự kiến 8K.",
     "requirement": {
       "model_size_b": 32,
       "usage": "fine_tune",
@@ -1227,7 +1227,7 @@
       "context_length": 8192
     },
     "missing": [],
-    "final": "Kết quả ước lượng cần khoảng 144GB tổng VRAM và 272GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "final": "Ước tính ban đầu cần khoảng 144GB VRAM và 272GB RAM hệ thống. Vì đây là bài toán fine-tune, vẫn cần benchmark thực tế với context 8K và thông số training trước khi chốt máy; giá cấu hình đầy đủ hiện cũng chưa được xác minh.",
     "should_abstain": false,
     "steps": [
       {
@@ -1245,7 +1245,7 @@
           "recommended_system_ram_gb": 272,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1260,14 +1260,14 @@
     "family": "24_large_model_low_budget",
     "scenario": "large_model_low_budget",
     "intent": "solution_design",
-    "user": "Muốn chạy 70B local nhưng sếp chỉ duyệt 80 triệu. Cứ tính nhu cầu tài nguyên trước giúp mình.",
+    "user": "Bên mình muốn chạy model 70B tại công ty nhưng sếp chỉ duyệt khoảng 80 triệu. Cứ tính sơ bộ nhu cầu tài nguyên trước giúp mình.",
     "requirement": {
       "model_size_b": 70,
       "usage": "inference",
       "budget_vnd": 80000000
     },
     "missing": [],
-    "final": "Kết quả ước lượng cần khoảng 210GB tổng VRAM và 576GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "final": "Ước tính tài nguyên hiện tại vào khoảng 210GB VRAM và 576GB RAM hệ thống. Với mức yêu cầu này, mình chưa có đủ dữ liệu giá để khẳng định có cấu hình phù hợp trong 80 triệu.",
     "should_abstain": true,
     "steps": [
       {
@@ -1283,7 +1283,7 @@
           "recommended_system_ram_gb": 576,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1298,14 +1298,14 @@
     "family": "24_large_model_low_budget",
     "scenario": "large_model_low_budget",
     "intent": "solution_design",
-    "user": "70B inference, budget trần 100tr. Nếu chưa đủ dữ liệu giá thì đừng khẳng định có cấu hình phù hợp.",
+    "user": "Bên mình nhắm model 70B để chạy sử dụng, mức chi tối đa 100 triệu. Nếu không đủ cơ sở thì đừng khẳng định có máy phù hợp.",
     "requirement": {
       "model_size_b": 70,
       "usage": "inference",
       "budget_vnd": 100000000
     },
     "missing": [],
-    "final": "Kết quả ước lượng cần khoảng 210GB tổng VRAM và 576GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "final": "Ước tính ban đầu cần khoảng 210GB VRAM và 576GB RAM hệ thống. Hiện chưa có đủ dữ liệu giá để xác nhận một cấu hình đáp ứng yêu cầu mà vẫn nằm trong 100 triệu.",
     "should_abstain": true,
     "steps": [
       {
@@ -1321,7 +1321,7 @@
           "recommended_system_ram_gb": 576,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1336,14 +1336,14 @@
     "family": "25_requirement_changed_mid_conversation",
     "scenario": "requirement_changed_mid_conversation",
     "intent": "solution_design",
-    "user": "Kế hoạch đổi rồi, phải lên 32B. Budget nâng lên 300 triệu.",
+    "user": "Kế hoạch đổi rồi, bên mình muốn lên model 32B và ngân sách tăng lên 300 triệu.",
     "requirement": {
       "model_size_b": 32,
       "usage": "inference",
       "budget_vnd": 300000000
     },
     "missing": [],
-    "final": "Kết quả ước lượng cần khoảng 96GB tổng VRAM và 272GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "final": "Theo nhu cầu mới, ước tính ban đầu cần khoảng 96GB VRAM và 272GB RAM hệ thống. Hiện chưa đủ dữ liệu giá để chốt cấu hình trong 300 triệu.",
     "should_abstain": false,
     "steps": [
       {
@@ -1359,7 +1359,7 @@
           "recommended_system_ram_gb": 272,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1371,11 +1371,11 @@
     "history": [
       {
         "role": "user",
-        "content": "Ban đầu bên mình định chạy 14B inference, ngân sách 200 triệu."
+        "content": "Lúc đầu bên mình tính chạy model 14B để dùng nội bộ, ngân sách khoảng 200 triệu."
       },
       {
         "role": "assistant",
-        "content": "Tôi đã ghi nhận nhu cầu ban đầu. Bạn muốn điều chỉnh gì thêm?"
+        "content": "Được, nếu nhu cầu thay đổi bạn cứ cập nhật, mình sẽ tính lại theo thông tin mới."
       }
     ]
   },
@@ -1384,7 +1384,7 @@
     "family": "25_requirement_changed_mid_conversation",
     "scenario": "requirement_changed_mid_conversation",
     "intent": "solution_design",
-    "user": "À team ML vừa chốt là cần fine-tune LoRA nữa.",
+    "user": "Có thay đổi nhé: team ML muốn tinh chỉnh model bằng LoRA nữa.",
     "requirement": {
       "model_size_b": 14,
       "usage": "fine_tune",
@@ -1392,7 +1392,7 @@
       "training_method": "LoRA"
     },
     "missing": [],
-    "final": "Kết quả ước lượng cần khoảng 63GB tổng VRAM và 128GB RAM hệ thống. Đây là sizing sơ bộ; chưa đủ dữ liệu giá để xác nhận cấu hình trong ngân sách.",
+    "final": "Với yêu cầu mới là fine-tune 14B bằng LoRA, ước tính ban đầu cần khoảng 63GB VRAM và 128GB RAM hệ thống. Hiện chưa đủ dữ liệu giá để khẳng định cấu hình nào phù hợp trong 200 triệu.",
     "should_abstain": false,
     "steps": [
       {
@@ -1409,7 +1409,7 @@
           "recommended_system_ram_gb": 128,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1421,11 +1421,11 @@
     "history": [
       {
         "role": "user",
-        "content": "Bên mình chỉ chạy 14B inference, ngân sách 200 triệu."
+        "content": "Bên mình đang tính chạy model 14B nội bộ, không huấn luyện thêm, ngân sách khoảng 200 triệu."
       },
       {
         "role": "assistant",
-        "content": "Tôi đã ghi nhận nhu cầu ban đầu. Bạn muốn điều chỉnh gì thêm?"
+        "content": "Mình đã ghi nhận. Nếu cách sử dụng thay đổi thì báo mình để tính lại tài nguyên."
       }
     ]
   },
@@ -1434,7 +1434,7 @@
     "family": "01_solution_complete",
     "scenario": "solution_complete",
     "intent": "solution_design",
-    "user": "Bên mình đang dựng chatbot nội bộ bằng Qwen 32B. Chỉ chạy inference, khoảng 5 người dùng cùng lúc, ngân sách tối đa 300 triệu. Tư vấn giúp một cấu hình phù hợp.",
+    "user": "Mình cần dựng chatbot nội bộ bằng Qwen 32B cho khoảng 5 người dùng cùng lúc, ngân sách tối đa 300 triệu. Nhờ bạn tính thử rồi tìm máy phù hợp.",
     "requirement": {
       "model_size_b": 32,
       "usage": "inference",
@@ -1442,7 +1442,7 @@
       "budget_vnd": 300000000
     },
     "missing": [],
-    "final": "Sizing yêu cầu 336GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "final": "Ước tính cho nhu cầu này cần khoảng 336GB RAM hệ thống, nhưng khi tìm theo mức đó hiện chưa có sản phẩm phù hợp trong dữ liệu. Vì vậy mình chưa thể đề xuất cấu hình hay chốt giá.",
     "should_abstain": true,
     "steps": [
       {
@@ -1459,7 +1459,7 @@
           "recommended_system_ram_gb": 336,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1488,7 +1488,7 @@
     "family": "01_solution_complete",
     "scenario": "solution_complete",
     "intent": "solution_design",
-    "user": "Team R&D cần chạy model 14B local, tầm 8 đến 10 user truy cập đồng thời, không fine-tune. Budget khoảng 220 triệu, ưu tiên workstation nếu đủ.",
+    "user": "Công ty có khoảng 10 người dùng AI nội bộ, model cỡ 14B, chỉ chạy để sử dụng. Tầm tiền 220 triệu và ưu tiên workstation nếu có.",
     "requirement": {
       "model_size_b": 14,
       "usage": "inference",
@@ -1496,7 +1496,7 @@
       "budget_vnd": 220000000
     },
     "missing": [],
-    "final": "Sizing yêu cầu 272GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "final": "Hệ thống ước tính cần khoảng 272GB RAM. Khi tìm sản phẩm theo yêu cầu này hiện chưa có mẫu phù hợp, nên mình chưa thể chốt cấu hình trong mức 220 triệu.",
     "should_abstain": true,
     "steps": [
       {
@@ -1513,7 +1513,7 @@
           "recommended_system_ram_gb": 272,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1542,7 +1542,7 @@
     "family": "23_finetune_32b_solution",
     "scenario": "finetune_32b_solution",
     "intent": "solution_design",
-    "user": "Team ML muốn fine-tune Qwen 32B bằng LoRA, budget khoảng 500tr. Chưa chốt batch size.",
+    "user": "Bên ML cần fine-tune Qwen 32B bằng LoRA, ngân sách khoảng 500 triệu. Batch size chưa chốt; bạn tính nhu cầu rồi tìm thử máy phù hợp.",
     "requirement": {
       "model_size_b": 32,
       "usage": "fine_tune",
@@ -1550,7 +1550,7 @@
       "training_method": "LoRA"
     },
     "missing": [],
-    "final": "Sizing yêu cầu 272GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "final": "Ước tính hiện tại cần khoảng 272GB RAM hệ thống, nhưng tìm theo yêu cầu này chưa có sản phẩm phù hợp trong dữ liệu. Mình chưa thể đề xuất cấu hình hoặc xác nhận mức giá.",
     "should_abstain": true,
     "steps": [
       {
@@ -1567,7 +1567,7 @@
           "recommended_system_ram_gb": 272,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1596,7 +1596,7 @@
     "family": "23_finetune_32b_solution",
     "scenario": "finetune_32b_solution",
     "intent": "solution_design",
-    "user": "Bên em cần máy để LoRA model 32B, ngân sách khoảng 600 triệu. Context dự kiến 8K.",
+    "user": "Mình cần cấu hình để LoRA model 32B, context 8K, ngân sách khoảng 600 triệu. Tính thử tài nguyên rồi xem có máy nào đáp ứng không.",
     "requirement": {
       "model_size_b": 32,
       "usage": "fine_tune",
@@ -1605,7 +1605,7 @@
       "context_length": 8192
     },
     "missing": [],
-    "final": "Sizing yêu cầu 272GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "final": "Ước tính hiện tại cần khoảng 272GB RAM hệ thống. Dữ liệu sản phẩm chưa trả về mẫu nào đáp ứng ngưỡng này, nên hiện chưa thể chốt cấu hình hay tổng chi phí.",
     "should_abstain": true,
     "steps": [
       {
@@ -1623,7 +1623,7 @@
           "recommended_system_ram_gb": 272,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1652,14 +1652,14 @@
     "family": "25_requirement_changed_mid_conversation",
     "scenario": "requirement_changed_mid_conversation",
     "intent": "solution_design",
-    "user": "Kế hoạch đổi rồi, phải lên 32B. Budget nâng lên 300 triệu.",
+    "user": "Kế hoạch thay đổi rồi: chuyển lên model 32B và ngân sách tăng thành 300 triệu. Tính lại rồi xem có máy nào phù hợp giúp mình.",
     "requirement": {
       "model_size_b": 32,
       "usage": "inference",
       "budget_vnd": 300000000
     },
     "missing": [],
-    "final": "Sizing yêu cầu 272GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "final": "Theo yêu cầu mới, ước tính cần khoảng 272GB RAM hệ thống. Hiện chưa tìm thấy sản phẩm đáp ứng ngưỡng này nên chưa thể đề xuất cấu hình hay giá.",
     "should_abstain": true,
     "steps": [
       {
@@ -1675,7 +1675,7 @@
           "recommended_system_ram_gb": 272,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1701,11 +1701,11 @@
     "history": [
       {
         "role": "user",
-        "content": "Ban đầu bên mình định chạy 14B inference, ngân sách 200 triệu."
+        "content": "Ban đầu bên mình định chạy model 14B để sử dụng nội bộ, ngân sách khoảng 200 triệu."
       },
       {
         "role": "assistant",
-        "content": "Tôi đã ghi nhận nhu cầu ban đầu. Bạn muốn điều chỉnh gì thêm?"
+        "content": "Được, mình sẽ dựa trên nhu cầu hiện tại. Nếu có thay đổi thì cập nhật để mình tính lại."
       }
     ]
   },
@@ -1714,7 +1714,7 @@
     "family": "25_requirement_changed_mid_conversation",
     "scenario": "requirement_changed_mid_conversation",
     "intent": "solution_design",
-    "user": "À team ML vừa chốt là cần fine-tune LoRA nữa.",
+    "user": "Có thêm yêu cầu mới: model 14B giờ phải fine-tune bằng LoRA nữa. Bạn tính lại và tìm máy giúp mình.",
     "requirement": {
       "model_size_b": 14,
       "usage": "fine_tune",
@@ -1722,7 +1722,7 @@
       "training_method": "LoRA"
     },
     "missing": [],
-    "final": "Sizing yêu cầu 128GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "final": "Sau khi tính lại cho LoRA, hệ thống cần khoảng 128GB RAM. Hiện chưa tìm thấy sản phẩm phù hợp theo ngưỡng này nên mình chưa thể chốt cấu hình hay giá.",
     "should_abstain": true,
     "steps": [
       {
@@ -1739,7 +1739,7 @@
           "recommended_system_ram_gb": 128,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -1765,11 +1765,11 @@
     "history": [
       {
         "role": "user",
-        "content": "Bên mình chỉ chạy 14B inference, ngân sách 200 triệu."
+        "content": "Lúc đầu bên mình chỉ định chạy model 14B để dùng nội bộ, ngân sách khoảng 200 triệu."
       },
       {
         "role": "assistant",
-        "content": "Tôi đã ghi nhận nhu cầu ban đầu. Bạn muốn điều chỉnh gì thêm?"
+        "content": "Mình hiểu rồi. Nếu sau này cần huấn luyện hoặc thay đổi model thì báo mình để tính lại."
       }
     ]
   },
@@ -1778,10 +1778,10 @@
     "family": "13_compare_configurations",
     "scenario": "compare_configurations",
     "intent": "product_comparison",
-    "user": "So hai phương án vừa tạo giúp mình. Một phương án 2 GPU 48GB, một phương án 1 GPU 96GB.",
+    "user": "So kỹ giúp hai phương án cfg-a và cfg-b: mình muốn nhìn GPU, tổng VRAM, RAM và xem giá đã đủ chưa.",
     "requirement": {},
     "missing": [],
-    "final": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ.",
+    "final": "Hai phương án đều có 96GB tổng VRAM và 256GB RAM. Dữ liệu giá vẫn chưa đầy đủ nên chưa thể so tổng chi phí.",
     "should_abstain": false,
     "steps": [
       {
@@ -1850,11 +1850,11 @@
     "history": [
       {
         "role": "user",
-        "content": "Các cấu hình đã tạo và lưu trước đó là cfg-a, cfg-b."
+        "content": "Mình đang cân nhắc hai phương án cfg-a và cfg-b trên cùng mẫu workstation."
       },
       {
         "role": "assistant",
-        "content": "Tôi sẽ dùng đúng các mã cấu hình đã lưu để so sánh."
+        "content": "Được, mình sẽ dùng đúng hai mã cấu hình đó khi so sánh."
       }
     ]
   },
@@ -1863,10 +1863,10 @@
     "family": "13_compare_configurations",
     "scenario": "compare_configurations",
     "intent": "product_comparison",
-    "user": "Giữa hai cấu hình vừa rồi, cho mình bảng so GPU, tổng VRAM, RAM và giá.",
+    "user": "So lại cfg-c với cfg-d giúp mình, ưu tiên khác biệt về GPU, VRAM, RAM và chi phí.",
     "requirement": {},
     "missing": [],
-    "final": "Hai cấu hình đều có 96GB tổng VRAM và 256GB RAM; chưa có giá đầy đủ.",
+    "final": "Cả cfg-c và cfg-d đều có 96GB tổng VRAM và 256GB RAM. Hiện phần giá chưa đầy đủ nên chưa thể kết luận phương án nào tiết kiệm hơn.",
     "should_abstain": false,
     "steps": [
       {
@@ -1935,11 +1935,11 @@
     "history": [
       {
         "role": "user",
-        "content": "Các cấu hình đã tạo và lưu trước đó là cfg-c, cfg-d."
+        "content": "Hai cấu hình mình vừa lưu là cfg-c và cfg-d."
       },
       {
         "role": "assistant",
-        "content": "Tôi sẽ dùng đúng các mã cấu hình đã lưu để so sánh."
+        "content": "Mình sẽ giữ đúng hai cấu hình đó để đối chiếu."
       }
     ]
   },
@@ -1948,14 +1948,14 @@
     "family": "24_large_model_low_budget",
     "scenario": "large_model_low_budget",
     "intent": "solution_design",
-    "user": "Muốn chạy 70B local nhưng sếp chỉ duyệt 80 triệu. Cứ tính nhu cầu tài nguyên trước giúp mình.",
+    "user": "Sếp chỉ duyệt 80 triệu nhưng bên mình vẫn muốn chạy model 70B nội bộ. Bạn cứ tính tài nguyên rồi tìm thử xem có phương án nào không.",
     "requirement": {
       "model_size_b": 70,
       "usage": "inference",
       "budget_vnd": 80000000
     },
     "missing": [],
-    "final": "Sizing yêu cầu 576GB RAM hệ thống. Tìm theo ngưỡng này chưa trả về sản phẩm; hiện chưa thể đề xuất cấu hình hoặc giá.",
+    "final": "Ước tính cần khoảng 576GB RAM hệ thống, nhưng hiện chưa tìm thấy sản phẩm đáp ứng ngưỡng này. Vì vậy mình chưa thể đề xuất cấu hình phù hợp với mức 80 triệu.",
     "should_abstain": true,
     "steps": [
       {
@@ -1971,7 +1971,7 @@
           "recommended_system_ram_gb": 576,
           "confidence": 0.4,
           "assumptions": [
-            "Số liệu giả lập phục vụ gold behavior dataset; cần benchmark thực tế."
+            "Ước tính theo quy tắc nội bộ; cần benchmark thực tế trước khi chốt cấu hình."
           ],
           "warnings": [
             "Chưa xác minh giá cấu hình đầy đủ."
@@ -2000,10 +2000,10 @@
     "family": "16_unknown_product_spec",
     "scenario": "unknown_product_spec",
     "intent": "technical_question",
-    "user": "DEMO-SRV-203 tối đa mấy GPU? Mình cần con số có nguồn.",
+    "user": "Kiểm tra giúp DEMO-SRV-203 lắp tối đa bao nhiêu GPU. Nếu thông tin sản phẩm chưa có thì tìm trong tài liệu kỹ thuật, không có nguồn thì nói chưa xác định.",
     "requirement": {},
     "missing": [],
-    "final": "Tài liệu hiện có chưa đủ để xác nhận số GPU tối đa của DEMO-SRV-203.",
+    "final": "Sau khi kiểm tra thông tin sản phẩm và tài liệu hiện có, vẫn chưa đủ cơ sở để xác nhận số GPU tối đa của DEMO-SRV-203.",
     "should_abstain": true,
     "steps": [
       {

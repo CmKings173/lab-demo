@@ -1,0 +1,2 @@
+prune lab2_rag_agent/openclaw/plugin/node_modules
+prune lab2_rag_agent/openclaw/plugin/dist

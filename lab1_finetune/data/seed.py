@@ -4,10 +4,13 @@ import json
 from pathlib import Path
 
 from lab1_finetune.data.fixtures.tool_results import typed_result
+from lab1_finetune.data.frozen_contracts import (
+    TOOL_ARG_MODELS,
+    TOOL_DEFINITIONS,
+    ChatMessage,
+    ToolCall,
+)
 from lab1_finetune.data.schema import DatasetLabels, ExpectedToolCall, FineTuneExample
-from shared.contracts import ChatMessage, ToolCall
-from shared.tool_args import TOOL_ARG_MODELS
-from shared.tool_contracts import TOOL_DEFINITIONS
 
 SEED_PATH = Path(__file__).with_name("seed") / "gold_seed_vi.jsonl"
 GOLD_SOURCE_TYPE = "synthetic_curated_unreviewed"

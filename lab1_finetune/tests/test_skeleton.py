@@ -8,7 +8,7 @@ from lab1_finetune.training.config import TrainingConfig
 def test_lab1_defaults_to_safe_lora_foundation_settings() -> None:
     config = TrainingConfig()
 
-    assert config.model_name == "Qwen3-8B"
+    assert config.model_name == "Qwen/Qwen3-14B"
     assert config.use_lora is True
     assert config.use_qlora is False
     assert config.bf16 is True
