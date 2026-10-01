@@ -7,7 +7,6 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from dotenv import load_dotenv
 
 from lab2_rag_agent.catalog.document_repository import PostgresProductDocumentRepository
 from lab2_rag_agent.catalog.documents import (
@@ -17,7 +16,6 @@ from lab2_rag_agent.catalog.documents import (
 
 
 def test_real_postgres_product_document_mapping(monkeypatch) -> None:
-    load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
     dsn = os.environ.get("LAB2_TEST_POSTGRES_DSN")
     if not dsn:
         pytest.skip("Set LAB2_TEST_POSTGRES_DSN for isolated real PostgreSQL integration")
@@ -105,6 +103,9 @@ def test_real_postgres_product_document_mapping(monkeypatch) -> None:
             ))
             assert second.id != first.id
             assert [item.id for item in repository.list_by_product_id("doc-product-a")] == [
+                first.id, second.id,
+            ]
+            assert [item.id for item in repository.list_by_knowledge_base_id("kb-one")] == [
                 first.id, second.id,
             ]
             assert repository.get_by_knowledge_id("kb-one", "provider-doc-1").id == first.id

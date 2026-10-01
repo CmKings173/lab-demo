@@ -1,40 +1,96 @@
 # Kiến trúc
 
+> **Current Lab2 decision (ADR 011):** PostgreSQL owns structured product/catalog
+> facts; WeKnora v0.8.0 owns document ingestion and retrieval; OpenClaw sees only
+> allow-listed Lab domain tools. The earlier Qdrant/custom-RAG plan is superseded
+> for Lab2 by ADR 011. Existing shared contracts remain
+> the integration boundary; no WeKnora-specific types belong in `shared`.
+
 ```mermaid
 flowchart LR
-  U[Customer requirement] --> L3[Lab 3 workflow]
+  U[User text] --> Q[Qwen3-14B / vLLM conversation boundary]
+  Q -->|validated CustomerRequirement| L3[Lab 3 deterministic workflow]
   L3 --> S[Sizing + configuration + validation]
-  L3 --> L2[Lab 2 catalog + RAG]
-  L2 --> C[(Catalog adapter)]
-  L2 --> D[(Document adapter)]
+  L3 --> DB[(Shared PostgreSQL)]
+  L3 --> D[(WeKnora document adapter)]
+  L2[Lab 2 API + RAG] --> DB
+  L2 --> D[(WeKnora document adapter)]
   L3 --> P[Comparison + proposal + evidence]
-  L1[Lab 1 behavior model] -. future tool calls .-> L2
+  P --> R[Stored terminal run summary]
+  R --> Q
+  Q --> U
+  L1[Lab 1 behavior model] -. offline evaluation .-> L2
   OC[OpenClaw boundary] -. controlled tools .-> L2
 ```
 
-## Ranh giới document evidence → Product
+## Lab 3 Phase 3.2: real structured data
 
-`verified=true` chỉ xác nhận nguồn chứng cứ, không xác nhận kiểu hoặc miền giá trị.
-Resolver chỉ áp dụng fact khi document đúng `product_id`, đúng field kỹ thuật đang
-cần, có `source_url`, và giá trị đã được chuẩn hóa qua `Product.model_validate`.
-Giá trị sai kiểu, âm, boolean hoặc rỗng không được dùng để lấp `UNKNOWN`.
+Lab 2 and Lab 3 use the same PostgreSQL database and existing `products` catalog.
+The database also contains Lab 2's `product_documents` relation and Lab 3's typed
+`configuration_options` plus explicit `configuration_option_products` links. Lab 3
+reads catalog products through the existing PostgreSQL product repository and
+loads compatible GPU/RAM/storage choices through its own option repository. It
+does not call the Lab 2 HTTP Tool API. Lab 2's OpenClaw agent continues to use its
+controlled domain tools; the new option repository is not an agent tool.
 
-Các document đã verified nhưng đưa ra hai giá trị khác nhau cho cùng một field
-sẽ khiến field đó tiếp tục `UNKNOWN`. Retrieval rank chỉ chọn chứng cứ đại diện
-khi các giá trị giống nhau; nó không giải quyết mâu thuẫn. Quy tắc chọn nguồn
-authoritative vẫn là quyết định mở trong `docs/open-decisions.md`.
+The normal Lab 3 app remains the offline demo. A separate real-data app factory
+uses `LAB3_POSTGRES_DSN`, which should point to the same database as
+`LAB2_POSTGRES_DSN`, plus the existing `WEKNORA_BASE_URL`, `WEKNORA_API_KEY`, and
+`WEKNORA_KNOWLEDGE_BASE_ID`, and `LAB3_LLM_BASE_URL`/`LAB3_LLM_MODEL` with an
+optional `LAB3_LLM_API_KEY`. It directly composes the existing PostgreSQL product,
+configuration-option, and product-document repositories with
+`WeKnoraDocumentSearch`; it does not call Lab 2 HTTP. The real runtime uses a
+separate verified fact resolver and closes its owned WeKnora HTTP client during
+FastAPI lifespan shutdown. Injected document search clients remain caller-owned.
+This is source implementation only, not live provider or database verification.
+
+## Lab 3 real document evidence → Product trust boundary
+
+The offline `DeterministicProductFactResolver` remains available for fixtures with
+explicitly tagged `field_name`, `value`, and `verified=true`. The real runtime uses
+`VerifiedDocumentProductFactResolver`; a retrieval hit alone is never a verified
+fact. The real path requires WeKnora provider identity, the exact knowledge ID in
+the configured knowledge base, a persisted `product_documents` mapping with
+`provider_parse_status=completed`, matching product IDs, and a non-empty canonical
+source URL that exactly matches the hit. It then applies a narrow deterministic
+maximum-capacity rule and validates the typed value through the `Product` model.
+
+Only `max_ram_gb`, `max_gpu_slots`, and `max_storage_gb` are in scope. Invalid,
+ambiguous, unsupported, or conflicting evidence leaves the field unresolved.
+If accepted evidence agrees, the representative is selected by ascending rank,
+then stable document ID and chunk ID; provider retrieval score is not a verification
+gate. `ResolvedProductFact.verified=true` means the application checked mapped
+identity/provenance and its deterministic extraction/domain rules. It is not a
+claim that the underlying real-world statement was independently proven.
+Confidence uses the neutral default and is not a calibrated probability.
+
+The source bridge is implemented, but live PostgreSQL integration (unless the
+dedicated test DSN is configured), a live WeKnora service, OpenClaw Gateway/plugin
+loading on GB300, and a direct Qwen3-14B/vLLM conversation-to-workflow round trip
+remain unverified.
+
+Lab 2 uses OpenClaw for its agent/tool-use demonstration. Lab 3 does not use
+OpenClaw. Its Phase 3.4 source adds a direct Qwen3-14B/vLLM conversation boundary
+around the deterministic workflow: the model extracts only validated customer
+requirements, and explains safe summaries read from the server-side run store.
+The workflow state machine remains deterministic and LLM-unaware. The default
+Lab 3 app remains an offline demo; only the explicit real-data app owns the model
+client and conversation endpoints.
 
 ## Ranh giới sở hữu
 
 - `lab1_finetune`: dataset, training entry points và behavior evaluation.
-- `lab2_rag_agent`: exact catalog, document retrieval/reranking, RAG và OpenClaw tools.
+- `lab2_rag_agent`: PostgreSQL catalog adapter, WeKnora document-search boundary, and allow-listed agent tools.
 - `lab3_workflow`: requirement, sizing, concrete configuration, validation, comparison,
   proposal, evidence và workflow state machine.
 - `shared`: contracts/interfaces ổn định; không chứa business flow của riêng một lab.
 - `adapters/fake` và `adapters/real`: điểm thay thế hạ tầng, không đổi domain API.
 
-PostgreSQL là nguồn authoritative cho fact có cấu trúc và numeric filter. Qdrant
-chỉ phục vụ document retrieval; semantic hit không được ghi đè exact catalog fact.
+PostgreSQL is authoritative for structured catalog facts and numeric filters.
+WeKnora owns document ingestion and retrieval; a document hit is evidence, not an
+automatic overwrite of an exact catalog fact. Unknown structured values remain
+eligible for deterministic evidence resolution in both the in-memory demo and the
+PostgreSQL-backed Lab 3 runtime.
 OpenClaw chỉ gọi domain tools, không nhận quyền SQL hay shell tùy ý.
 
 ## Luồng phụ thuộc

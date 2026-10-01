@@ -5,15 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lab-demo"
 version = "0.1.0"
-description = "Phase 0-1 foundation for an on-prem AI configuration advisor"
+description = "On-prem AI configuration advisor demo with Lab 2 runtime"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1",
+  "httpx>=0.27,<1",
   "pydantic>=2.5,<3",
 ]
 
 [project.optional-dependencies]
 postgres = ["psycopg[binary]>=3.2,<4", "python-dotenv>=1,<2"]
+lab2-runtime = ["psycopg[binary]>=3.2,<4", "python-dotenv>=1,<2", "uvicorn>=0.30,<1"]
+lab3-runtime = ["psycopg[binary]>=3.2,<4", "python-dotenv>=1,<2", "uvicorn>=0.30,<1"]
 lab1-train = [
   "accelerate==1.15.0",
   "datasets==5.0.1",
@@ -23,14 +26,17 @@ lab1-train = [
 ]
 dev = [
   "jsonschema>=4.21,<5",
-  "httpx>=0.27,<1",
   "python-dotenv>=1,<2",
   "pytest>=8.0,<9",
   "ruff>=0.6,<1",
   "uvicorn>=0.30,<1",
 ]
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
+namespaces = false
 include = [
   "adapters*",
   "lab1_finetune*",
@@ -38,6 +44,10 @@ include = [
   "lab3_workflow*",
   "shared*",
 ]
+exclude = ["*.tests", "*.tests.*"]
+
+[tool.setuptools.package-data]
+lab2_rag_agent = ["data/catalog/products.demo.json"]
 
 [tool.pytest.ini_options]
 testpaths = [
@@ -51,6 +61,7 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [".tmp", "artifacts/motion-reel", "build", "node_modules"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

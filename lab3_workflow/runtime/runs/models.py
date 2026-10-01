@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from pydantic import Field, field_validator, model_validator
 
-from shared.contracts import WorkflowContext, WorkflowEvent, WorkflowState
+from shared.contracts import CustomerRequirement, WorkflowContext, WorkflowEvent, WorkflowState
 from shared.contracts.models import ContractModel
 
 
@@ -22,6 +22,7 @@ def _utc_now() -> datetime:
 
 class RunRecord(ContractModel):
     run_id: str = Field(min_length=1)
+    requirement: CustomerRequirement | None = None
     status: RunStatus = RunStatus.PENDING
     created_at: datetime = Field(default_factory=_utc_now)
     started_at: datetime | None = None
@@ -52,4 +53,11 @@ class RunRecord(ContractModel):
                 raise ValueError("failed run requires a nonblank error")
         elif self.error is not None:
             raise ValueError("only failed runs may contain an error")
+        if self.status == RunStatus.COMPLETED:
+            if self.final_state is None or self.result is None:
+                raise ValueError("completed run requires a final state and result")
+            if self.result.state != self.final_state:
+                raise ValueError("completed run result must match its final state")
+        elif self.result is not None:
+            raise ValueError("only completed runs may contain a result")
         return self

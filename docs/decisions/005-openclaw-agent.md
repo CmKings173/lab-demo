@@ -13,4 +13,7 @@ The model must not generate arbitrary SQL or invent product facts.
 Direct LLM-to-database access or a bespoke agent framework.
 
 ## Consequences
-Agent runtime integration is deferred while tool contracts remain testable.
+The source integration consists of a loopback FastAPI Tool API and an OpenClaw plugin
+with exactly six allow-listed domain tools. Ingestion is not one of those tools.
+Gateway/plugin loading and the Qwen3-14B end-to-end tool round trip on GB300 remain
+unverified deployment work; source integration must not be presented as a live E2E pass.

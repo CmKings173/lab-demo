@@ -1,57 +1,44 @@
-# Lab demo — realtime workflow UI
+# AI Engineering Console — Lab Demo UI
 
-Đây là dashboard quan sát Lab 3, dùng Next.js App Router + TypeScript + Tailwind CSS.
-Giao diện gửi `CustomerRequirement`, đọc `WorkflowTopology` và hiển thị các
-`WorkflowEvent` theo thời gian thực. Sizing, pricing, evidence resolution và
-validation vẫn do backend deterministic workflow quyết định.
+Next.js App Router interface for the three project labs. The three screens follow the approved Stitch references; values come from saved Lab 1 artifacts or the configured Lab 2/Lab 3 services.
 
-## Bố cục
+## Screens and data flow
 
-- **Graph** là sơ đồ SVG xếp lớp từ `/workflow/topology`. Các nhánh và mũi tên
-  lấy từ `edge.source` / `edge.target`; chỉ đường đã có cặp `state.started`
-  tương ứng mới sáng. Node có trạng thái, duration và chọn được bằng bàn phím.
-- **Trace** cho biết thứ tự, offset và duration của từng event. Chọn event để
-  xem dữ liệu có cấu trúc tại **Inspector** và tua graph về thời điểm đó.
-  Nút **Latest** đưa graph trở lại trạng thái mới nhất.
-- **Chat** hiển thị request và trạng thái workflow có nguồn từ event. Ô ghi chú
-  mở bảng **New run**; ghi chú chỉ hiển thị ở UI, không được gửi vào backend hay
-  giả làm phản hồi AI. Hiện chưa có stream tin nhắn OpenClaw.
-- **Proposal** dùng dữ liệu từ terminal snapshot; nếu workflow không tạo
-  proposal thì panel hiển thị outcome thật, không tự dựng nội dung.
-- Theme mặc định **dark**, có thể chuyển **light/system**; lựa chọn được lưu trong
-  `localStorage` và áp dụng trước khi trang hiển thị.
+- **Lab 1 — Model development:** the server reads the fixed run manifest, final trainer state, paired Base/LoRA evaluation reports, the split exports whose SHA-256 values match the manifest, and the gold seed authoring specs. The browser receives run/evaluation summaries and the selected benchmark case, not local paths or arbitrary file contents. Token-length estimates are not displayed.
+- **Lab 2 — Grounded agent:** the browser calls same-origin `/api/lab2/chat`. The Next.js server forwards the conversation to the configured OpenClaw Gateway; its credential stays server-side. The Gateway plugin calls the private Lab 2 Tool API, whose active boundary remains exactly six domain tools. The chat endpoint does not expose per-tool events or prove provider health.
+- **Lab 3 — Deterministic workflow:** chat history goes to `POST /conversation/runs`. A `needs_information` answer is displayed without creating a run. A `submitted` answer opens the existing SSE stream; after completion the UI reads the terminal snapshot and requests `POST /runs/{run_id}/explanation`. The structured `POST /runs` route remains available from the secondary form.
 
-## Chạy local
+The default Lab 3 `lab3_workflow.runtime.http.app:app` is an offline demonstration app: it serves topology but has no conversation model configured. Conversation and explanation calls return an explicit unavailable response. Use the real-app factory when the PostgreSQL, WeKnora, and Qwen/vLLM services are configured.
 
-Terminal 1 — FastAPI:
+## Local setup
 
-```bash
-uvicorn lab3_workflow.runtime.http.app:app --reload --port 8000
+Use Python 3.11 or newer and Node.js compatible with the lockfile. From the repository root, install the backend runtime extras:
+
+```powershell
+python -m pip install -e ".[lab2-runtime,lab3-runtime]"
 ```
 
-Terminal 2 — frontend:
+Configure the backend process using the placeholders in the repository-root `.env.example` (or equivalent process environment variables). Keep real credentials local. Start the Lab 2 Tool API in its own terminal:
 
-```bash
+```powershell
+python -m uvicorn lab2_rag_agent.runtime.http.app:app --host 127.0.0.1 --port 8090
+```
+
+The OpenClaw Gateway must load the Lab 2 plugin and six-tool allowlist from `lab2_rag_agent/openclaw/plugin/examples/lab2-agent.json`; point its `toolApiBaseUrl` at the private Tool API. The Next.js server calls the Gateway, not the Tool API directly. See [`LAB2-CONNECTION.md`](./LAB2-CONNECTION.md) for the Gateway endpoint and server-only UI settings.
+
+Start the configured Lab 3 API in a separate terminal:
+
+```powershell
+python -m uvicorn lab3_workflow.runtime.real_app:create_real_app --factory --host 127.0.0.1 --port 8000
+```
+
+In `demo-ui/`, install the locked JavaScript dependencies and run Next.js:
+
+```powershell
 npm ci
-npm run lint
-npm run typecheck
-npm test
 npm run dev
 ```
 
-Mở `http://localhost:3000`. Next rewrite `/api/backend/*` sang `BACKEND_URL`
-(mặc định `http://127.0.0.1:8000`) để browser dùng cùng một origin; không cần mở CORS rộng.
+Open `http://localhost:3000`. The existing Next.js rewrite sends `/api/backend/*` to `BACKEND_URL` (default `http://127.0.0.1:8000`), so Lab 3 requests remain same-origin in the browser. Lab 2 Gateway settings are read by the Next.js server from `demo-ui/.env.local`; use the placeholders in `demo-ui/.env.example`.
 
-## Các luồng demo
-
-1. Bấm **New run** (hoặc nút gửi ở khung Chat) rồi nhập năm thông số workload.
-2. Bấm **Start workflow** → `POST /runs` trả `run_id`; bảng thiết lập tự đóng.
-3. UI mở SSE `/runs/{run_id}/events`; node, route, trace và inspector cập nhật
-   bằng event server. Các nhánh không đi qua vẫn ở trạng thái chờ.
-4. Chọn node hoặc event để xem trạng thái, timing, validation/evidence nếu
-   backend có phát thông tin tương ứng.
-5. Khi workflow terminal, UI đọc snapshot `/runs/{run_id}` với retry giới hạn
-   để hiển thị final state và proposal summary. Callback của run cũ không
-   được phép ghi đè run mới.
-
-Không copy Waku runtime, branding hay design assets vào frontend.
+Lab 1 displays an unavailable state when required artifacts are missing or their paired benchmark data is inconsistent. Split row counts are shown only when the local bytes match the manifest SHA-256; curated seed counts come from `lab1_finetune/data/gold_specs.json`. Lab 2 needs a reachable, privately hosted Gateway, plugin, Tool API, PostgreSQL, and WeKnora. Lab 3 needs PostgreSQL, WeKnora, and the configured Qwen/vLLM endpoint. This source/UI implementation does not claim those live services or an end-to-end round trip have been verified.

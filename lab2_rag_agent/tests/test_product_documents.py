@@ -110,6 +110,19 @@ def test_list_by_product_uses_parameter_and_stable_order(monkeypatch) -> None:
     assert params == ("product'; DROP TABLE products; --",)
 
 
+def test_list_by_knowledge_base_uses_parameter_and_stable_order(monkeypatch) -> None:
+    cursor = FakeCursor(rows=[_mapping_row()])
+    repository = _repository(monkeypatch, cursor)
+
+    result = repository.list_by_knowledge_base_id("kb'; DROP TABLE products; --")
+
+    assert [row.knowledge_id for row in result] == ["knowledge-1"]
+    statement, params = cursor.statement
+    assert "WHERE knowledge_base_id = %s ORDER BY id ASC" in statement
+    assert "DROP TABLE" not in statement
+    assert params == ("kb'; DROP TABLE products; --",)
+
+
 def test_get_by_knowledge_id_uses_complete_provider_identity(monkeypatch) -> None:
     cursor = FakeCursor(row=_mapping_row())
     repository = _repository(monkeypatch, cursor)

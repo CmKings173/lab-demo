@@ -3,7 +3,7 @@ from shared.interfaces import DocumentSearch, Reranker
 
 
 class RAGService:
-    """Retrieval seam; real Docling/BGE-M3/Qdrant integration is out of scope."""
+    """Retrieval seam; direct Docling/BGE/Qdrant is superseded by ADR 011."""
 
     def __init__(self, search: DocumentSearch, reranker: Reranker) -> None:
         self.search_backend = search

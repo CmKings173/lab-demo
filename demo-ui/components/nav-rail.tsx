@@ -1,23 +1,24 @@
-import { useSyncExternalStore } from "react";
-import { nextTheme, readTheme, saveTheme, subscribeTheme, type ThemePreference } from "@/lib/theme";
+export type LabKey = "lab1" | "lab2" | "lab3";
 
-const destinations = [
-  { href: "#live", short: "LV", label: "Live" },
-  { href: "#graph", short: "GR", label: "Graph" },
-  { href: "#runs", short: "RN", label: "Runs" },
-  { href: "#chat", short: "CH", label: "Chat" },
-  { href: "#proposal", short: "PR", label: "Proposal" },
+const labs: { key: LabKey; short: string; label: string }[] = [
+  { key: "lab1", short: "L1", label: "Model fine-tuning" },
+  { key: "lab2", short: "L2", label: "Agent + RAG" },
+  { key: "lab3", short: "L3", label: "Workflow" },
 ];
 
-export function NavRail() {
-  const theme = useSyncExternalStore<ThemePreference>(subscribeTheme, readTheme, () => "dark");
-  const changeTheme = () => {
-    const next = nextTheme(theme);
-    saveTheme(next);
-  };
-  return <nav className="nav-rail" aria-label="Dashboard sections">
-    <a className="rail-brand" href="#live" aria-label="Lab demo, về đầu dashboard">L<span>3</span></a>
-    <div className="rail-links">{destinations.map((item) => <a href={item.href} className="rail-link" key={item.href}><span className="rail-short" aria-hidden="true">{item.short}</span><span>{item.label}</span></a>)}</div>
-    <button type="button" className="theme-toggle" onClick={changeTheme} aria-label={`Theme hiện tại ${theme}; bấm để đổi theme`} title="Đổi theme: dark / light / system"><span aria-hidden="true">◐</span><span>{theme}</span></button>
-  </nav>;
+export function NavRail({ activeLab, onSelect }: { activeLab: LabKey; onSelect: (lab: LabKey) => void }) {
+  return <aside className="app-sidebar">
+    <div className="sidebar-top">
+      <a className="sidebar-brand" href="#main-content" aria-label="Lab Console home"><span className="brand-mark">LC</span><span><strong>LAB CONSOLE</strong><small>AI ENGINEERING</small></span></a>
+      <div className="sidebar-environment"><span>ENVIRONMENT</span><strong>LOCAL · UNVERIFIED</strong></div>
+      <nav className="sidebar-nav" aria-label="Labs">
+        <p className="sidebar-label">WORKSPACE</p>
+        {labs.map((lab) => <button key={lab.key} type="button" className={`sidebar-link ${activeLab === lab.key ? "active" : ""}`} aria-current={activeLab === lab.key ? "page" : undefined} onClick={() => onSelect(lab.key)}><span className="sidebar-short">{lab.short}</span><span>{lab.label}</span></button>)}
+      </nav>
+    </div>
+    <footer className="sidebar-footer">
+      <div className="sidebar-runtime"><span>BASE MODEL</span><strong>Qwen3-14B</strong><span>GATEWAY</span><strong className="unverified"><i aria-hidden="true" />UNVERIFIED</strong></div>
+      <div className="sidebar-quicklinks"><span>DOCS</span><span className="mono">REPOSITORY</span></div>
+    </footer>
+  </aside>;
 }

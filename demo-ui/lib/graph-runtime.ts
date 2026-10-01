@@ -4,7 +4,9 @@ export type EdgeVisualState = "idle" | "visited" | "active";
 
 /** Only consecutive state.started events can prove a route was traversed. */
 export function traversedEdges(events: WorkflowEvent[]): Set<string> {
-  const states = events.filter((event) => event.type === "state.started" && event.state).map((event) => event.state as string);
+  const states = events.flatMap((event) =>
+    event.type === "state.started" && event.state !== null ? [event.state] : [],
+  );
   const traversed = new Set<string>();
   for (let index = 1; index < states.length; index += 1) {
     traversed.add(`${states[index - 1]}→${states[index]}`);

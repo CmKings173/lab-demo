@@ -414,10 +414,18 @@ class ConfigurationComparison(ContractModel):
     unknown_facts: list[str] = Field(default_factory=list)
 
 
+class ProductComparison(ContractModel):
+    """Actual catalog facts for one product, preserving unavailable values as null."""
+
+    product: Product
+    unknown_facts: list[str] = Field(default_factory=list)
+
+
 class ComparisonResult(ContractModel):
     product_ids: list[str]
     configuration_ids: list[str] = Field(default_factory=list)
     configurations: list[ConfigurationComparison] = Field(default_factory=list)
+    products: list[ProductComparison] = Field(default_factory=list)
     dimensions: list[str] = Field(default_factory=list)
     summary: str
 

@@ -7,7 +7,6 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from dotenv import load_dotenv
 
 from infra.postgres.seed import SeedProduct, load_seed, upsert_products
 from lab2_rag_agent.catalog.repository import InMemoryProductRepository, PostgresProductRepository
@@ -67,7 +66,6 @@ def _parity_seed_rows() -> list[dict[str, object]]:
 
 
 def test_real_postgres_migration_seed_twice_and_repository_parity(monkeypatch) -> None:
-    load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
     dsn = os.environ.get("LAB2_TEST_POSTGRES_DSN")
     if not dsn:
         pytest.skip("Set LAB2_TEST_POSTGRES_DSN for isolated real PostgreSQL integration")

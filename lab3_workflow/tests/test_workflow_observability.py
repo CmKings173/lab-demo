@@ -210,3 +210,40 @@ def test_unhandled_tool_failure_emits_failed_workflow_event() -> None:
     assert WorkflowEventType.TOOL_FAILED in {event.type for event in sink.events}
     assert sink.events[-1].type == WorkflowEventType.WORKFLOW_FAILED
     assert {event.run_id for event in sink.events} == {"run-failure"}
+
+
+def test_failure_events_do_not_expose_technical_exception_text() -> None:
+    fake_secret = (
+        "postgresql://user:SUPER_SECRET_PASSWORD@db/internal "
+        "WEKNORA_API_KEY=VERY_SECRET_VALUE"
+    )
+
+    class FailingRepository(InMemoryProductRepository):
+        def search(self, request):
+            raise RuntimeError(fake_secret)
+
+    workflow, sink = observed_workflow(FailingRepository([make_compatible_product()]))
+    try:
+        workflow.run(complete_requirement(), run_id="run-secret-failure")
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("expected a technical workflow failure")
+
+    public_errors = [
+        event.payload.get("error")
+        for event in sink.events
+        if event.type in {
+            WorkflowEventType.TOOL_FAILED,
+            WorkflowEventType.STATE_FAILED,
+            WorkflowEventType.WORKFLOW_FAILED,
+        }
+    ]
+    if any(fake_secret in str(error) for error in public_errors):
+        raise AssertionError("workflow failure events exposed a fake test secret")
+    if public_errors != [
+        "WORKFLOW_TOOL_FAILED",
+        "WORKFLOW_STATE_FAILED",
+        "WORKFLOW_EXECUTION_FAILED",
+    ]:
+        raise AssertionError("workflow failure events did not use stable public codes")

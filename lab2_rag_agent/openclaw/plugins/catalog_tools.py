@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from lab2_rag_agent.catalog.comparison import (
+    PRODUCT_COMPARISON_DIMENSIONS,
+    product_comparison_from_catalog,
+)
 from shared.contracts import (
     ComparisonResult,
     DocumentSearchRequest,
@@ -91,14 +95,12 @@ class CatalogTools:
             ok=True,
             data=ComparisonResult(
                 product_ids=product_ids,
-                dimensions=[
-                    "product_type",
-                    "max_ram_gb",
-                    "max_gpu_slots",
-                    "max_storage_gb",
-                    "base_price_vnd",
-                ],
-                summary="So sánh thông tin nền tảng sản phẩm từ catalog.",
+                products=[product_comparison_from_catalog(product) for product in products],
+                dimensions=list(PRODUCT_COMPARISON_DIMENSIONS),
+                summary=(
+                    "Catalog facts are returned in the requested product order; "
+                    "fields without values are listed as unknown."
+                ),
             ),
         )
 

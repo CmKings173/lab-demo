@@ -25,7 +25,7 @@ class FakeReranker:
 
 
 class BGEReranker:
-    """Reserved for a local BGE reranker; model loading is deferred."""
+    """Legacy direct-BGE placeholder superseded for Lab2 by ADR 011."""
 
     def rank(self, query: str, hits: Sequence[DocumentHit]) -> list[DocumentHit]:
-        raise NotImplementedError("BGE reranker is planned for a later phase")
+        raise NotImplementedError("Direct BGE reranking is superseded by ADR 011")

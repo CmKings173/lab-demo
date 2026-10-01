@@ -1,0 +1,19 @@
+{
+  "agents": {
+    "entries": {
+      "lab2": {
+        "tools": {
+          "profile": "full",
+          "allow": [
+            "search_products",
+            "get_product",
+            "search_product_documents",
+            "compare_products",
+            "compare_configurations",
+            "estimate_ai_requirements"
+          ]
+        }
+      }
+    }
+  }
+}

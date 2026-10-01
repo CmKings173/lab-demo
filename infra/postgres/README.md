@@ -10,18 +10,19 @@ an unknown specification meets the requested threshold.
 Local development (from the repository root):
 
 1. Copy `.env.example` to `.env` and set a local-only PostgreSQL password there.
-   `.env` is Git-ignored; never commit it. The same file holds the DSN used by
-   the seed command and the isolated PostgreSQL integration test.
+   `.env` is Git-ignored; never commit it. The seed command can load the DSN from
+   that file; integration tests read only the process environment.
 2. Install the optional PostgreSQL dependencies:
    `python -m pip install -e ".[postgres]"`.
 3. Start the database with
    `docker compose --env-file .env -f infra/postgres/docker-compose.yml up -d`.
 4. The first database initialization applies all numbered SQL migrations.
    For an existing volume, apply any unapplied migrations explicitly with `psql`;
-   Compose init scripts do not rerun on an existing volume. The current mapping
-   migration is `003_create_product_documents.sql`.
+   Compose init scripts do not rerun on an existing volume. Migrations 003 and 004
+   add the product-document mapping and Lab 3 configuration options respectively.
 5. Run `python -m infra.postgres.seed`. It loads `LAB2_POSTGRES_DSN` from the
-   repository-root `.env`, validates the JSON seed, and upserts by `id`.
+   repository-root `.env`, validates the product and DEMO option seeds, and
+   idempotently upserts by stable IDs.
 
 The seed at `lab2_rag_agent/data/catalog/products.demo.json` contains ten curated
 product-page entries from [CNTTShop's Workstation AI category](https://cnttshop.vn/workstation-ai-pc-ai).
@@ -44,9 +45,9 @@ override it. Frozen Lab 1 tool definitions and product-result models live in
 `lab1_finetune/data/frozen_contracts.py` and its JSON schema snapshot; expanding
 Lab 2's runtime filter must not change Lab 1's frozen hashes.
 
-For a real adapter parity check, `LAB2_TEST_POSTGRES_DSN` in `.env` may point to
-the local catalog database: the test creates and drops only a uniquely named
-temporary schema. Run
+For a real adapter parity check, export `LAB2_TEST_POSTGRES_DSN` into the test
+process environment, pointing to a local catalog database: the test creates and
+drops only a uniquely named temporary schema. Tests do not load `.env`. Run
 `python -m pytest lab2_rag_agent/tests/test_postgres_integration.py -q`.
 Without the variable it skips rather than claiming PostgreSQL was tested.
 
@@ -74,3 +75,26 @@ The mapping contract and repository are Lab 2-local:
 The repository lists mappings by product, resolves provider IDs by knowledge
 base, finds an existing checksum for reconciliation, upserts on provider identity,
 and updates parse status with parameterized SQL.
+
+## Lab 3 structured configuration options
+
+Lab 3 shares this same physical `lab2_catalog` database; do not create another
+database or copy the product catalog. `LAB3_POSTGRES_DSN` is a separate process
+setting and should point to the same database as `LAB2_POSTGRES_DSN`. The additive
+`004_create_configuration_options.sql` migration creates typed option rows and
+explicit product-compatibility links referencing the existing `products(id)`.
+The shared seed upserts three DEMO options for the existing
+`cntt-ws-rtxpro6000-maxq` product. Their RAM/storage prices and `example.invalid`
+provenance are illustrative only; the GPU price, base chassis price and CPU price
+remain unknown, so a generated configuration must not claim `COMPLETE` pricing.
+
+For an existing database volume, apply the migration using the configured database
+connection (`psql "$LAB3_POSTGRES_DSN" -f infra/postgres/migrations/004_create_configuration_options.sql`)
+and rerun `python -m infra.postgres.seed`. Install the runtime dependencies first
+with `python -m pip install -e ".[lab3-runtime]"` (PostgreSQL driver, dotenv, and
+Uvicorn). To start the separate real-data API from the repository root, set
+`LAB3_POSTGRES_DSN` to the same database and run
+`python -m uvicorn lab3_workflow.runtime.real_app:create_real_app --factory --host 127.0.0.1 --port 8000`.
+The existing `lab3_workflow.runtime.http.app:app` remains the offline demo entry
+point. Real composition defaults to an empty document-search seam until Phase 3.3
+implements verified evidence-to-fact conversion; it does not fabricate evidence.

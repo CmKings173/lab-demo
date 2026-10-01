@@ -1,0 +1,33 @@
+{
+  "id": "lab2-catalog-tools",
+  "name": "Lab 2 Catalog Tools",
+  "description": "Allow-listed structured catalog and product-document tools for the Lab 2 demo.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "required": [
+      "toolApiBaseUrl"
+    ],
+    "properties": {
+      "toolApiBaseUrl": {
+        "type": "string",
+        "format": "uri",
+        "description": "Base URL of the private Lab 2 tool API, for example http://127.0.0.1:8090."
+      }
+    },
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "search_products",
+      "get_product",
+      "search_product_documents",
+      "compare_products",
+      "compare_configurations",
+      "estimate_ai_requirements"
+    ]
+  }
+}
