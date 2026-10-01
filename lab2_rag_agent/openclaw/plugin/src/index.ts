@@ -37,19 +37,27 @@ const productFilterSchema = Type.Object(
     max_base_price_vnd: nullableInteger(),
     max_listed_price_vnd: nullableInteger(),
     product_type: Type.Optional(
-      Type.Union([
-        Type.Literal("ai_server"),
-        Type.Literal("ai_workstation"),
-        Type.Literal("ai_pc"),
-        Type.Null(),
-      ]),
+      Type.Union(
+        [
+          Type.Literal("ai_server"),
+          Type.Literal("ai_workstation"),
+          Type.Literal("ai_pc"),
+          Type.Null(),
+        ],
+        {
+          description: "The structured category filter: AI server = ai_server, AI workstation = ai_workstation, AI PC = ai_pc. Use this for category requests, not query.",
+        },
+      ),
     ),
     min_total_gpu_vram_gb: nullableNumber(),
     min_installed_ram_gb: nullableInteger(),
     gpu_vendor: nullableString(),
     availability: nullableString(),
   },
-  closedObject,
+  {
+    ...closedObject,
+    description: "Use only the declared catalog filters. Never send usage, vram_gb, system_ram_gb, model_size_b or context_length to search_products, either here or at the root. Workload/model sizing belongs to estimate_ai_requirements; translate sizing results only into supported filters such as min_total_gpu_vram_gb, min_installed_ram_gb and min_gpu_count.",
+  },
 );
 
 export const toolApiConfigSchema = Type.Object(
@@ -65,8 +73,16 @@ export const toolApiConfigSchema = Type.Object(
 const searchProductsSchema = Type.Object(
   {
     filters: Type.Optional(productFilterSchema),
-    query: nullableString(),
-    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+    query: Type.Optional(
+      Type.Union([Type.String(), Type.Null()], {
+        description: "ONLY free-text matching for product name, SKU or manufacturer. Use null for category-only requests; do not put category labels such as workstation AI or workload/model sizing requirements here.",
+      }),
+    ),
+    limit: Type.Optional(Type.Integer({
+      minimum: 1,
+      maximum: 100,
+      description: "Maximum number of products to return; use the requested product count (for example 3 for three workstations).",
+    })),
   },
   closedObject,
 );
@@ -180,7 +196,7 @@ export default defineToolPlugin({
     tool({
       name: "search_products",
       label: "Search products",
-      description: "Search the structured product catalog using the supplied filters.",
+      description: 'Search the structured product catalog. Use filters.product_type for categories and query only for product name/SKU/manufacturer; category-only requests use query=null. For "tìm 3 workstation AI" or "hãy tìm cho tôi 3 workstation AI trong catalog", use the exact category arguments below, not a free-text category query. Never invent filter keys; workload/model sizing belongs to estimate_ai_requirements. Example: {"filters":{"product_type":"ai_workstation"},"query":null,"limit":3}',
       parameters: searchProductsSchema,
       async execute(params, config, context) {
         return executeToolApi("search_products", params, config, context.signal);
@@ -225,7 +241,7 @@ export default defineToolPlugin({
     tool({
       name: "estimate_ai_requirements",
       label: "Estimate AI requirements",
-      description: "Run the deterministic Lab 2 sizing estimate for the provided requirements.",
+      description: "Run deterministic workload/model sizing using model_parameters_b and usage plus the supported sizing options. This is not catalog search. Afterwards, translate sizing results only into supported search_products filters such as min_total_gpu_vram_gb, min_installed_ram_gb and min_gpu_count; do not copy sizing argument/output keys into catalog filters.",
       parameters: estimateRequirementsSchema,
       async execute(params, config, context) {
         return executeToolApi("estimate_ai_requirements", params, config, context.signal);

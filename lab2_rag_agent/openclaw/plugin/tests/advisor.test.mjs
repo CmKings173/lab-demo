@@ -2,6 +2,26 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { test } from "node:test";
 
+test("advisor maps Vietnamese category requests to supported catalog arguments, not sizing keys", async () => {
+  const prompt = await readFile(new URL("../examples/lab2-workspace/SOUL.md", import.meta.url), "utf8");
+  const instructions = prompt.replace(/\s+/g, " ");
+  assert.match(prompt, /hãy tìm cho tôi 3 workstation AI trong catalog/);
+  assert.match(prompt, /product_type.*structured category filter/);
+  assert.match(prompt, /query.*ONLY.*product name.*SKU.*manufacturer/);
+  const example = prompt.match(/```json\s*([\s\S]*?)\s*```/);
+  assert.ok(example, "advisor must give explicit category-search arguments");
+  assert.deepEqual(JSON.parse(example[1]), {
+    filters: { product_type: "ai_workstation" }, query: null, limit: 3,
+  });
+  assert.match(instructions, /Never send.*usage.*vram_gb.*system_ram_gb.*model_size_b.*context_length/);
+  assert.match(prompt, /workload\/model sizing.*estimate_ai_requirements/);
+  assert.match(prompt, /model_parameters_b/);
+  assert.match(prompt, /only supported search filters/);
+  for (const key of ["min_total_gpu_vram_gb", "min_installed_ram_gb", "min_gpu_count"]) {
+    assert.ok(prompt.includes(key), `missing supported sizing translation: ${key}`);
+  }
+});
+
 test("pinned OpenClaw 2026.9.6 accepts workspace bootstrap and exactly six tools", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
   assert.equal(packageJson.devDependencies.openclaw, "2026.9.6");

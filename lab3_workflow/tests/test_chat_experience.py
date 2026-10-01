@@ -24,7 +24,7 @@ def test_normal_turn_uses_one_completion_and_no_tools(message):
     assert turn.reply == reply
     assert turn.requirement == CustomerRequirement()
     assert "Mình là nhân viên tư vấn của CNTTShop." in ADVISOR_SYSTEM_PROMPT
-    assert "Identity questions establish NO" in ADVISOR_SYSTEM_PROMPT
+    assert "Identity questions establish no new CustomerRequirement facts." in ADVISOR_SYSTEM_PROMPT
 
 
 def test_identity_follow_up_preserves_prior_user_facts():
