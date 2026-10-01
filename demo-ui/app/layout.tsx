@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./stitch-ui.css";
 
 export const metadata: Metadata = {
-  title: "Lab demo — workflow trace",
-  description: "Realtime deterministic workflow observability demo",
+  title: "AI Engineering Console · Lab Demo",
+  description: "Training evaluation, grounded tools, and deterministic workflow observability.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <head><script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('lab-demo-theme');document.documentElement.dataset.theme=t==='light'||t==='system'?t:'dark'}catch(e){document.documentElement.dataset.theme='dark'}` }} /></head>
+      <head><script dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme='light'` }} /></head>
       <body>{children}</body>
     </html>
   );

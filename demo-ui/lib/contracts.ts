@@ -23,6 +23,24 @@ export interface WorkflowEvent {
 }
 
 export interface CreateRunResponse { run_id: string; status: RunStatus; }
+export interface ConfigurationSummary {
+  configuration_id: string;
+  product_name: string;
+  manufacturer: string | null;
+  gpu: string | null;
+  gpu_count: number | null;
+  ram_gb: number | null;
+  storage_gb: number | null;
+  estimated_price_vnd: number | null;
+  evidence_sources: string[];
+}
+export interface ProposalOptionSummary {
+  name: string;
+  rationale: string;
+  configuration: ConfigurationSummary;
+  estimated_price_vnd: number | null;
+  limitations: string[];
+}
 export interface ProposalSummary {
   selected_configuration_ids: string[];
   option_count: number;
@@ -30,6 +48,8 @@ export interface ProposalSummary {
   estimated_price_vnd: number | null;
   limitations: string[];
   sources: string[];
+  selected_configurations: ConfigurationSummary[];
+  options: ProposalOptionSummary[];
 }
 export interface RunResultSummary {
   final_state: string;

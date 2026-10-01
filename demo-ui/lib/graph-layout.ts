@@ -29,7 +29,8 @@ export type GraphLayout = {
 export function layoutGraph(topology: WorkflowTopology): GraphLayout {
   const index = new Map(topology.nodes.map((node, position) => [node.id, position]));
   const indegree = new Map(topology.nodes.map((node) => [node.id, 0]));
-  const outgoing = new Map(topology.nodes.map((node) => [node.id, [] as WorkflowTopologyEdge[]]));
+  const outgoing = new Map<string, WorkflowTopologyEdge[]>();
+  for (const node of topology.nodes) outgoing.set(node.id, []);
   const layer = new Map(topology.nodes.map((node) => [node.id, 0]));
 
   for (const edge of topology.edges) {
