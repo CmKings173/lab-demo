@@ -22,6 +22,7 @@ class Lab3RuntimeSettings(BaseModel):
     llm_base_url: str
     llm_model: str
     llm_api_key: SecretStr | None = None
+    llm_json_schema_enabled: bool = False
 
     @field_validator("postgres_dsn", mode="before")
     @classmethod
@@ -138,6 +139,7 @@ class Lab3RuntimeSettings(BaseModel):
                 llm_base_url=os.environ["LAB3_LLM_BASE_URL"],
                 llm_model=os.environ["LAB3_LLM_MODEL"],
                 llm_api_key=os.environ.get("LAB3_LLM_API_KEY") or None,
+                llm_json_schema_enabled=os.environ.get("LAB3_LLM_JSON_SCHEMA_ENABLED", "false"),
             )
         except Exception:
             # Pydantic errors include invalid environment values and credentials.

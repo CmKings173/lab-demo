@@ -64,15 +64,24 @@ identity/provenance and its deterministic extraction/domain rules. It is not a
 claim that the underlying real-world statement was independently proven.
 Confidence uses the neutral default and is not a calibrated probability.
 
-The source bridge is implemented, but live PostgreSQL integration (unless the
-dedicated test DSN is configured), a live WeKnora service, OpenClaw Gateway/plugin
-loading on GB300, and a direct Qwen3-14B/vLLM conversation-to-workflow round trip
-remain unverified.
+The source bridge is implemented. The operator reports prior live GB300 provider
+and tool/workflow round trips verified; this correction's source/local-fixture
+tests do not reverify those services or the newly deployed advisor behavior.
+Real PostgreSQL integration tests require their dedicated test DSN and are
+reported SKIPPED when absent, not PASS.
 
 Lab 2 uses OpenClaw for its agent/tool-use demonstration. Lab 3 does not use
 OpenClaw. Its Phase 3.4 source adds a direct Qwen3-14B/vLLM conversation boundary
-around the deterministic workflow: the model extracts only validated customer
-requirements, and explains safe summaries read from the server-side run store.
+around the deterministic workflow: Qwen Advisor converses with full history,
+returns a natural reply alongside validated cumulative user-established requirements,
+and explains safe summaries read from the server-side run store. Assistant text
+is context, not automatically authoritative requirement data; explicit user
+selection/confirmation/correction can establish a contextual value. No
+model-selected products or prices enter the workflow. The server alone decides
+submission from required fields and the absence of a validated existing run ID.
+Follow-ups carrying that ID never automatically create another run; NEW CHAT
+resets it. Messages/replies/explanations share a 4000-character bound. The Next
+conversation-only handler allows 135 s; SSE and unrelated rewrites are unchanged.
 The workflow state machine remains deterministic and LLM-unaware. The default
 Lab 3 app remains an offline demo; only the explicit real-data app owns the model
 client and conversation endpoints.

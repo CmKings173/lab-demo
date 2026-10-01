@@ -15,16 +15,15 @@ from ...workflow.orchestrator import DeterministicWorkflow
 from ..conversation import (
     ConversationService,
     ConversationServiceError,
-    missing_information_question,
 )
 from ..demo import create_demo_workflow
 from ..runs.models import RunStatus
 from ..runs.store import InMemoryRunStore
 from .conversation_models import (
+    ConversationContinuedResponse,
     ConversationRunRequest,
     ConversationRunResponse,
     ConversationRunSubmittedResponse,
-    NeedsInformationResponse,
     RunExplanationResponse,
 )
 from .models import APIErrorDetail, APIErrorResponse, CreateRunResponse, RunSnapshot
@@ -156,24 +155,33 @@ def create_app(
             )
         if service.workflow_factory is None:
             raise APIError(503, "WORKFLOW_NOT_CONFIGURED", "Workflow execution is not configured.")
-        requirement = conversation_service.extract_requirement(
+        existing_run = None
+        if request.workflow_run_id is not None:
+            # WorkflowRunService issues UUID4.hex IDs; preserve that store convention.
+            existing_run = service.store.get(request.workflow_run_id.hex)
+            if existing_run is None:
+                raise APIError(404, "RUN_NOT_FOUND", "Run was not found.")
+        advisor_turn = conversation_service.advise(
             [
                 ChatMessage(role=message.role, content=message.content)
                 for message in request.messages
-            ]
+            ],
+            existing_run=existing_run,
         )
+        requirement = advisor_turn.requirement
         missing_fields = requirement.missing_required_fields()
-        if missing_fields:
-            return NeedsInformationResponse(
-                status="needs_information",
+        if missing_fields or existing_run is not None:
+            return ConversationContinuedResponse(
+                status="conversation",
                 requirement=requirement,
                 missing_fields=missing_fields,
-                question=missing_information_question(missing_fields),
+                reply=advisor_turn.reply,
             )
         record = service.submit(requirement)
         response.status_code = 202
         return ConversationRunSubmittedResponse(
             status="submitted",
+            reply=advisor_turn.reply,
             run_id=record.run_id,
             run_status=record.status,
             requirement=requirement,

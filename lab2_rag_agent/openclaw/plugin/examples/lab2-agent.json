@@ -2,6 +2,10 @@
   "agents": {
     "entries": {
       "lab2": {
+        "workspace": "~/.openclaw/workspace-lab2",
+        "model": "vllm/Qwen/Qwen3-14B",
+        "contextInjection": "always",
+        "skills": [],
         "tools": {
           "profile": "full",
           "allow": [

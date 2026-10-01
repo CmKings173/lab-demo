@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { LAB2_AGENT_ID, LAB2_MODEL_TARGET } from "@/lib/lab2-contracts";
+import { LAB2_AGENT_ID, LAB2_GATEWAY_MODEL } from "@/lib/lab2-contracts";
 
 const MAX_MESSAGE_CHARS = 4_000;
 const MAX_REQUEST_BYTES = 16 * 1024;
@@ -62,7 +62,22 @@ function readGatewayConfig(): GatewayConfig | null {
 function isSameOriginRequest(request: Request): boolean {
   const origin = request.headers.get("origin");
   const fetchSite = request.headers.get("sec-fetch-site");
-  if (!origin || origin !== new URL(request.url).origin) return false;
+  const requestUrl = new URL(request.url);
+  const host = request.headers.get("host");
+  let expectedOrigin = requestUrl.origin;
+  if (host !== null) {
+    try {
+      // Next may synthesize Request.url with its listening hostname rather than
+      // the browser's LAN host. Use the actual Host, never X-Forwarded-Host.
+      const hostUrl = new URL(`${requestUrl.protocol}//${host}`);
+      if (hostUrl.host.toLowerCase() !== host.toLowerCase() || hostUrl.username ||
+          hostUrl.password || hostUrl.pathname !== "/" || hostUrl.search || hostUrl.hash) return false;
+      expectedOrigin = hostUrl.origin;
+    } catch {
+      return false;
+    }
+  }
+  if (!origin || origin !== expectedOrigin) return false;
   return fetchSite === null || fetchSite === "same-origin";
 }
 
@@ -110,11 +125,14 @@ async function parseInput(request: Request): Promise<ChatInput | null> {
     return null;
   }
   if (!isRecord(value) || Object.keys(value).some((key) => key !== "message" && key !== "conversationId")) return null;
-  if (typeof value.message !== "string" || typeof value.conversationId !== "string") return null;
+  if (typeof value.message !== "string") return null;
 
   const message = value.message.trim();
   if (!message || message.length > MAX_MESSAGE_CHARS || Buffer.byteLength(message, "utf8") > MAX_REQUEST_BYTES) return null;
-  if (!UUID_PATTERN.test(value.conversationId)) return null;
+  if (value.conversationId === undefined || value.conversationId === null) {
+    return { message, conversationId: randomUUID() };
+  }
+  if (typeof value.conversationId !== "string" || !UUID_PATTERN.test(value.conversationId)) return null;
   return { message, conversationId: value.conversationId.toLowerCase() };
 }
 
@@ -164,7 +182,7 @@ export async function runLab2Chat(request: Request): Promise<Lab2RouteResult> {
         "Content-Type": "application/json",
         Accept: "application/json",
         "x-openclaw-agent-id": LAB2_AGENT_ID,
-        "x-openclaw-model": LAB2_MODEL_TARGET,
+        "x-openclaw-model": LAB2_GATEWAY_MODEL,
       },
       body: JSON.stringify({
         model: `openclaw/${LAB2_AGENT_ID}`,

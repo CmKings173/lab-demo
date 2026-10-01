@@ -77,24 +77,32 @@ Lab 3 Phase 3.4 implementation in source:
 - Lab 3 uses a direct Qwen3-14B/vLLM adapter through the shared `ModelClient`
   interface. The adapter uses OpenAI-compatible models and chat-completions
   endpoints; thinking is disabled and tool calls are not used.
-- `POST /conversation/runs` extracts only the eight `CustomerRequirement` fields,
-  validates them with the shared contract, and fails closed when required values
-  are missing or model output is invalid. Valid requests use the existing
-  `WorkflowRunService`; the deterministic workflow does not depend on the LLM.
+- `POST /conversation/runs` returns a typed advisor `reply` plus the eight
+  cumulative `CustomerRequirement` fields. Full-history extraction validates
+  only user-established facts, including explicit selections/confirmations of
+  assistant context. Assistant text alone is not authoritative. Conversational
+  generation must preserve the validated requirement. Missing fields or a
+  validated existing `workflow_run_id` return `status="conversation"` without a
+  new run; complete facts with no existing ID submit one run using the
+  existing `WorkflowRunService`. Invalid output fails closed. The deterministic
+  workflow does not depend on the LLM.
 - `POST /runs/{run_id}/explanation` reads only the server-side run record and its
   safe result/proposal summary. Conversation support is configured only by the
   explicit real-data app; the default offline app remains infrastructure-free.
+- Messages, advisor replies and explanations are bounded to 4000 characters.
+  The Next conversation-only proxy has a finite 135000 ms deadline; SSE is
+  unchanged. JSON-schema opt-in covers both extraction and advisor requests;
+  the default remains strict plain JSON without permissive retries.
 - The Lab 3 runtime closes its executor, WeKnora client, and model client in order.
   Injected provider clients remain caller-owned.
 
-Still unverified live: PostgreSQL integration when its dedicated test DSN is
-absent; live WeKnora service verification; Lab 2 OpenClaw Gateway/plugin loading on
-GB300; and a direct Qwen3-14B/vLLM conversation-to-workflow round trip on GB300.
-
-Not yet verified live: PostgreSQL integration unless its dedicated test DSN is set;
-the live WeKnora service; OpenClaw Gateway/plugin loading on GB300 for Lab 2; a
-direct Qwen3-14B/vLLM conversation round trip on GB300;
-and the complete
-OpenClaw → `127.0.0.1:8090` → PostgreSQL/WeKnora/model response path.
+Live-status provenance: the operator reports prior GB300 vLLM chat/tool calling,
+OpenClaw six-tool loading and product search, Tool API/PostgreSQL/WeKnora, and
+Lab3 conversation/workflow/explanation checks already verified. The current
+chat correction is verified by source tests and an isolated local browser
+fixture, not a new GB300 round trip. Deploy/recheck the new advisor instructions
+and conversation behavior separately. PostgreSQL integration tests remain
+SKIPPED whenever their dedicated `LAB2_TEST_POSTGRES_DSN` is absent; operator
+reports do not turn those skipped gates into PASS.
 
 Các lựa chọn chưa khóa nằm tại `docs/open-decisions.md`.
