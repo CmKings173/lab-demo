@@ -1,5 +1,5 @@
 export class ApiClientError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(message: string, readonly status: number, readonly code: string | null = null) {
     super(message);
     this.name = "ApiClientError";
   }
@@ -29,10 +29,15 @@ export function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(isString);
 }
 
-function publicErrorMessage(payload: unknown): string | null {
-  if (!isRecord(payload) || !isRecord(payload.error) || !isString(payload.error.message)) return null;
+function publicError(payload: unknown): { message: string; code: string | null } | null {
+  if (!isRecord(payload) || Object.keys(payload).length !== 1 ||
+      !isRecord(payload.error) || !isString(payload.error.message) ||
+      Object.keys(payload.error).some((key) => key !== "message" && key !== "code" && key !== "details")) return null;
   const message = payload.error.message.trim();
-  return message ? message.slice(0, 2_000) : null;
+  const code = payload.error.code ?? null;
+  if (!message || payload.error.message.length > 2_000 ||
+      (code !== null && (!isString(code) || !/^[A-Z][A-Z0-9_]{0,63}$/.test(code)))) return null;
+  return { message, code };
 }
 
 export async function parseApiResponse<T>(
@@ -42,7 +47,9 @@ export async function parseApiResponse<T>(
 ): Promise<T> {
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new ApiClientError(publicErrorMessage(payload) ?? `${fallbackMessage} (${response.status})`, response.status);
+    const error = publicError(payload);
+    throw new ApiClientError(error?.message ?? `${fallbackMessage} (${response.status})`,
+      response.status, error?.code ?? null);
   }
   if (!isPayload(payload)) {
     throw new ApiClientError(`${fallbackMessage}: the response format was invalid.`, response.status);

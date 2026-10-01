@@ -1,5 +1,8 @@
 # Lab2/Lab3 chat correction closeout - 2026-10-01
 
+> Historical report. The two-call architecture and test counts below are
+> superseded by [the one-call chat experience closeout](chat-experience-closeout.md).
+
 Historical first-pass verification below predates the Lab3-only corrective pass.
 Its counts and user-only extraction/one-run-per-request wording are not the final
 Lab3 contract. See [the current corrective closeout](conversation-corrective-closeout.md)

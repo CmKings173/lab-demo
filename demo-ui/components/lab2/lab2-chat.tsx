@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, type FormEvent, type KeyboardEvent } from "react";
 
-import { LAB2_AGENT_ID, LAB2_MODEL_TARGET } from "@/lib/lab2-config";
 import type { Lab2ChatMessage, Lab2RequestState } from "./hooks/use-lab2-chat";
 import styles from "./lab2-panel.module.css";
 
@@ -25,7 +24,7 @@ function MessageItem({ message }: { message: Lab2ChatMessage }) {
   const tokenUsage = message.role === "assistant" ? usageLabel(message.usage) : null;
   return <article className={`${styles.message} ${message.role === "user" ? styles.userMessage : styles.assistantMessage}`}>
     <div className={styles.messageHeading}>
-      <strong>{message.role === "user" ? "YOU" : "LAB2 AGENT"}</strong>
+      <strong>{message.role === "user" ? "YOU" : "CNTTShop Advisor"}</strong>
       {message.role === "assistant" && message.model ? <span>{message.model}</span> : null}
     </div>
     <p>{message.text}</p>
@@ -70,14 +69,9 @@ export function Lab2Chat({
     <div className={styles.chatHeader}>
       <div className={styles.chatTitle}>
         <span className={styles.agentMark} aria-hidden="true">AI</span>
-        <div><p className={styles.chatOverline}>AGENT CHAT</p><h2 id="chat-title">Lab2 assistant</h2></div>
+        <div><p className={styles.chatOverline}>AI ADVISOR</p><h2 id="chat-title">CNTTShop Advisor</h2></div>
       </div>
       <span className={`${styles.turnStatus} ${styles[`turn_${requestState}`]}`}><i aria-hidden="true" />{turnLabel(requestState)}</span>
-    </div>
-
-    <div className={styles.chatSubhead}>
-      <span>OpenClaw agent <strong>{LAB2_AGENT_ID}</strong></span>
-      <span>Model target <strong>{LAB2_MODEL_TARGET}</strong></span>
     </div>
 
     <div className={styles.messages} ref={messagesRef} aria-live="polite" aria-relevant="additions text">
@@ -95,7 +89,7 @@ export function Lab2Chat({
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
 
     <form className={styles.composer} onSubmit={onSubmit} ref={formRef}>
-      <label htmlFor="lab2-message">MESSAGE THE AGENT</label>
+      <label htmlFor="lab2-message">MESSAGE THE ADVISOR</label>
       <textarea
         id="lab2-message"
         value={draft}
@@ -108,7 +102,7 @@ export function Lab2Chat({
       />
       <div className={styles.composerFooter}>
         <span>Enter to send | Shift+Enter for a new line | {draft.length.toLocaleString()}/4,000</span>
-        <button type="submit" disabled={!draft.trim() || sending} aria-label="Send message to Lab2 agent">
+        <button type="submit" disabled={!draft.trim() || sending} aria-label="Send message to CNTTShop advisor">
           {sending ? "SENDING..." : "SEND MESSAGE"}<span aria-hidden="true">&gt;</span>
         </button>
       </div>

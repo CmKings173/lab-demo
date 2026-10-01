@@ -3,9 +3,11 @@
 import { useCallback, useRef, useState, type FormEvent } from "react";
 
 import { submitConversation } from "@/lib/api/lab3";
+import { ApiClientError } from "@/lib/api/http";
 import type { RunStatus } from "@/lib/contracts";
 import type { ConversationMessage } from "@/lib/lab3-contracts";
 import { LAB3_MAX_MESSAGE_CHARS } from "@/lib/lab3-contracts";
+import { formatLab3ConversationError } from "@/lib/lab3-errors";
 
 type RunCoordinator = {
   isRunActive: boolean;
@@ -58,7 +60,7 @@ export function useLab3Conversation() {
       }
     } catch (reason) {
       if (requestGeneration === generation.current) {
-        setError(reason instanceof Error ? reason.message : "Không gửi được yêu cầu đến conversation API.");
+        setError(formatLab3ConversationError(reason instanceof ApiClientError ? reason.code : null));
       }
     } finally {
       if (requestGeneration === generation.current) setBusy(false);

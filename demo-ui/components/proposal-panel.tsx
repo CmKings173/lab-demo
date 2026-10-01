@@ -16,7 +16,7 @@ function ConfigurationCard({ item }: { item: ConfigurationSummary }) {
       {item.storage_gb !== null ? <div><dt>Storage</dt><dd>{item.storage_gb} GB</dd></div> : null}
       <div><dt>Estimated</dt><dd>{money(item.estimated_price_vnd)}</dd></div>
     </dl>
-    {item.evidence_sources.length ? <div className="proposal-evidence"><span>Evidence sources</span><ul>{item.evidence_sources.map((source) => <li key={source}><a href={source} target="_blank" rel="noreferrer">{source}</a></li>)}</ul></div> : <p className="proposal-source-empty">No source URL is attached to this configuration summary.</p>}
+    {item.evidence_sources.length ? <div className="proposal-evidence"><span>Evidence sources</span><ul>{item.evidence_sources.map((source, index) => <li key={`${index}-${source}`}><a href={source} target="_blank" rel="noreferrer">{source}</a></li>)}</ul></div> : <p className="proposal-source-empty">No source URL is attached to this configuration summary.</p>}
   </article>;
 }
 
@@ -32,7 +32,7 @@ export function ProposalPanel({ snapshot, finalState }: { snapshot: RunSnapshot 
       {proposal.selected_configurations.length ? <div className="proposal-detail"><h3>Selected configurations</h3><div className="proposal-config-list">{proposal.selected_configurations.map((item) => <ConfigurationCard key={item.configuration_id} item={item} />)}</div></div> : null}
       {proposal.options.length ? <div className="proposal-detail"><h3>Proposal options</h3><div className="proposal-config-list">{proposal.options.map((option) => <div className="proposal-option" key={`${option.name}-${option.configuration.configuration_id}`}><strong>{option.name}</strong><p>{option.rationale}</p><ConfigurationCard item={option.configuration} />{option.limitations.length ? <ul>{option.limitations.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul> : null}</div>)}</div></div> : null}
       {proposal.limitations.length ? <div className="proposal-detail"><h3>Limitations</h3><ul>{proposal.limitations.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></div> : null}
-      {proposal.sources.length ? <div className="proposal-detail"><h3>Evidence / sources</h3><ul>{proposal.sources.map((source) => <li key={source}><a href={source} target="_blank" rel="noreferrer">{source}</a></li>)}</ul></div> : null}
+      {proposal.sources.length ? <div className="proposal-detail"><h3>Evidence / sources</h3><ul>{proposal.sources.map((source, index) => <li key={`${index}-${source}`}><a href={source} target="_blank" rel="noreferrer">{source}</a></li>)}</ul></div> : null}
       <p className="proposal-foot">{proposal.sources.length} source reference(s) from backend</p>
     </div>}
   </section>;

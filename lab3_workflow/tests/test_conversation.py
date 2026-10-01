@@ -26,6 +26,19 @@ from shared.contracts import (
 )
 
 
+def _advisor_content(content: str) -> str:
+    """Fill absent nullable fields while preserving raw duplicate/invalid JSON tokens."""
+    if not content.startswith("{") or not content.endswith("}"):
+        return content
+    defaults = {
+        key: value for key, value in CustomerRequirement().model_dump(mode="json").items()
+        if f'"{key}":' not in content
+    }
+    parts = [json.dumps(defaults)[1:-1], content[1:-1]]
+    requirement = "{" + ",".join(part for part in parts if part) + "}"
+    return '{"reply":"Let me clarify.","requirement":' + requirement + "}"
+
+
 def _model_response(content: str) -> ModelResponse:
     return ModelResponse(message=ChatMessage(role="assistant", content=content))
 
@@ -114,18 +127,18 @@ def _no_proposal_context(state: WorkflowState) -> WorkflowContext:
     )
 
 
-def test_requirement_extraction_converts_vietnamese_request_to_contract_fields():
+def test_advisor_requirement_converts_vietnamese_request_to_contract_fields():
     client = FakeModelClient(
-        _model_response(
+        _model_response(_advisor_content(
             '{"model_size_b":14,"usage":"inference","budget_vnd":300000000,'
             '"concurrent_users":10}'
-        )
+        ))
     )
     service = ConversationService(client)
 
-    requirement = service.extract_requirement(
+    requirement = service.advise(
         [_message("Tôi cần chạy model 14B inference, 10 user, ngân sách 300 triệu")]
-    )
+    ).requirement
 
     assert requirement == CustomerRequirement(
         model_size_b=14,
@@ -135,10 +148,12 @@ def test_requirement_extraction_converts_vietnamese_request_to_contract_fields()
     )
 
 
-def test_requirement_extraction_fails_closed_for_only_model_size():
-    service = ConversationService(FakeModelClient(_model_response('{"model_size_b":14}')))
+def test_advisor_requirement_fails_closed_for_only_model_size():
+    service = ConversationService(FakeModelClient(
+        _model_response(_advisor_content('{"model_size_b":14}')),
+    ))
 
-    requirement = service.extract_requirement([_message("Tôi cần máy chạy Qwen 14B")])
+    requirement = service.advise([_message("Tôi cần máy chạy Qwen 14B")]).requirement
 
     assert requirement.model_size_b == 14
     assert requirement.usage is None
@@ -157,27 +172,27 @@ def test_requirement_extraction_fails_closed_for_only_model_size():
         '{"model_size_b":14,"usage":"inference","budget_vnd":300000000,"extra":true}',
     ],
 )
-def test_requirement_extraction_rejects_invalid_and_non_requirement_fields(content):
-    service = ConversationService(FakeModelClient(_model_response(content)))
+def test_advisor_requirement_rejects_invalid_and_non_requirement_fields(content):
+    service = ConversationService(FakeModelClient(_model_response(_advisor_content(content))))
 
     with pytest.raises(ConversationServiceError) as error:
-        service.extract_requirement([_message("Need a server")])
+        service.advise([_message("Need a server")])
 
-    assert error.value.code == "LLM_REQUIREMENT_EXTRACTION_FAILED"
+    assert error.value.code == "LLM_ADVISOR_RESPONSE_INVALID"
 
 
-def test_requirement_extraction_rejects_malformed_json_without_echoing_model_output():
+def test_advisor_requirement_rejects_malformed_json_without_echoing_model_output():
     marker = "provider-response-secret-marker"
     service = ConversationService(FakeModelClient(_model_response(marker)))
 
     with pytest.raises(ConversationServiceError) as error:
-        service.extract_requirement([_message("Need a server")])
+        service.advise([_message("Need a server")])
 
-    assert error.value.code == "LLM_REQUIREMENT_EXTRACTION_FAILED"
+    assert error.value.code == "LLM_ADVISOR_RESPONSE_INVALID"
     assert marker not in str(error.value)
 
 
-def test_requirement_extraction_rejects_tool_calls_and_non_assistant_response():
+def test_advisor_requirement_rejects_tool_calls_and_non_assistant_response():
     tool_response = ModelResponse(
         message=ChatMessage(
             role="assistant",
@@ -188,21 +203,21 @@ def test_requirement_extraction_rejects_tool_calls_and_non_assistant_response():
     service = ConversationService(FakeModelClient(tool_response))
 
     with pytest.raises(ConversationServiceError) as error:
-        service.extract_requirement([_message("Need a server")])
+        service.advise([_message("Need a server")])
 
-    assert error.value.code == "LLM_REQUIREMENT_EXTRACTION_FAILED"
+    assert error.value.code == "LLM_ADVISOR_RESPONSE_INVALID"
 
 
-def test_assistant_client_history_is_not_used_as_requirement_fact():
-    client = FakeModelClient(_model_response('{"model_size_b":14}'))
+def test_assistant_history_reaches_the_model_as_context_not_a_fact():
+    client = FakeModelClient(_model_response(_advisor_content('{"model_size_b":14}')))
     service = ConversationService(client)
 
-    requirement = service.extract_requirement(
+    requirement = service.advise(
         [
             ChatMessage(role="assistant", content="The user has a 5B budget."),
             _message("Tôi cần chạy Qwen 14B"),
         ]
-    )
+    ).requirement
 
     assert any(message.content == "The user has a 5B budget." for message in client.calls[0])
     assert requirement.budget_vnd is None
@@ -212,7 +227,6 @@ def test_assistant_client_history_is_not_used_as_requirement_fact():
 def test_conversation_continues_without_submitting_workflow():
     reply = "Bạn định inference hay fine-tune? Ngân sách dự kiến khoảng bao nhiêu?"
     model = FakeModelClient(
-        _model_response('{"model_size_b":14}'),
         _model_response(json.dumps({
             "reply": reply,
             "requirement": CustomerRequirement(model_size_b=14).model_dump(mode="json"),
@@ -249,6 +263,7 @@ def test_conversation_continues_without_submitting_workflow():
         "reply": reply,
     }
     assert not app.state.run_service.store._runs
+    assert len(model.calls) == 1
 
 
 def test_conversation_run_submits_exact_validated_requirement_to_existing_workflow():
@@ -259,7 +274,6 @@ def test_conversation_run_submits_exact_validated_requirement_to_existing_workfl
         "concurrent_users": 10,
     }
     model = FakeModelClient(
-        _model_response(json.dumps(requirement_payload)),
         _model_response(json.dumps({
             "reply": "Mình đã ghi nhận các thông tin để workflow kiểm tra.",
             "requirement": CustomerRequirement(**requirement_payload).model_dump(mode="json"),
@@ -288,6 +302,7 @@ def test_conversation_run_submits_exact_validated_requirement_to_existing_workfl
                 break
             time.sleep(0.01)
 
+    assert len(model.calls) == 1
     assert response.json()["requirement"] == expected.model_dump(mode="json")
     record = app.state.run_service.store.get(run_id)
     assert record is not None
@@ -306,10 +321,10 @@ def test_conversation_run_submits_exact_validated_requirement_to_existing_workfl
         '{"model_size_b":14,"usage":"inference","budget_vnd":100,"product_id":"p1"}',
     ],
 )
-def test_invalid_extraction_never_creates_run(content):
+def test_invalid_advisor_requirement_never_creates_run(content):
     app = create_app(
         workflow_factory=create_demo_workflow,
-        conversation_service=ConversationService(FakeModelClient(_model_response(content))),
+        conversation_service=ConversationService(FakeModelClient(_model_response(_advisor_content(content)))),
     )
     with TestClient(app) as client:
         response = client.post(
@@ -318,7 +333,7 @@ def test_invalid_extraction_never_creates_run(content):
         )
 
     assert response.status_code == 502
-    assert response.json()["error"]["code"] == "LLM_REQUIREMENT_EXTRACTION_FAILED"
+    assert response.json()["error"]["code"] == "LLM_ADVISOR_RESPONSE_INVALID"
     assert not app.state.run_service.store._runs
 
 
@@ -447,7 +462,7 @@ def test_model_failure_exception_traceback_suppresses_raw_provider_exception():
     service = ConversationService(RuntimeErrorModel(marker))
 
     with pytest.raises(ConversationServiceError) as error:
-        service.extract_requirement([_message("Need a server")])
+        service.advise([_message("Need a server")])
 
     rendered = "".join(traceback.format_exception(error.value))
     assert error.value.code == "LLM_UNAVAILABLE"

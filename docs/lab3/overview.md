@@ -8,15 +8,21 @@ mới ở run tiếp theo.
 ## Conversational entry point
 
 Lab3 uses direct Qwen3-14B/vLLM, not OpenClaw. `POST /conversation/runs`
-receives full user/assistant history. The same model first extracts strictly
-validated user-established facts using assistant turns only as context, then
-generates `AdvisorTurn {reply, requirement}`. A user may explicitly select,
+receives full user/assistant history. Exactly one model completion generates
+`AdvisorTurn {reply, requirement}`, validated by the bounded strict JSON parser
+and Pydantic. Assistant turns are context only. A user may explicitly select,
 confirm or correct an assistant option (for example, "the first one" after
 inference/fine-tune, or "500" after 200/500 million VND). An assistant suggestion
-without user selection/confirmation is not a fact. The second requirement must
-exactly match the validated extraction.
+without user selection/confirmation is not a fact.
 Unknown fields stay null; newest explicit user corrections take precedence.
-This adds a second model request per advisor turn, not another agent or workflow.
+No separate extraction request, tool calls, retries, agent or workflow are added.
+Semantic grounding is instructed by the advisor prompt; structural validation
+does not independently prove that a field was established by the user.
+
+Both Lab2's SOUL and Lab3's advisor prompt configure the user-facing identity:
+"Mình là nhân viên tư vấn của CNTTShop." Identity questions add no requirement
+facts, preserve previous user facts, and require no Lab2 tools. No human name,
+real employee identity, internal model/system details or outside access is claimed.
 
 The server computes `missing_required_fields()`: incomplete facts return
 `{status:"conversation", reply, requirement, missing_fields}` without a run.
@@ -35,15 +41,24 @@ Replies, messages and explanations all have a 4000-character maximum. Oversized
 model explanations fail safely; the UI never silently truncates them.
 
 Next's explicit `POST /api/backend/conversation/runs` handler has a finite
-135000 ms deadline, covering both model calls (60 s each) plus 15 s overhead.
+135000 ms deadline, retained as a conservative budget for the one model call
+and proxy overhead.
 The server-only `LAB3_CONVERSATION_TIMEOUT_MS` override must be a positive integer
 at most 135000. The route declares `maxDuration=150`; the deployment platform must
 allow this duration. Genuine expiry returns sanitized HTTP 504. Other routes,
 including workflow SSE, retain the existing rewrite and timeout behavior.
+Lab3 composer uses Enter to submit via `requestSubmit()`, Shift+Enter for a
+newline, and never submits IME-composition Enter. Workflow locking remains.
+
+The conversation proxy validates a bounded application/json error envelope,
+allowlists current FastAPI error codes, replaces messages with local safe
+constants and discards details. Unknown/malformed bodies become
+`LAB3_BACKEND_ERROR`; only the existing safe HTTP statuses are preserved.
+The removed extraction-only error code has no remaining runtime producer.
 
 The real vLLM adapter can request the documented OpenAI-compatible JSON-schema
-`response_format` for both requirement extraction and the advisor turn, with
-thinking disabled and no tools. The extractor schema requires the exact eight
+`response_format` for the single advisor turn, with thinking disabled,
+temperature zero and no tools. The nested schema requires the exact eight
 nullable `CustomerRequirement` fields, with no additional properties.
 `LAB3_LLM_JSON_SCHEMA_ENABLED=false` is the safe default: plain single-object JSON
 with strict server validation. Set it to `true` only after verifying support on

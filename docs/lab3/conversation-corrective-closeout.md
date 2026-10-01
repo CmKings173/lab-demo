@@ -1,4 +1,8 @@
-# Lab3 conversation corrective closeout — 2026-10-01
+# Lab3 conversation corrective closeout - 2026-10-01
+
+> Historical report. Its extraction/equality language and verification counts
+> are superseded by [the one-call chat experience closeout](chat-experience-closeout.md).
+> This report is not verification of the current working tree or a new deployment.
 
 Source/local verification: PASS. PostgreSQL integration: SKIPPED (no dedicated
 test DSN). Fresh live GB300/Qwen/WeKnora E2E: NOT RUN. No staging, commit or push.

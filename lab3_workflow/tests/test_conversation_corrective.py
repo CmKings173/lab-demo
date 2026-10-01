@@ -17,6 +17,7 @@ from lab3_workflow.runtime.runs import InMemoryRunStore, RunStatus
 from lab3_workflow.tests.test_advisor import advisor_json
 from lab3_workflow.tests.test_conversation import (
     FakeModelClient,
+    _advisor_content,
     _model_response,
     _no_proposal_context,
     _seed_completed_run,
@@ -30,7 +31,6 @@ def test_max_length_explanation_can_be_reused_in_next_http_conversation():
     _seed_completed_run(store, _no_proposal_context(WorkflowState.PROPOSAL_FAILED), run_id=run_id)
     model = FakeModelClient(
         _model_response("x" * 4000),
-        _model_response("{}"),
         _model_response(advisor_json("Let me clarify.")),
     )
     app = create_app(
@@ -79,12 +79,17 @@ def test_explanation_response_contract_has_the_same_4000_character_limit():
         RunExplanationResponse(**{**response, "explanation": "x" * 4001})
 
 
-@pytest.mark.parametrize("follow_up", ["cảm ơn", "giải thích thêm inference là gì?"])
+@pytest.mark.parametrize("follow_up", ["cảm ơn", "giải thích thêm inference là gì?",
+                                       "đổi budget thành 700 triệu"])
 def test_existing_terminal_run_prevents_resubmit_including_repeated_posts(follow_up):
     facts = {"model_size_b": 14, "usage": "inference", "budget_vnd": 500_000_000}
     reply = "Mình có thể giải thích thêm; NEW CHAT nếu bạn muốn một lần chạy mới."
-    responses = [_model_response(json.dumps(facts)), _model_response(advisor_json(reply, **facts))]
-    model = FakeModelClient(*(responses * 4))
+    follow_facts = {**facts, "budget_vnd": 700_000_000} if "700" in follow_up else facts
+    model = FakeModelClient(
+        _model_response(advisor_json(reply, **facts)),
+        *[_model_response(advisor_json(reply, **follow_facts)) for _ in range(2)],
+        _model_response(advisor_json(reply, **facts)),
+    )
     app = create_app(
         workflow_factory=create_demo_workflow, conversation_service=ConversationService(model)
     )
@@ -114,11 +119,15 @@ def test_existing_terminal_run_prevents_resubmit_including_repeated_posts(follow
             assert continued.json()["status"] == "conversation"
             assert continued.json()["reply"] == reply
             assert continued.json()["missing_fields"] == []
+            assert continued.json()["requirement"] == (
+                CustomerRequirement(**follow_facts).model_dump(mode="json")
+            )
             assert len(app.state.run_service.store._runs) == 1
         new_chat = client.post("/conversation/runs", json={**initial, "workflow_run_id": None})
         assert new_chat.status_code == 202
         assert new_chat.json()["run_id"] != run_id
         assert len(app.state.run_service.store._runs) == 2
+        assert len(model.calls) == 4
 
 
 @pytest.mark.parametrize(
@@ -171,7 +180,7 @@ def test_oversized_explanation_traceback_does_not_echo_provider_content():
         ("Bạn cần 14B đúng không?", "đúng", {"model_size_b": 14}),
     ],
 )
-def test_extractor_receives_context_for_explicit_user_selection_not_assistant_facts(
+def test_advisor_receives_context_for_explicit_user_selection_not_assistant_facts(
     assistant,
     user,
     facts,
@@ -188,17 +197,19 @@ def test_extractor_receives_context_for_explicit_user_selection_not_assistant_fa
             prompt = messages[0].content
             assert "explicitly selects/confirms/corrects" in prompt
             assert "context ONLY" in prompt
-            return _model_response(json.dumps(facts))
+            return _model_response(advisor_json("Let me clarify.", **facts))
 
     # This checks the model boundary and validation, not live Qwen semantic accuracy.
-    assert ConversationService(ContextCheckingModel()).extract_requirement(history) == (
+    assert ConversationService(ContextCheckingModel()).advise(history).requirement == (
         CustomerRequirement(**facts)
     )
 
 
 @pytest.mark.parametrize("injection_role", ["assistant", "user"])
-def test_injected_history_cannot_add_unsupported_extraction_fields(injection_role):
-    model = FakeModelClient(_model_response('{"budget_vnd":500000000,"selected_gpu":"fabricated"}'))
+def test_injected_history_cannot_add_unsupported_requirement_fields(injection_role):
+    model = FakeModelClient(_model_response(_advisor_content(
+        '{"budget_vnd":500000000,"selected_gpu":"fabricated"}',
+    )))
     app = create_app(
         workflow_factory=create_demo_workflow,
         conversation_service=ConversationService(model),
@@ -218,19 +229,19 @@ def test_injected_history_cannot_add_unsupported_extraction_fields(injection_rol
             },
         )
     assert response.status_code == 502
-    assert response.json()["error"]["code"] == "LLM_REQUIREMENT_EXTRACTION_FAILED"
-    assert len(model.calls) == 1  # no advisor call, no submission
+    assert response.json()["error"]["code"] == "LLM_ADVISOR_RESPONSE_INVALID"
+    assert len(model.calls) == 1  # one advisor call, no submission
     assert not app.state.run_service.store._runs
 
 
 @pytest.mark.parametrize("enabled", [False, True])
-def test_schema_opt_in_covers_both_extraction_and_advisor_requests(enabled):
+def test_schema_opt_in_uses_one_advisor_request(enabled):
     import httpx
 
     from adapters.real.vllm_chat import VLLMChatClient
 
     requests = []
-    contents = [CustomerRequirement().model_dump_json(), advisor_json("Chào bạn.")]
+    contents = [advisor_json("Chào bạn.")]
 
     def respond(request):
         requests.append(json.loads(request.content))
@@ -258,16 +269,19 @@ def test_schema_opt_in_covers_both_extraction_and_advisor_requests(enabled):
         )
         turn = ConversationService(model).advise([ChatMessage(role="user", content="xin chào")])
     assert turn.requirement == CustomerRequirement()
-    assert len(requests) == 2
+    assert len(requests) == 1
     for body in requests:
         assert "tools" not in body
         assert body["chat_template_kwargs"] == {"enable_thinking": False}
+        assert body["temperature"] == 0
         assert ("response_format" in body) is enabled
     if enabled:
-        extraction = requests[0]["response_format"]
-        assert extraction["type"] == "json_schema"
-        schema = extraction["json_schema"]["schema"]
-        assert set(schema["required"]) == set(CustomerRequirement.model_fields)
+        response_format = requests[0]["response_format"]
+        assert response_format["type"] == "json_schema"
+        schema = response_format["json_schema"]["schema"]
+        assert set(schema["required"]) == {"reply", "requirement"}
+        facts_schema = schema["$defs"]["CustomerRequirement"]
+        assert set(facts_schema["required"]) == set(CustomerRequirement.model_fields)
+        assert facts_schema["additionalProperties"] is False
         assert schema["additionalProperties"] is False
-        assert extraction["json_schema"]["name"] == "lab3_requirement_extraction"
-        assert requests[1]["response_format"]["json_schema"]["name"] == "lab3_advisor_turn"
+        assert response_format["json_schema"]["name"] == "lab3_advisor_turn"

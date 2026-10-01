@@ -72,7 +72,7 @@ reported SKIPPED when absent, not PASS.
 
 Lab 2 uses OpenClaw for its agent/tool-use demonstration. Lab 3 does not use
 OpenClaw. Its Phase 3.4 source adds a direct Qwen3-14B/vLLM conversation boundary
-around the deterministic workflow: Qwen Advisor converses with full history,
+around the deterministic workflow: one Qwen Advisor completion uses full history,
 returns a natural reply alongside validated cumulative user-established requirements,
 and explains safe summaries read from the server-side run store. Assistant text
 is context, not automatically authoritative requirement data; explicit user
@@ -85,6 +85,12 @@ conversation-only handler allows 135 s; SSE and unrelated rewrites are unchanged
 The workflow state machine remains deterministic and LLM-unaware. The default
 Lab 3 app remains an offline demo; only the explicit real-data app owns the model
 client and conversation endpoints.
+Both lab prompts use the CNTTShop advisor identity, with no invented personal
+identity or new requirement facts from identity questions. This is a prompt
+policy, not proof of live model compliance. Strict JSON/Pydantic enforces shape,
+types and bounds; it does not independently establish semantic user consent.
+The Next conversation proxy allowlists FastAPI error codes and uses fixed local
+safe messages, discarding validation details and unknown upstream fields.
 
 ## Ranh giới sở hữu
 
