@@ -17,7 +17,7 @@ export type Lab2ChatMessage = {
 
 export type Lab2RequestState = "idle" | "sending" | "received" | "failed";
 
-const initialTraceReason = "Tool-level events are not returned by the configured HTTP chat endpoint.";
+const initialTraceReason = "Not exposed by current chat endpoint";
 
 export function useLab2Chat() {
   const messageSequence = useRef(0);

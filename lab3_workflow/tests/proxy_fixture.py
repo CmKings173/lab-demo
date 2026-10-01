@@ -19,7 +19,7 @@ class DelayedFixtureModel:
         assert not tools
         users = [m.content for m in messages if m.role == "user"]
         if "slow" in users:
-            time.sleep(16)  # two genuine service calls: 32s, beyond Next's old 30s
+            time.sleep(32)  # one genuine service call, beyond Next's old 30s
         if "timeout" in users:
             time.sleep(0.6)
         facts = CustomerRequirement()
@@ -42,7 +42,7 @@ class DelayedFixtureModel:
                 else "Fixture: kết quả từ run đã lưu, không phải dữ liệu live."
             )
         else:
-            text = facts.model_dump_json()
+            raise AssertionError("unexpected fixture prompt")
         return ModelResponse(
             message=ChatMessage(role="assistant", content=text), finish_reason="stop"
         )

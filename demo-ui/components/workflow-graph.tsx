@@ -1,30 +1,33 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, type RefObject } from "react";
 
-import type { WorkflowEvent, WorkflowTopology } from "@/lib/contracts";
+import type { WorkflowEvent } from "@/lib/contracts";
 import { glyphForStatus, labelForStatus, nodeStatusFor } from "@/lib/fold-events";
-import { NODE_HEIGHT, NODE_WIDTH, layoutGraph } from "@/lib/graph-layout";
+import { NODE_HEIGHT, NODE_WIDTH, type GraphLayout } from "@/lib/graph-layout";
+import { selectedNodeScroll } from "@/lib/graph-viewport";
 import { edgeVisualState, stateDuration } from "@/lib/graph-runtime";
 
 type WorkflowGraphProps = {
-  topology: WorkflowTopology | null;
+  layout: GraphLayout | null;
+  scale: number;
+  viewportRef: RefObject<HTMLDivElement | null>;
   events: WorkflowEvent[];
   selectedState: string | null;
   onSelectState: (state: string) => void;
 };
 
-export function WorkflowGraph({ topology, events, selectedState, onSelectState }: WorkflowGraphProps) {
-  const layout = useMemo(() => topology ? layoutGraph(topology) : null, [topology]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+export function WorkflowGraph({ layout, scale, viewportRef, events, selectedState, onSelectState }: WorkflowGraphProps) {
   useEffect(() => {
-    const viewport = scrollRef.current;
+    const viewport = viewportRef.current;
     const selected = layout?.nodes.find((item) => item.node.id === selectedState);
-    if (!viewport || !selected) return;
-    viewport.scrollTo({ left: Math.max(0, selected.x - (viewport.clientWidth - NODE_WIDTH) / 2), behavior: "smooth" });
-  }, [layout, selectedState]);
+    if (!viewport || !layout || !selected) return;
+    const position = selectedNodeScroll({ ...selected, width: NODE_WIDTH, height: NODE_HEIGHT },
+      layout, { width: viewport.clientWidth, height: viewport.clientHeight }, scale);
+    viewport.scrollTo({ ...position, behavior: "smooth" });
+  }, [layout, selectedState, scale, viewportRef]);
   if (!layout) return <div className="empty-state graph-empty" aria-busy="true">Đang tải workflow topology từ server…</div>;
 
-  return <div ref={scrollRef} className="graph-scroll" tabIndex={0} aria-label="Sơ đồ workflow; cuộn ngang để xem các bước tiếp theo">
-    <svg className="workflow-canvas" viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width} height={layout.height} role="group" aria-label="Workflow topology từ backend">
+  return <div ref={viewportRef} className="graph-scroll" tabIndex={0} aria-label="Workflow diagram; zoom in for detail or FIT to see all nodes">
+    <svg className="workflow-canvas" viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width * scale} height={layout.height * scale} role="group" aria-label="Workflow topology từ backend">
       <defs>
         <marker id="workflow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
           <path d="M 0 0 L 10 5 L 0 10 z" className="arrow-head" />

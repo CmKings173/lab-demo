@@ -78,10 +78,11 @@ Lab 3 Phase 3.4 implementation in source:
   interface. The adapter uses OpenAI-compatible models and chat-completions
   endpoints; thinking is disabled and tool calls are not used.
 - `POST /conversation/runs` returns a typed advisor `reply` plus the eight
-  cumulative `CustomerRequirement` fields. Full-history extraction validates
-  only user-established facts, including explicit selections/confirmations of
-  assistant context. Assistant text alone is not authoritative. Conversational
-  generation must preserve the validated requirement. Missing fields or a
+  cumulative `CustomerRequirement` fields from exactly one model completion.
+  The prompt uses full history to collect user-established facts, including
+  explicit selections/confirmations of assistant context; assistant text alone
+  is not authoritative. Strict JSON/Pydantic validates the structure, not the
+  semantic truth of a user confirmation. Missing fields or a
   validated existing `workflow_run_id` return `status="conversation"` without a
   new run; complete facts with no existing ID submit one run using the
   existing `WorkflowRunService`. Invalid output fails closed. The deterministic
@@ -91,8 +92,12 @@ Lab 3 Phase 3.4 implementation in source:
   explicit real-data app; the default offline app remains infrastructure-free.
 - Messages, advisor replies and explanations are bounded to 4000 characters.
   The Next conversation-only proxy has a finite 135000 ms deadline; SSE is
-  unchanged. JSON-schema opt-in covers both extraction and advisor requests;
+  unchanged. JSON-schema opt-in covers the single advisor request;
   the default remains strict plain JSON without permissive retries.
+  Both lab prompts configure the CNTTShop advisor persona; identity questions
+  add no facts and require no Lab2 tools. Lab3 Enter submits via requestSubmit;
+  Shift+Enter and IME composition are preserved. The Next conversation proxy
+  relays only allowlisted codes with locally fixed safe messages, never details.
 - The Lab 3 runtime closes its executor, WeKnora client, and model client in order.
   Injected provider clients remain caller-owned.
 

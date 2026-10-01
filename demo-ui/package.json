@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test lib/graph-layout.test.mjs lib/run-creation-state.test.mjs lib/lab1-metrics.test.mjs lib/lab3-run-state.test.mjs lib/lab2-chat.test.mjs lib/lab3-advisor.test.mjs lib/lab3-proxy.test.mjs lib/lab3-explanation-proxy.test.mjs",
+    "test": "node --experimental-strip-types --test lib/graph-layout.test.mjs lib/graph-viewport.test.mjs lib/workflow-viewport.test.mjs lib/run-creation-state.test.mjs lib/lab1-metrics.test.mjs lib/lab3-run-state.test.mjs lib/lab2-chat.test.mjs lib/lab2-layout.test.mjs lib/lab3-advisor.test.mjs lib/api/http.test.mjs lib/lab3-proxy.test.mjs lib/lab3-explanation-proxy.test.mjs lib/lab3-composer.test.mjs",
     "test:lab3-proxy": "node --test tests/lab3-proxy.test.mjs"
   },
   "dependencies": {

@@ -31,13 +31,7 @@
 .eyebrow i { color: #b5c0ca; font-style: normal; }
 .titleBlock h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 1.85rem); line-height: 1.2; letter-spacing: -.045em; }
 .subtitle { margin: 7px 0 0; color: var(--lab2-muted); font-size: .8rem; line-height: 1.5; }
-.headerFacts { display: flex; flex: 0 0 auto; gap: 8px; }
-.fact { display: grid; gap: 4px; min-width: 93px; padding: 8px 10px; border: 1px solid var(--lab2-line); border-radius: 3px; background: var(--lab2-surface); }
-.fact span { color: var(--lab2-faint); font-size: .57rem; font-weight: 750; letter-spacing: .09em; }
-.fact strong { overflow: hidden; color: var(--lab2-ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .69rem; text-overflow: ellipsis; white-space: nowrap; }
-
-.columns { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(330px, .95fr); align-items: start; gap: 14px; padding-top: 14px; }
-.leftColumn { display: grid; gap: 14px; min-width: 0; }
+.columns { display: grid; grid-template-columns: minmax(0, 7fr) minmax(245px, 3fr); align-items: start; gap: 14px; padding-top: 14px; }
 .card, .chatCard { min-width: 0; border: 1px solid var(--lab2-line); border-radius: 4px; background: var(--lab2-surface); box-shadow: 0 1px 3px rgb(15 23 42 / 4%); }
 .card { padding: 13px 14px; }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 25px; padding-bottom: 9px; border-bottom: 1px solid #e8edf1; }
@@ -59,10 +53,19 @@
 .toolItem strong { color: #0f172a; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .68rem; font-weight: 700; overflow-wrap: anywhere; }
 .toolItem p { margin: 4px 0 0; color: var(--lab2-muted); font-size: .65rem; line-height: 1.45; }
 
-.traceCard { background: #fbfcfd; }
-.unavailable { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; padding: 4px 6px; border: 1px solid #fde68a; border-radius: 3px; background: #fffbeb; color: #92400e; font-size: .55rem; font-weight: 750; letter-spacing: .05em; }
-.unavailable i { width: 6px; height: 6px; border-radius: 50%; background: #c3912e; }
-.traceCard > p:not(.note) { margin: 10px 0 0; color: #475569; font-size: .72rem; line-height: 1.5; }
+.runtimeFacts { margin: 12px 0; }
+.runtimeFacts dt { margin-top: 14px; color: var(--lab2-faint); font-size: .63rem; }
+.runtimeFacts dd { margin: 4px 0 0; font-size: .74rem; line-height: 1.5; overflow-wrap: anywhere; }
+.runtimeValue { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.architecture { margin-top: 16px; border-top: 1px solid var(--lab2-line); }
+.architecture summary { padding: 12px 0 0; cursor: pointer; color: var(--lab2-blue); font-size: .72rem; font-weight: 700; }
+.architecture summary:focus-visible { outline: 2px solid var(--lab2-blue); outline-offset: 4px; }
+.architectureContent { display: grid; gap: 10px; margin-top: 12px; }
+.architectureContent .card { padding: 10px; box-shadow: none; }
+.architectureContent .sectionMeta { display: none; }
+.architectureContent .sectionHeading h2 { font-size: .63rem; white-space: normal; }
+.architectureContent .routeGrid, .architectureContent .toolGrid { grid-template-columns: minmax(0, 1fr); }
+.architectureContent .routeStep { min-height: 48px; }
 
 .chatCard { display: flex; flex-direction: column; min-height: 700px; max-height: calc(100vh - 155px); overflow: hidden; }
 .chatHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px; border-bottom: 1px solid #e7edf2; }
@@ -78,8 +81,6 @@
 .turn_received i { background: var(--lab2-green); }
 .turn_failed { color: var(--lab2-red); }
 .turn_failed i { background: var(--lab2-red); }
-.chatSubhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px; border-bottom: 1px solid #edf1f4; background: #fafcfd; color: var(--lab2-muted); font-size: .61rem; }
-.chatSubhead strong { margin-left: 3px; color: #354e63; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .61rem; font-weight: 650; }
 .messages { display: flex; flex: 1; flex-direction: column; gap: 12px; min-height: 180px; overflow: auto; padding: 14px; overscroll-behavior: contain; }
 .emptyChat { display: grid; justify-items: center; align-content: center; flex: 1; min-height: 250px; padding: 20px 10px; text-align: center; }
 .emptyGlyph { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #cce3ee; border-radius: 50%; background: #f0f9fc; color: var(--lab2-blue); font-size: 1.35rem; }
@@ -119,15 +120,11 @@
 
 @media (max-width: 1120px) {
   .root { padding: 14px; }
-  .columns { grid-template-columns: minmax(0, 1.2fr) minmax(310px, 1fr); }
-  .headerFacts { gap: 5px; }
-  .fact { min-width: 75px; padding-inline: 7px; }
+  .columns { grid-template-columns: minmax(0, 7fr) minmax(230px, 3fr); }
 }
 
 @media (max-width: 850px) {
   .pageHeader { align-items: flex-start; flex-direction: column; }
-  .headerFacts { width: 100%; }
-  .fact { flex: 1; }
   .columns { grid-template-columns: minmax(0, 1fr); }
   .chatCard { min-height: 620px; max-height: none; }
 }
@@ -137,7 +134,7 @@
   .routeGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .toolGrid { grid-template-columns: minmax(0, 1fr); }
   .sectionMeta { display: none; }
-  .chatSubhead { align-items: flex-start; flex-direction: column; }
+  .chatHeader { flex-wrap: wrap; }
   .composerFooter { align-items: flex-end; }
   .composerFooter > span { max-width: 175px; }
   .chatFooter { align-items: flex-start; }

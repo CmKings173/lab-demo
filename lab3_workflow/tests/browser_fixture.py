@@ -40,11 +40,25 @@ async def fixture_completion(request: Request):
             return JSONResponse({"error": "fixture-private-marker"}, status_code=502)
         text = "Lab2 fixture: Chào bạn. Bạn muốn tìm hiểu bài toán AI nào?"
     elif messages[0]["content"].startswith("You are Qwen Advisor"):
-        facts = json.loads(messages[1]["content"].split("\n", 1)[1])
+        # Only fixed smoke inputs are recognized. This is NOT production extraction.
+        users = " ".join(m["content"] for m in messages if m["role"] == "user")
+        facts = CustomerRequirement(
+            model_size_b=14 if "14B" in users else None,
+            usage="inference" if "inference," in users else None,
+            budget_vnd=500_000_000 if "500 triệu" in users else None,
+        ).model_dump(mode="json")
+        assert "tools" not in body
+        if last_user == "simulate invalid advisor":
+            return {"choices": [{"finish_reason": "stop", "message": {
+                "role": "assistant",
+                "content": "provider-secret-marker https://private.invalid/traceback",
+            }}]}
         observations.append({"kind": "advisor", "roles": [m["role"] for m in messages],
                              "requirement": facts,
                              "format": body.get("response_format", {}).get("type", "plain_json")})
-        if CustomerRequirement(**facts).missing_required_fields():
+        if last_user in {"bạn là ai?", "bạn làm ở đâu?", "bạn có phải Qwen không?"}:
+            text = "Mình là nhân viên tư vấn của CNTTShop."
+        elif CustomerRequirement(**facts).missing_required_fields():
             text = ("Chào bạn. Bạn đang muốn triển khai bài toán nào?" if last_user == "xin chào"
                     else "Inference là dùng model để trả lời; fine-tune là huấn luyện thêm. "
                          "Bạn định theo hướng nào và ngân sách khoảng bao nhiêu?")
@@ -57,14 +71,7 @@ async def fixture_completion(request: Request):
                              "status": facts["status"]})
         text = f"Fixture explanation từ run lưu thực tế: {facts['status']} ({facts['run_id']})."
     else:
-        # Only fixed smoke inputs are recognized. This is NOT production extraction.
-        users = " ".join(m["content"] for m in messages if m["role"] == "user")
-        facts = CustomerRequirement(
-            model_size_b=14 if "14B" in users else None,
-            usage="inference" if "inference," in users else None,
-            budget_vnd=500_000_000 if "500 triệu" in users else None,
-        )
-        text = facts.model_dump_json()
+        return JSONResponse({"error": "unexpected fixture prompt"}, status_code=400)
     return {"choices": [{"finish_reason": "stop", "message": {
         "role": "assistant", "content": text,
     }}]}

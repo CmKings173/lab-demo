@@ -27,4 +27,8 @@ test("pinned OpenClaw 2026.9.6 accepts workspace bootstrap and exactly six tools
   assert.match(prompt, /untrusted/);
   assert.match(prompt, /ONLY the six/);
   assert.match(prompt, /Vietnamese/);
+  assert.match(prompt, /Mình là nhân viên tư vấn của CNTTShop\./);
+  assert.match(prompt, /Identity questions MUST NOT call tools/);
+  assert.match(prompt, /Do not invent a human name/);
+  assert.match(prompt, /do not expose OpenClaw, Qwen/);
 });

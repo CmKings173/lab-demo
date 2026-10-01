@@ -30,6 +30,10 @@ registerHooks({
     if (specifier === "@/lib/lab3-contracts") {
       return nextResolve(new URL("./lab3-contracts.ts", import.meta.url).href, context);
     }
+    if (specifier === "@/lib/api/http") return nextResolve(httpUrl, context);
+    if (specifier === "@/lib/lab3-errors") {
+      return nextResolve(new URL("./lab3-errors.ts", import.meta.url).href, context);
+    }
     if (specifier === "./http" && context.parentURL?.endsWith("/api/lab3.ts")) {
       return nextResolve(httpUrl, context);
     }
@@ -119,6 +123,32 @@ test("frontend refuses an explanation beyond the shared message limit, without t
         final_state: "complete", explanation: "x".repeat(length) });
       if (length === 4000) assert.equal((await fetchRunExplanation("run")).explanation.length, 4000);
       else await assert.rejects(fetchRunExplanation("run"), /format was invalid/);
+    }
+  } finally { globalThis.fetch = original; }
+});
+
+test("conversation hook shows only allowlisted codes and local public messages", async () => {
+  const original = globalThis.fetch;
+  try {
+    for (const [code, expected] of [
+      ["LLM_ADVISOR_RESPONSE_INVALID", "[LLM_ADVISOR_RESPONSE_INVALID] The model could not produce a valid advisor response."],
+      ["UNKNOWN_PROVIDER_ERROR", "Lab 3 could not process this conversation request."],
+    ]) {
+      reactHarness.cells = [];
+      const HookTestHarness = () => { reactHarness.cursor = 0; return useLab3Conversation(); };
+      let hook = HookTestHarness();
+      hook.setDraft("hello");
+      hook = HookTestHarness();
+      globalThis.fetch = async () => Response.json({ error: {
+        code, message: "https://user:secret-marker@provider/ traceback",
+      } }, { status: 502 });
+      await hook.submit({ preventDefault() {} }, { isRunActive: false,
+        beginRunCreation: () => true, finishRunCreation() {}, attachRun: () => true });
+      hook = HookTestHarness();
+      assert.equal(hook.error, expected);
+      assert.doesNotMatch(hook.error, /secret-marker|https:|traceback/);
+      assert.equal(hook.busy, false);
+      assert.equal(hook.workflowRunId, null);
     }
   } finally { globalThis.fetch = original; }
 });
