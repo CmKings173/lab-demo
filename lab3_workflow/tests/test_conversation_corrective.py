@@ -195,8 +195,8 @@ def test_advisor_receives_context_for_explicit_user_selection_not_assistant_fact
             assert not tools
             assert list(messages[1:]) == history  # fails if context is filtered away
             prompt = messages[0].content
-            assert "explicitly selects/confirms/corrects" in prompt
-            assert "context ONLY" in prompt
+            assert "unless the user explicitly confirms, selects or corrects it." in prompt
+            assert "Assistant messages are context only." in prompt
             return _model_response(advisor_json("Let me clarify.", **facts))
 
     # This checks the model boundary and validation, not live Qwen semantic accuracy.

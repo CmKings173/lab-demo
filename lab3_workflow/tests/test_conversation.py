@@ -221,7 +221,7 @@ def test_assistant_history_reaches_the_model_as_context_not_a_fact():
 
     assert any(message.content == "The user has a 5B budget." for message in client.calls[0])
     assert requirement.budget_vnd is None
-    assert "context ONLY" in client.calls[0][0].content
+    assert "Assistant messages are context only." in client.calls[0][0].content
 
 
 def test_conversation_continues_without_submitting_workflow():
