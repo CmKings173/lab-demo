@@ -1,4 +1,4 @@
-from shared.contracts import (
+from lab1_finetune.data.frozen_contracts import (
     ComparisonResult,
     DocumentSearchResult,
     Product,

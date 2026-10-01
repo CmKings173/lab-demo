@@ -13,7 +13,7 @@ from .reranker import Reranker
 from .sizing import SizingService
 from .validation import ValidationService
 from .verification import ProposalVerifier
-from .workflow import WorkflowRunner
+from .workflow import WorkflowEventSink, WorkflowRunner
 
 __all__ = [
     "ComparisonService",
@@ -30,4 +30,5 @@ __all__ = [
     "SizingService",
     "ValidationService",
     "WorkflowRunner",
+    "WorkflowEventSink",
 ]

@@ -33,7 +33,7 @@ class FakeDocumentSearch:
 
 
 class QdrantDocumentSearch:
-    """Reserved for hybrid Qdrant retrieval; unavailable in the foundation phase."""
+    """Legacy direct-Qdrant placeholder superseded for Lab2 by ADR 011."""
 
     def search(self, request: DocumentSearchRequest) -> DocumentSearchResult:
-        raise NotImplementedError("Qdrant document search is planned for a later phase")
+        raise NotImplementedError("Direct Qdrant document search is superseded by ADR 011")

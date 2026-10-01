@@ -29,7 +29,7 @@ class FakeEmbeddingProvider:
 
 
 class BGEM3EmbeddingProvider:
-    """Reserved for BGE-M3; model loading is intentionally deferred."""
+    """Legacy direct-BGE placeholder superseded for Lab2 by ADR 011."""
 
     def embed(self, texts: Sequence[str]) -> list[EmbeddingVector]:
-        raise NotImplementedError("BGE-M3 model adapter is planned for a later phase")
+        raise NotImplementedError("Direct BGE-M3 embedding is superseded by ADR 011")

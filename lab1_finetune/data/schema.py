@@ -6,8 +6,12 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from shared.contracts import ChatMessage, CustomerRequirement, ToolDefinition
-from shared.contracts.models import ContractModel
+from lab1_finetune.data.frozen_contracts import (
+    ChatMessage,
+    ContractModel,
+    CustomerRequirement,
+    ToolDefinition,
+)
 
 
 class Intent(StrEnum):
@@ -28,6 +32,7 @@ class ScenarioType(StrEnum):
     AMBIGUOUS_SOLUTION = "ambiguous_solution"
     CONTRADICTORY_REQUIREMENT = "contradictory_requirement"
     SEARCH_WORKSTATION_BY_RAM = "search_workstation_by_ram"
+    SEARCH_SERVER_BY_RAM = "search_server_by_ram"
     SEARCH_SERVER_BY_GPU_SLOTS = "search_server_by_gpu_slots"
     SEARCH_PRODUCT_BY_BUDGET = "search_product_by_budget"
     NO_PRODUCT_FOUND = "no_product_found"

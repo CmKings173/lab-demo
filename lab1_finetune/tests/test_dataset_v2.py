@@ -1,3 +1,4 @@
+from lab1_finetune.data.frozen_contracts import TOOL_DEFINITIONS, ChatMessage, ToolCall
 from lab1_finetune.data.schema import (
     DatasetLabels,
     FineTuneExample,
@@ -7,8 +8,6 @@ from lab1_finetune.data.schema import (
 from lab1_finetune.data.seed import build_seed_examples
 from lab1_finetune.data.splitter import DatasetSplitter
 from lab1_finetune.data.validator import DatasetValidator
-from shared.contracts import ChatMessage, ToolCall
-from shared.tool_contracts import TOOL_DEFINITIONS
 
 
 def make_tool_example(example_id: str, family_id: str) -> FineTuneExample:
