@@ -7,6 +7,7 @@
     "dist",
     "openclaw.plugin.json",
     "examples/lab2-agent.json",
+    "examples/lab2-workspace/SOUL.md",
     "README.md"
   ],
   "scripts": {

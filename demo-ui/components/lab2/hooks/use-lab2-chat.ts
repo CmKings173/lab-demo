@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
 
 import { sendLab2Message } from "@/lib/api/lab2";
 import { LAB2_MAX_CONVERSATION_CHARS, LAB2_MAX_CONVERSATION_MESSAGES } from "@/lib/lab2-config";
@@ -20,6 +20,8 @@ export type Lab2RequestState = "idle" | "sending" | "received" | "failed";
 const initialTraceReason = "Tool-level events are not returned by the configured HTTP chat endpoint.";
 
 export function useLab2Chat() {
+  const messageSequence = useRef(0);
+  const sending = useRef(false);
   const [messages, setMessages] = useState<Lab2ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -30,29 +32,29 @@ export function useLab2Chat() {
   const submit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const message = draft.trim();
-    if (!message || requestState === "sending") return;
+    if (!message || sending.current) return;
 
     const conversationSize = messages.reduce((total, item) => total + item.text.length, message.length);
-    if (messages.length >= LAB2_MAX_CONVERSATION_MESSAGES || conversationSize > LAB2_MAX_CONVERSATION_CHARS) {
+    if (messages.length + 2 > LAB2_MAX_CONVERSATION_MESSAGES || conversationSize > LAB2_MAX_CONVERSATION_CHARS) {
       setError("This conversation has reached its limit. Start a new conversation to continue.");
       return;
     }
 
-    const activeConversation = conversationId ?? crypto.randomUUID();
-    setConversationId(activeConversation);
+    sending.current = true;
+    const userMessageId = `message-${++messageSequence.current}`;
     setMessages((current) => [...current, {
-      id: crypto.randomUUID(), role: "user", text: message, model: null, usage: null, truncated: false,
+      id: userMessageId, role: "user", text: message, model: null, usage: null, truncated: false,
     }]);
     setDraft("");
     setError(null);
     setRequestState("sending");
 
     try {
-      const result = await sendLab2Message({ message, conversationId: activeConversation });
+      const result = await sendLab2Message({ message, conversationId });
       setConversationId(result.conversationId);
       setTraceReason(result.trace.reason);
       setMessages((current) => [...current, {
-        id: crypto.randomUUID(),
+        id: `message-${++messageSequence.current}`,
         role: "assistant",
         text: result.message,
         model: result.model,
@@ -61,19 +63,23 @@ export function useLab2Chat() {
       }]);
       setRequestState("received");
     } catch (reason) {
+      setMessages((current) => current.filter((item) => item.id !== userMessageId));
+      setDraft(message);
       setError(reason instanceof Error ? reason.message : "The Lab2 agent could not complete this request.");
       setRequestState("failed");
+    } finally {
+      sending.current = false;
     }
-  }, [conversationId, draft, messages, requestState]);
+  }, [conversationId, draft, messages]);
 
   const startNewConversation = useCallback(() => {
-    if (requestState === "sending") return;
+    if (sending.current) return;
     setMessages([]);
     setConversationId(null);
     setDraft("");
     setError(null);
     setRequestState("idle");
-  }, [requestState]);
+  }, []);
 
   return { messages, draft, setDraft, requestState, error, traceReason, submit, startNewConversation };
 }

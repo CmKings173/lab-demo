@@ -102,6 +102,7 @@ def build_lab3_runtime(
             base_url=resolved_settings.llm_base_url,
             model=resolved_settings.llm_model,
             api_key=resolved_settings.llm_api_key,
+            json_schema_enabled=resolved_settings.llm_json_schema_enabled,
         )
     verifier: EvidenceProvenanceVerifier = WeKnoraEvidenceProvenanceVerifier(
         documents,

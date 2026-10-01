@@ -7,6 +7,7 @@ import type {
   RunStatus,
 } from "@/lib/contracts";
 import type { ConversationMessage, ConversationRunResult, CustomerRequirement, RunExplanation } from "@/lib/lab3-contracts";
+import { LAB3_MAX_MESSAGE_CHARS } from "@/lib/lab3-contracts";
 import { isFiniteNumber, isNullableNumber, isNullableString, isRecord, isString, isStringArray, parseApiResponse } from "./http";
 
 function isRunStatus(value: unknown): value is RunStatus {
@@ -23,9 +24,10 @@ function isCustomerRequirement(value: unknown): value is CustomerRequirement {
 }
 
 function isConversationRunResult(value: unknown): value is ConversationRunResult {
-  if (!isRecord(value) || !isCustomerRequirement(value.requirement)) return false;
-  if (value.status === "needs_information") {
-    return isStringArray(value.missing_fields) && value.missing_fields.length > 0 && isString(value.question);
+  if (!isRecord(value) || !isCustomerRequirement(value.requirement) ||
+      !isString(value.reply) || !value.reply.trim() || value.reply.length > LAB3_MAX_MESSAGE_CHARS) return false;
+  if (value.status === "conversation") {
+    return isStringArray(value.missing_fields);
   }
   return value.status === "submitted" && isString(value.run_id) && isRunStatus(value.run_status);
 }
@@ -67,18 +69,19 @@ export function isRunSnapshot(value: unknown): value is RunSnapshot {
 
 function isRunExplanation(value: unknown): value is RunExplanation {
   return isRecord(value) && isString(value.run_id) && isRunStatus(value.status) &&
-    isNullableString(value.final_state) && isString(value.explanation) && value.explanation.length > 0;
+    isNullableString(value.final_state) && isString(value.explanation) &&
+    value.explanation.trim().length > 0 && value.explanation.length <= LAB3_MAX_MESSAGE_CHARS;
 }
 
 export function submitConversation(
   messages: ConversationMessage[],
-  signal?: AbortSignal,
+  options: { workflowRunId?: string | null; signal?: AbortSignal } = {},
 ): Promise<ConversationRunResult> {
   return fetch("/api/backend/conversation/runs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
-    signal,
+    body: JSON.stringify({ messages, workflow_run_id: options.workflowRunId ?? null }),
+    signal: options.signal,
   }).then((response) => parseApiResponse(response, isConversationRunResult, "Lab 3 conversation request failed"));
 }
 

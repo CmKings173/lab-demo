@@ -1,3 +1,5 @@
+export const LAB3_MAX_MESSAGE_CHARS = 4000;
+
 export type ConversationMessage = {
   role: "user" | "assistant";
   content: string;
@@ -15,12 +17,13 @@ export type CustomerRequirement = {
 };
 
 export type ConversationRunResult = {
-  status: "needs_information";
+  status: "conversation";
   requirement: CustomerRequirement;
   missing_fields: string[];
-  question: string;
+  reply: string;
 } | {
   status: "submitted";
+  reply: string;
   run_id: string;
   run_status: "pending" | "running" | "completed" | "failed";
   requirement: CustomerRequirement;

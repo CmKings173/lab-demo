@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from typing import Any
 
@@ -35,6 +36,7 @@ class VLLMChatClient:
         http_client: httpx.Client | None = None,
         timeout_seconds: float = 60.0,
         max_tokens: int = 1024,
+        json_schema_enabled: bool = False,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -45,6 +47,7 @@ class VLLMChatClient:
             follow_redirects=False,
         )
         self._max_tokens = max_tokens
+        self._json_schema_enabled = json_schema_enabled
 
     def check_ready(self) -> bool:
         """Check the OpenAI-compatible models endpoint without running inference."""
@@ -71,6 +74,23 @@ class VLLMChatClient:
         messages: Sequence[ChatMessage],
         tools: Sequence[ToolDefinition] = (),
     ) -> ModelResponse:
+        return self._complete(messages, tools=tools)
+
+    def complete_structured(
+        self, messages: Sequence[ChatMessage], *, response_schema: dict, schema_name: str
+    ) -> ModelResponse:
+        """Opt into documented vLLM JSON schema only after deployment support is verified."""
+        if not self._json_schema_enabled:
+            return self._complete(messages)
+        return self._complete(messages, response_format={
+            "type": "json_schema",
+            "json_schema": {"name": schema_name, "schema": response_schema},
+        })
+
+    def _complete(
+        self, messages: Sequence[ChatMessage], *, tools: Sequence[ToolDefinition] = (),
+        response_format: dict | None = None,
+    ) -> ModelResponse:
         if tools or not messages:
             raise VLLMChatError("LLM_INVALID_RESPONSE")
         wire_messages: list[dict[str, str]] = []
@@ -92,24 +112,35 @@ class VLLMChatClient:
             )
             if key:
                 headers["Authorization"] = f"Bearer {key}"
+        body = {
+            "model": self.model,
+            "messages": wire_messages,
+            "temperature": 0,
+            "max_tokens": self._max_tokens,
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        if response_format is not None:
+            body["response_format"] = response_format
         try:
-            response = self._http_client.post(
+            with self._http_client.stream(
+                "POST",
                 f"{self.base_url}/chat/completions",
                 headers=headers,
-                json={
-                    "model": self.model,
-                    "messages": wire_messages,
-                    "temperature": 0,
-                    "max_tokens": self._max_tokens,
-                    "chat_template_kwargs": {"enable_thinking": False},
-                },
-            )
+                json=body,
+            ) as response:
+                if not 200 <= response.status_code < 300:
+                    raise VLLMChatError("LLM_UNAVAILABLE")
+                chunks = bytearray()
+                for chunk in response.iter_bytes(chunk_size=8192):
+                    if len(chunks) + len(chunk) > 128 * 1024:
+                        raise VLLMChatError("LLM_INVALID_RESPONSE")
+                    chunks.extend(chunk)
+        except VLLMChatError:
+            raise
         except Exception:
             raise VLLMChatError("LLM_UNAVAILABLE") from None
-        if not 200 <= response.status_code < 300:
-            raise VLLMChatError("LLM_UNAVAILABLE")
         try:
-            payload: Any = response.json()
+            payload: Any = json.loads(chunks)
             choice = payload["choices"][0]
             message = choice["message"]
             content = message["content"]
@@ -119,9 +150,10 @@ class VLLMChatClient:
                 or not isinstance(content, str)
                 or message.get("tool_calls")
                 or (finish_reason is not None and not isinstance(finish_reason, str))
+                or finish_reason in {"length", "tool_calls", "content_filter"}
             ):
                 raise ValueError
-        except (IndexError, KeyError, TypeError, ValueError):
+        except (IndexError, KeyError, TypeError, ValueError, RecursionError):
             raise VLLMChatError("LLM_INVALID_RESPONSE") from None
         return ModelResponse(
             message=ChatMessage(role="assistant", content=content),

@@ -14,6 +14,42 @@ from shared.contracts import ChatMessage, ToolDefinition
 MODEL = "Qwen/Qwen3-14B"
 
 
+@pytest.mark.parametrize("json_schema_enabled", [False, True])
+def test_vllm_advisor_schema_is_opt_in_and_never_uses_tools(json_schema_enabled):
+    seen = []
+    schema = {"type": "object", "properties": {"reply": {"type": "string"}},
+              "required": ["reply"], "additionalProperties": False}
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "stop",
+            "message": {"role": "assistant", "content": '{"reply":"hello"}'},
+        }]})
+
+    http = httpx.Client(transport=httpx.MockTransport(respond))
+    client = VLLMChatClient(base_url="http://localhost:8001/v1", model=MODEL, http_client=http,
+                            json_schema_enabled=json_schema_enabled)
+    try:
+        result = client.complete_structured(
+            [ChatMessage(role="user", content="xin chào")],
+            response_schema=schema, schema_name="lab3_advisor_turn",
+        )
+        assert result.message.content == '{"reply":"hello"}'
+        if json_schema_enabled:
+            assert seen[0]["response_format"] == {
+                "type": "json_schema",
+                "json_schema": {"name": "lab3_advisor_turn", "schema": schema},
+            }
+        else:
+            assert "response_format" not in seen[0]
+        assert seen[0]["chat_template_kwargs"] == {"enable_thinking": False}
+        assert "tools" not in seen[0]
+    finally:
+        client.close()
+        http.close()
+
+
 def test_vllm_complete_uses_openai_chat_shape_and_parses_assistant_message():
     seen = []
 
@@ -181,6 +217,7 @@ def test_settings_load_required_qwen_endpoint_and_secret_key(monkeypatch):
     monkeypatch.setenv("LAB3_LLM_BASE_URL", "http://127.0.0.1:8001/v1/")
     monkeypatch.setenv("LAB3_LLM_MODEL", MODEL)
     monkeypatch.setenv("LAB3_LLM_API_KEY", "llm-test-secret")
+    monkeypatch.delenv("LAB3_LLM_JSON_SCHEMA_ENABLED", raising=False)
 
     settings = Lab3RuntimeSettings.from_env(load_dotenv=False)
 
@@ -188,6 +225,33 @@ def test_settings_load_required_qwen_endpoint_and_secret_key(monkeypatch):
     assert settings.llm_model == MODEL
     assert isinstance(settings.llm_api_key, SecretStr)
     assert "llm-test-secret" not in repr(settings)
+    assert settings.llm_json_schema_enabled is False
+    monkeypatch.setenv("LAB3_LLM_JSON_SCHEMA_ENABLED", "true")
+    assert Lab3RuntimeSettings.from_env(load_dotenv=False).llm_json_schema_enabled is True
+    monkeypatch.setenv("LAB3_LLM_JSON_SCHEMA_ENABLED", "invalid-secret-flag")
+    with pytest.raises(ValueError) as error:
+        Lab3RuntimeSettings.from_env(load_dotenv=False)
+    assert "invalid-secret-flag" not in "".join(traceback.format_exception(error.value))
+
+
+@pytest.mark.parametrize("failure", ["oversized", "length", "invalid_json"])
+def test_vllm_bounds_response_and_rejects_truncated_completion(failure):
+    def respond(_request):
+        if failure == "invalid_json":
+            return httpx.Response(200, content="private-provider-marker")
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "length" if failure == "length" else "stop",
+            "message": {"role": "assistant", "content": (
+                "x" * (129 * 1024) if failure == "oversized" else "partial"
+            )},
+        }]})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as http:
+        client = VLLMChatClient(base_url="http://localhost:8001/v1", model=MODEL, http_client=http)
+        with pytest.raises(VLLMChatError) as error:
+            client.complete([ChatMessage(role="user", content="hello")])
+    assert error.value.code == "LLM_INVALID_RESPONSE"
+    assert "private-provider-marker" not in "".join(traceback.format_exception(error.value))
 
 
 def test_settings_require_safe_llm_url_and_suppress_bad_environment_input(monkeypatch):

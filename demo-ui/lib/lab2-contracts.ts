@@ -1,5 +1,6 @@
 export const LAB2_AGENT_ID = "lab2" as const;
 export const LAB2_MODEL_TARGET = "Qwen/Qwen3-14B" as const;
+export const LAB2_GATEWAY_MODEL = "vllm/Qwen/Qwen3-14B" as const;
 export const LAB2_DOMAIN_TOOL_NAMES = [
   "search_products",
   "get_product",
@@ -11,7 +12,7 @@ export const LAB2_DOMAIN_TOOL_NAMES = [
 
 export type Lab2ChatRequest = {
   message: string;
-  conversationId: string;
+  conversationId?: string | null;
 };
 
 export type Lab2TokenUsage = {

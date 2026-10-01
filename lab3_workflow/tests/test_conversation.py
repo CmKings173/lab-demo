@@ -197,18 +197,27 @@ def test_assistant_client_history_is_not_used_as_requirement_fact():
     client = FakeModelClient(_model_response('{"model_size_b":14}'))
     service = ConversationService(client)
 
-    service.extract_requirement(
+    requirement = service.extract_requirement(
         [
             ChatMessage(role="assistant", content="The user has a 5B budget."),
             _message("Tôi cần chạy Qwen 14B"),
         ]
     )
 
-    assert all(message.content != "The user has a 5B budget." for message in client.calls[0])
+    assert any(message.content == "The user has a 5B budget." for message in client.calls[0])
+    assert requirement.budget_vnd is None
+    assert "context ONLY" in client.calls[0][0].content
 
 
-def test_conversation_run_needs_information_does_not_submit_workflow():
-    model = FakeModelClient(_model_response('{"model_size_b":14}'))
+def test_conversation_continues_without_submitting_workflow():
+    reply = "Bạn định inference hay fine-tune? Ngân sách dự kiến khoảng bao nhiêu?"
+    model = FakeModelClient(
+        _model_response('{"model_size_b":14}'),
+        _model_response(json.dumps({
+            "reply": reply,
+            "requirement": CustomerRequirement(model_size_b=14).model_dump(mode="json"),
+        })),
+    )
 
     def workflow_factory():
         raise AssertionError("missing required fields must not submit a workflow")
@@ -225,7 +234,7 @@ def test_conversation_run_needs_information_does_not_submit_workflow():
 
     assert response.status_code == 200
     assert response.json() == {
-        "status": "needs_information",
+        "status": "conversation",
         "requirement": {
             "model_size_b": 14.0,
             "usage": None,
@@ -237,10 +246,7 @@ def test_conversation_run_needs_information_does_not_submit_workflow():
             "training_method": None,
         },
         "missing_fields": ["usage", "budget_vnd"],
-        "question": (
-            "Để tiếp tục, vui lòng cho biết nhu cầu là inference hay fine-tune "
-            "và ngân sách dự kiến là bao nhiêu VND?"
-        ),
+        "reply": reply,
     }
     assert not app.state.run_service.store._runs
 
@@ -252,7 +258,13 @@ def test_conversation_run_submits_exact_validated_requirement_to_existing_workfl
         "budget_vnd": 300_000_000,
         "concurrent_users": 10,
     }
-    model = FakeModelClient(_model_response(json.dumps(requirement_payload)))
+    model = FakeModelClient(
+        _model_response(json.dumps(requirement_payload)),
+        _model_response(json.dumps({
+            "reply": "Mình đã ghi nhận các thông tin để workflow kiểm tra.",
+            "requirement": CustomerRequirement(**requirement_payload).model_dump(mode="json"),
+        })),
+    )
     app = create_app(
         workflow_factory=create_demo_workflow,
         conversation_service=ConversationService(model),
